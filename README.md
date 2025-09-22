@@ -12,7 +12,8 @@ Freedom of speech advocates often face targeted threats and harassment on social
 ## Technical Approach
 1. **Data Collection**
    - Gather social media data from platforms such as Reddit, Bluesky, Mastodon, Facebook, and Instagram using their APIs.
-   - Focus on posts, comments, and messages directed at or mentioning freedom of speech advocates.
+   - Complement API data with publicly available historical datasets of online content to ensure robust evaluation and reproducibility.
+   - Use historical datasets for training and benchmarking models to better identify harmful content, while live API data supports real-time monitoring.
 
 2. **Data Preprocessing**
    - Clean and normalize text data.
