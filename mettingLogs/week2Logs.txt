@@ -12,7 +12,6 @@ Mingde: High fidelity and fill the personas spreadsheet.
 Diwen: The app logic was explained and a demo was shown.
 
 
-
 Date: Mon 29 Sep
 Time: 14:00 – 14:43
 
@@ -27,3 +26,15 @@ Denis: Finished 3 personas, reviewed team members’ personas.
 Mingde: Liaised with Diwen to get sketches, worked on low-fidelity wireframe,
         continued working on personas (not yet finished), updated personas spreadsheet.
 Diwen: Finishing personas, communicated with group, sent sketches to Mingde.
+
+
+Date: Tue 30 Sep
+Time: 10:00 – 12:30
+ 
+What we talked about:
+3 personas form each one, use case scenario and TO DO (weekly slides, use case and Figma).
+ 
+Who did what:
+Denis: Presented three personas, asked questions about the other personas and modified the persona sheets. Talked about the use case.
+Diwen: Presented three personas, provided questions for the other personas and discussed the use case.
+Mingde: Presented three personas, gave questions for the other personas and talked about the use case.
