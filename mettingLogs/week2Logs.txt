@@ -1,52 +1,55 @@
 Week 2
 
 Date: Sun 28 Sep
-Time: 16:00 to 18:00
+    Time: 16:00 to 18:00
+        What did we talking about:
+        Finish last weeks challenges, talked about how to finish TO DO for this week (week3).
 
-What did we talking about:
-Finish last weeks challenges, talked about how to finish TO DO for this week (week3).
-
-Who did what
-Denis: Will do the three personas on Figma after tomorrow's meeting.
-Mingde: High fidelity and fill the personas spreadsheet.
-Diwen: The app logic was explained and a demo was shown.
+        Who did what
+        Denis: Will do the three personas on Figma after tomorrow's meeting.
+        Mingde: High fidelity and fill the personas spreadsheet.
+        Diwen: The app logic was explained and a demo was shown.
 
 
 Date: Mon 29 Sep
-Time: 14:00 – 14:43
+    Time: 14:00 – 14:43
+        What we talked about:
+        Contact Diwen for sketches.
+        Compare sketches with low-fidelity wireframes.
+        Review Denis’s personas.
+        Check Mingde’s persona mistakes.
 
-What we talked about:
-Contact Diwen for sketches.
-Compare sketches with low-fidelity wireframes.
-Review Denis’s personas.
-Check Mingde’s persona mistakes.
-
-Who did what:
-Denis: Finished 3 personas, reviewed team members’ personas.
-Mingde: Liaised with Diwen to get sketches, worked on low-fidelity wireframe,
-        continued working on personas (not yet finished), updated personas spreadsheet.
-Diwen: Finishing personas, communicated with group, sent sketches to Mingde.
+        Who did what:
+        Denis: Finished 3 personas, reviewed team members’ personas.
+        Mingde: Liaised with Diwen to get sketches, worked on low-fidelity wireframe,
+                continued working on personas (not yet finished), updated personas spreadsheet.
+        Diwen: Finishing personas, communicated with group, sent sketches to Mingde.
 
 
 Date: Tue 30 Sep
-Time: 10:00 – 12:30
- 
-What we talked about:
-3 personas form each one, use case scenario and TO DO (weekly slides, use case and Figma).
- 
-Who did what:
-Denis: Presented three personas, asked questions about the other personas and modified the persona sheets. Talked about the use case.
-Mingde: Presented three personas, gave questions for the other personas and talked about the use case.
-Diwen: Presented three personas, provided questions for the other personas and discussed the use case.
+    Time: 10:00 – 12:30
+        What we talked about:
+        3 personas form each one, use case scenario and TO DO (weekly slides, use case and Figma).
+        
+        Who did what:
+        Denis: Presented three personas, asked questions about the other personas and modified the persona sheets. Talked about the use case.
+        Mingde: Presented three personas, gave questions for the other personas and talked about the use case.
+        Diwen: Presented three personas, provided questions for the other personas and discussed the use case.
 
 
 Date: Wed 1 Oct
-Time: 14:20 - 15:00
- 
-What we talked about:
-We talked about how to finish the prototype of main use-case e.g. FIGMA, reviewed other completed TO DO, and divided up the remaining tasks.
- 
-Who did what:
-Denis: Found articles about low-fidelity wireframe, defined how the use-case e.g. FIGMA should look. Boost team morale.
-Mingde: Found useful documentation from his UX module, will try to use it and the use case with sketches to draw the low-fidelity wireframes.
-Diwen: Checked all the TO DO list, ask others video record, explained how to use the user case with sketches to create low-fidelity wireframe.
+    Time: 14:20 - 15:00
+        What we talked about:
+        We talked about how to finish the prototype of main use-case e.g. FIGMA, reviewed other completed TO DO, and divided up the remaining tasks.
+        
+        Who did what:
+        Denis: Found articles about low-fidelity wireframe, defined how the use-case e.g. FIGMA should look. Boost team morale.
+        Mingde: Found useful documentation from his UX module, will try to use it and the use case with sketches to draw the low-fidelity wireframes.
+        Diwen: Checked all the TO DO list, ask others video record, explained how to use the user case with sketches to create low-fidelity wireframe.
+
+    Time: 19:00 - 19:33
+        What we talked about:
+        Requirement Specification.
+
+        Who did what:
+        Each person presented their written contributions to the others and discussed how to merge these materials.
