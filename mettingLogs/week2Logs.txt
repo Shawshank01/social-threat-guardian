@@ -36,5 +36,17 @@ What we talked about:
  
 Who did what:
 Denis: Presented three personas, asked questions about the other personas and modified the persona sheets. Talked about the use case.
-Diwen: Presented three personas, provided questions for the other personas and discussed the use case.
 Mingde: Presented three personas, gave questions for the other personas and talked about the use case.
+Diwen: Presented three personas, provided questions for the other personas and discussed the use case.
+
+
+Date: Wed 1 Oct
+Time: 14:20 - 15:00
+ 
+What we talked about:
+We talked about how to finish the prototype of main use-case e.g. FIGMA, reviewed other completed TO DO, and divided up the remaining tasks.
+ 
+Who did what:
+Denis: Found articles about low-fidelity wireframe, defined how the use-case e.g. FIGMA should look. Boost team morale.
+Mingde: Found useful documentation from his UX module, will try to use it and the use case with sketches to draw the low-fidelity wireframes.
+Diwen: Checked all the TO DO list, ask others video record, explained how to use the user case with sketches to create low-fidelity wireframe.
