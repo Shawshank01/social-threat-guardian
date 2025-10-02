@@ -53,3 +53,18 @@ Date: Wed 1 Oct
 
         Who did what:
         Each person presented their written contributions to the others and discussed how to merge these materials.
+
+
+Date: Thu 2 Oct
+    Time: 14:00 - 14:47
+        What we talked about:
+        We discussed ways to improve the organisation of Projects on GitHub.
+        We also discussed data management, evaluated the data we had found, and considered how to obtain new data through APIs.
+
+        Who did what:
+        Denis: Explained how the Visualize Harrassment networks might work under the data management.
+        Mingde: Enquired about the sequence of data usage after removing metadata.
+        Diwen: Explained to others how to use the advanced features of GitHub Projects.
+        Provided an overview of the data management framework under the Irish Data Protection Act and the GDPR to others.
+        Found the API documentation for Mastodon and Reddit.
+
