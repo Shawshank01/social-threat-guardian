@@ -68,3 +68,13 @@ Date: Thu 2 Oct
         Provided an overview of the data management framework under the Irish Data Protection Act and the GDPR to others.
         Found the API documentation for Mastodon and Reddit.
 
+
+Date: Fri 3 Oct
+    Time: 13:15 - 13:45
+        What we talked about:
+        We reviewed and discussed the questions raised by the mentors regarding today's presentation.
+
+        Who did what:
+        All parties discussed areas requiring improvement and finalised the direction for the forthcoming work.
+
+
