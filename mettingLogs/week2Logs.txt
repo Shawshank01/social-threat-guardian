@@ -78,3 +78,18 @@ Date: Fri 3 Oct
         All parties discussed areas requiring improvement and finalised the direction for the forthcoming work.
 
 
+Date: Sat 4 Oct
+    Time: 16:00 - 16:35
+ 
+        What we talked about:
+        New personas and use case scenarios to meet feasibility requirements.
+        Introduction the new column in the GitHub Projects tool, and how to implement push notifications on a web application without a register/login system.
+ 
+        Who did what:
+        Denis: Provided the feedback from yesterday’s presentation. Determine today's research focus.
+        Provided some links to enhance project feasibility.
+        Mingde: New personas have been presented. A new feature and its use cases have been proposed.
+        Provided articles about web push.
+        Diwen: The newly added sections in GitHub Projects were explained, focusing particularly on the login and push notification systems.
+        Issues with the new personas and a new feature along with its use case were outlined, and the tasks requiring completion today were identified.
+
