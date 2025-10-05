@@ -93,3 +93,13 @@ Date: Sat 4 Oct
         Diwen: The newly added sections in GitHub Projects were explained, focusing particularly on the login and push notification systems.
         Issues with the new personas and a new feature along with its use case were outlined, and the tasks requiring completion today were identified.
 
+
+Date: Sun 5 Oct
+    Time: 16:30 - 17:56
+
+        What we talked about:
+        We discussed the requirements specification and made improvements and mergers.
+        Low-fidelity prototypes of the software need to be created, and research into the system architecture needs to be conducted.
+ 
+        Who did what:
+        All individuals participated in the relevant discussions.
