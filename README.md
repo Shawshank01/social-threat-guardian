@@ -38,6 +38,20 @@ Freedom of speech advocates often face targeted threats and harassment on social
 - Enhanced safety and awareness for freedom of speech advocates.
 - Data-driven insights into the nature and frequency of online threats.
 
+## Web Application Overview
+
+The front-end of the application is built using Svelte and provides an intuitive interface for users.
+
+- At the top of the page is a horizontal navigation bar. On the far left is the website name, **Social Threat Guardian**, which is clickable and redirects to the homepage with a hover effect. On the far right are the options **Register** and **Login**.
+- The main homepage layout is split into two panels:
+  - **Left panel**: A dashboard called the *Social Media Calmness and Radicalism Index*, showing five scales (*Very Calm, Calm, Neutral, Radical, Very Radical*) with a pointer that updates in real time based on backend data.
+  - **Right panel**: A box titled *Radical Speech*, which displays the 10 most recent posts from the database identified as inflammatory or threatening.
+- At the bottom of the page is a horizontal footer bar with links such as *Terms*, *Articles*, *Contact*, and *Privacy*.
+
+**Guest Users**: Visitors can view the homepage content, including the calmness/radicalism index and the list of radical speech posts. They can use this information to gauge major trends in recent online discourse.
+
+**Registered Users**: After registering and logging in, users can configure and save specific keywords (e.g., individuals, organisations, or regions). The system monitors mentions of these keywords across social media, and the dashboard adapts to show risk levels relevant to their interests. If risk levels escalate beyond a threshold, users will receive notifications via email or other means, helping them decide whether to proceed with offline activities, change venues, or adopt stronger security measures.
+
 ## Optional Work May Apply to Future Use
 - Expand to include multimedia threat detection (images, videos).
 - Integrate with law enforcement and support organizations.
