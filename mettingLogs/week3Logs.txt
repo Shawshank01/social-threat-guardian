@@ -1,0 +1,15 @@
+Week 3
+
+Date: Mon 6 Oct
+    Time: 14:20 to 16:00 (Offline), 22:30 to 23:00 (Online)
+
+        What did we talking about:
+        The sketch was redrawn according to the revised requirements, with additional details incorporated to complete the high-fidelity wireframe.
+        System architecture.
+
+        Who did what:
+        Denis: Explained the sketches he had drawn, explained the concept of architecture.
+        Mingde: Talked about the high-fidelity wireframe.
+        Diwen: Improved the sketch based on Denis’s, shwoed the N-tier to others and some tech stack behind it.
+
+
