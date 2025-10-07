@@ -13,3 +13,16 @@ Date: Mon 6 Oct
         Diwen: Improved the sketch based on Denis’s, shwoed the N-tier to others and some tech stack behind it.
 
 
+Date: Tue 7 Oct
+    Time: 8:30 to 9:30, 10:00 to 10:40 (with mentor), 10:40 to 11:23
+
+        What did we talking about:
+        High-fidelity wireframes, technical architecture, requirements on the GitHub, TO DO FOR THIS WEEK.
+
+        Who did what:
+        Denis: Explained his version of technical architecture, reviewed the high-fidelity wireframes, did some researches.
+               Explained to the mentor what we had done over the last few days and asked mentor about the GitHub requirements for his part.
+        Mingde: Showed us the high-fidelity wireframes he drawn on the Figma, snet a YouTube link of the Event-driven architecture.
+        Diwen: Explain what should be improved in the high-fidelity wireframes. Ask questions to the mentor to choose project directions such as Redis and EDA.
+               Confirmed what needs to be done today.
+
