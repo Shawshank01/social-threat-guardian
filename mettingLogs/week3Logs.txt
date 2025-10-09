@@ -26,3 +26,17 @@ Date: Tue 7 Oct
         Diwen: Explain what should be improved in the high-fidelity wireframes. Ask questions to the mentor to choose project directions such as Redis and EDA.
                Confirmed what needs to be done today.
 
+
+Date: Wed 8 Oct
+    Time: 16:00 to 17:00
+
+        What did we talking about:
+        High-fidelity wireframes, use case digrams, system architecture and the software prototype.
+
+        Who did wat:
+        Denis: Showed us 7 use case diagrams, modified on the high-fidelity wireframes.
+        Mingde: modified on the high-fidelity wireframes.
+        Diwen: Combined all 7 use case diagrams from Denis into 1 unified diagram, modified on the high-fidelity wireframes,
+               talked about the N-tier architecture, decided what needs to be done today.
+
+
