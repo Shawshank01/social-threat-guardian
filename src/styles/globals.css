@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-stg-bg text-white font-sans antialiased;
+}
+
+main {
+  @apply min-h-screen;
+}

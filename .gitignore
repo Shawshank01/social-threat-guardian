@@ -143,6 +143,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+.env.local
+.env.*.local
 
 # Spyder project settings
 .spyderproject
@@ -200,6 +202,23 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Node / JavaScript
+node_modules/
+.pnpm-store/
+.turbo/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+.yarn-cache/
+dist/
+.vite/
 
 # Marimo
 marimo/_static/
