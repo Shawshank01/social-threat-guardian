@@ -40,3 +40,21 @@ Date: Wed 8 Oct
                talked about the N-tier architecture, decided what needs to be done today.
 
 
+Date: Thu 9 Oct
+    Time: 12:30 to 13:55, 22:05 to 23:45
+ 
+        What did we talking about:
+        1. Send the survey
+        2. Modify README
+        3. Finish the N-tier architecture 
+        4. Change the high-fidelity on the slides
+        5. Finish the slides with the rest
+        6. Create a webpage prototype
+
+        Who did what:
+        Denis: Explained updated technical architecture to others, finalised the diagram, posted the survey on the Reddit.
+        Mingde: Drawed the updated technical architecture, sent the survey in person, finalised the slides.
+        Diwen: Created the survey and posted it to others both in person and oline, helped to finalise the technical architecture,
+        showed the prototype of the web app to others, finalised the slides.
+
+
