@@ -58,3 +58,25 @@ Date: Thu 9 Oct
         showed the prototype of the web app to others, finalised the slides.
 
 
+Date: Fri 10 Oct
+    Time: 13:10 to 14:00
+
+    What did we talking about:
+    Feedback from today onsite meeting:
+    1. Seperate Guest users and Login/Paid users
+    2. Change the theme to 2 different types, light and dark
+    3. Place each platform's filter under the index
+    4. Design a LOGO
+    5. Split frontend, backend and load balancer in the architecture
+    6. The use case should be distinct from both guest users and logged-in/paid users
+    7. Improve GitHub Projects for use with SCRUM. The following features need to be added:
+        - Roadmaps (Gantt view)
+        - Milestones as sprints
+        - Workflow automation
+        - etc.
+        
+    Who did what:
+    Denis: Looking forward to improving GitHub Projects.
+    Mingde: Design LOGO, re-design the architecture.
+    Diwen: Post feedback, improving the frontend.
+
