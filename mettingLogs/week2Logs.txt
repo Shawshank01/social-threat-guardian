@@ -5,7 +5,7 @@ Date: Sun 28 Sep
         What did we talking about:
         Finish last weeks challenges, talked about how to finish TO DO for this week (week3).
 
-        Who did what
+        Who did what:
         Denis: Will do the three personas on Figma after tomorrow's meeting.
         Mingde: High fidelity and fill the personas spreadsheet.
         Diwen: The app logic was explained and a demo was shown.

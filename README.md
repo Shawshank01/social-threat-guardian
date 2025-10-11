@@ -1,10 +1,13 @@
 # Social Threat Guardian
 
 ## Background
-Freedom of speech advocates often face targeted threats and harassment on social media platforms, such harassment may even escalate to physical assault or assassination attempts during on-site activities. These threats can be subtle or overt, making it challenging to monitor and respond effectively. An AI-powered system that detects and monitors such social media threats can provide valuable support to these advocates by alerting them to potential risks and enabling timely intervention.
+Social media users often face targeted threats and harassment on social media platforms. This harassment may escalate to physical assault or assassination attempts during on-site activities. These threats can be either subtle or overwhelming, making them challenging to monitor and respond to effectively. An AI-powered system that detects and monitors such threats can support users by alerting them to potential risks and reminding them to alter their behaviour on social media if necessary.
+
+## Motivation and Purpose
+The Social Threat Guardian project was developed in response to the alarming rise in online harassment and real-world violence aimed at freedom of speech advocates. As threats have become more sophisticated and pervasive, the ability to detect them early and intervene quickly has become critical to preventing harm. The project provides an automated, AI-driven solution that detects potential threats early on, helping to safeguard individuals and uphold the principles of free expression. For example, when individuals realise that they have offended others with certain remarks and subsequently receive threats after revealing their true identity, they can either delete their accounts promptly to protect their personal security, or notify the relevant authorities immediately to seek protection.
 
 ## Objectives
-- Develop an AI-driven system to detect social media threats against freedom of speech advocates.
+- Develop an AI-driven system to detect social media threats against freedom of speech users.
 - Utilize Natural Language Processing (NLP) techniques to analyze text-based threats.
 - Incorporate visualization tools to monitor threat trends and patterns.
 - Provide real-time alerts and comprehensive reports to users.
@@ -12,7 +15,7 @@ Freedom of speech advocates often face targeted threats and harassment on social
 ## Technical Approach
 1. **Data Collection**
    - Gather social media data from platforms such as Reddit, Bluesky, Mastodon, Facebook, and Instagram using their APIs.
-   - Complement API data with publicly available historical datasets of online content to ensure robust evaluation and reproducibility.
+   - Complement API data with publicly available historical datasets of online content.
    - Use historical datasets for training and benchmarking models to better identify harmful content, while live API data supports real-time monitoring.
 
 2. **Data Preprocessing**
@@ -34,23 +37,17 @@ Freedom of speech advocates often face targeted threats and harassment on social
    - Allow users to customize alert preferences.
 
 ## Expected Outcomes
+- The indicator allows users to quickly grasp the current status of social media.
 - A functional AI system capable of detecting and monitoring social media threats.
-- Enhanced safety and awareness for freedom of speech advocates.
-- Data-driven insights into the nature and frequency of online threats.
+- Enhanced safety and awareness for social media users.
 
-## Web Application Overview
-
-The front-end of the application is built using Svelte and provides an intuitive interface for users.
-
-- At the top of the page is a horizontal navigation bar. On the far left is the website name, **Social Threat Guardian**, which is clickable and redirects to the homepage with a hover effect. On the far right are the options **Register** and **Login**.
-- The main homepage layout is split into two panels:
-  - **Left panel**: A dashboard called the *Social Media Calmness and Radicalism Index*, showing five scales (*Very Calm, Calm, Neutral, Radical, Very Radical*) with a pointer that updates in real time based on backend data.
-  - **Right panel**: A box titled *Radical Speech*, which displays the 10 most recent posts from the database identified as inflammatory or threatening.
-- At the bottom of the page is a horizontal footer bar with links such as *Terms*, *Articles*, *Contact*, and *Privacy*.
-
-**Guest Users**: Visitors can view the homepage content, including the calmness/radicalism index and the list of radical speech posts. They can use this information to gauge major trends in recent online discourse.
-
-**Registered Users**: After registering and logging in, users can configure and save specific keywords (e.g., individuals, organisations, or regions). The system monitors mentions of these keywords across social media, and the dashboard adapts to show risk levels relevant to their interests. If risk levels escalate beyond a threshold, users will receive notifications via email or other means, helping them decide whether to proceed with offline activities, change venues, or adopt stronger security measures.
+## Key Features and Innovation
+- AI-driven threat monitoring that leverages advanced NLP techniques for accurate detection of nuanced and emerging threats.
+- Real-time threat index providing up-to-date risk assessments for users.
+- Anonymized post visualization to protect privacy while offering clear insights into threat contents.
+- Harassment network mapping to identify coordinated campaigns and key sources of threats.
+- Ethical data handling practices ensuring user privacy and compliance with GDPR.
+- Customizable alert system enabling users to tailor notifications based on their preferences and risk levels.
 
 ## Optional Work May Apply to Future Use
 - Expand to include multimedia threat detection (images, videos).
