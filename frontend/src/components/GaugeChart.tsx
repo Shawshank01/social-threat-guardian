@@ -20,7 +20,25 @@ type ApiResponse = {
   score?: number;
 };
 
-const GaugeChart = () => {
+type GaugeChartProps = {
+  platform: string;
+  onPlatformChange?: (platform: string) => void;
+  availablePlatforms?: ReadonlyArray<{ label: string; value: string }>;
+};
+
+const defaultPlatforms = [
+  { label: "All Platforms", value: "all" },
+  { label: "Reddit", value: "reddit" },
+  { label: "Facebook", value: "facebook" },
+  { label: "Bluesky", value: "bluesky" },
+  { label: "Mastodon", value: "mastodon" },
+] as const;
+
+const GaugeChart = ({
+  platform,
+  onPlatformChange,
+  availablePlatforms = defaultPlatforms,
+}: GaugeChartProps) => {
   const [targetValue, setTargetValue] = useState(() => 58 + (Math.random() - 0.5) * 10);
   const [displayValue, setDisplayValue] = useState(() => clamp(targetValue));
   const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +50,7 @@ const GaugeChart = () => {
     const loadGaugeValue = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch("/index", { signal: controller.signal });
+        const response = await fetch(`/index?platform=${encodeURIComponent(platform)}`, { signal: controller.signal });
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
@@ -67,7 +85,7 @@ const GaugeChart = () => {
     loadGaugeValue();
 
     return () => controller.abort();
-  }, []);
+  }, [platform]);
 
   useEffect(() => {
     let timeoutId: number;
@@ -149,8 +167,8 @@ const GaugeChart = () => {
           Social Network Threat Index
         </h2>
         <p className="max-w-xl text-sm text-slate-300">
-          Aggregated cross-platform risk score indicating current hostility toward protected speech
-          activities. Updated in near real-time as monitoring data arrives.
+          Aggregated risk score for {platform === "all" ? "all monitored platforms" : platform}. Updated in near real-time as monitoring data
+          arrives.
         </p>
       </header>
 
@@ -184,6 +202,29 @@ const GaugeChart = () => {
           </div>
         ))}
       </div>
+
+      {onPlatformChange && (
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-300">Filter by platform</h3>
+          <div className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm">
+            {availablePlatforms.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => onPlatformChange(filter.value)}
+                className={`rounded-full border px-4 py-2 font-semibold uppercase tracking-wide transition ${
+                  platform === filter.value
+                    ? "border-stg-accent bg-stg-accent/20 text-stg-accent"
+                    : "border-white/10 bg-white/5 text-slate-300 hover:border-stg-accent/60 hover:text-white"
+                }`}
+                aria-pressed={platform === filter.value}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 };
