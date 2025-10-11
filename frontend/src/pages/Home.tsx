@@ -1,9 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { MessageSquare, Share2, Megaphone, ShieldAlert } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard from "@/components/PlatformCard";
 
 const Home = () => {
+  const [selectedPlatform, setSelectedPlatform] = useState("all");
+
   const platformCards = useMemo(
     () => [
       {
@@ -46,7 +48,7 @@ const Home = () => {
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4">
       <div className="mt-4 flex flex-col gap-12 lg:mt-0 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
         <div className="order-2 lg:order-1">
-          <GaugeChart />
+          <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
         <div className="order-1 lg:order-2">
           <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
