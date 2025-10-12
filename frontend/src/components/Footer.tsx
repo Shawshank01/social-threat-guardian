@@ -24,11 +24,15 @@ const GithubIcon = (props: SVGProps<SVGSVGElement>) => (
 
 const Footer: FC = () => {
   return (
-    <footer className="border-t border-white/10 bg-slate-950/80">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-10 text-sm text-slate-300">
+    <footer className="border-t border-slate-200/80 bg-white/90 transition-colors duration-200 dark:border-white/10 dark:bg-slate-950/80">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-10 text-sm text-slate-600 dark:text-slate-300">
         <nav aria-label="Footer" className="flex flex-wrap justify-center gap-x-8 gap-y-3 text-base">
           {links.map((link) => (
-            <Link key={link.label} to={link.to} className="transition hover:text-white hover:underline">
+            <Link
+              key={link.label}
+              to={link.to}
+              className="transition hover:text-stg-accent hover:underline dark:hover:text-white"
+            >
               {link.label}
             </Link>
           ))}
@@ -36,13 +40,13 @@ const Footer: FC = () => {
         <div className="flex flex-col items-center gap-3 text-center">
           <a
             href="https://github.com/Shawshank01/social-threat-guardian"
-            className="flex items-center gap-2 text-slate-400 transition hover:text-white"
+            className="flex items-center gap-2 text-slate-500 transition hover:text-stg-accent dark:text-slate-400 dark:hover:text-white"
             aria-label="GitHub repository"
           >
             <GithubIcon className="h-4 w-4" />
             <span>GitHub</span>
           </a>
-          <span className="text-xs text-slate-500">© 2025 Zero Cool All rights reserved.</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">© 2025 Zero Cool All rights reserved.</span>
         </div>
       </div>
     </footer>
