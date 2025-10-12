@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
+import ThemeToggle from "@/components/ThemeToggle";
 import Home from "@/pages/Home";
 import HarassmentNetworks from "@/pages/HarassmentNetworks";
 import DoxxingMultilingual from "@/pages/DoxxingMultilingual";
@@ -14,7 +15,7 @@ import Api from "@/pages/Api";
 
 const App = () => {
   return (
-    <div className="flex min-h-screen flex-col bg-stg-bg text-white">
+    <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 transition-colors duration-200 dark:bg-stg-bg dark:text-white">
       <NavBar />
       <main className="flex-1 pb-24 pt-24">
         <Routes>
@@ -31,6 +32,7 @@ const App = () => {
         </Routes>
       </main>
       <Footer />
+      <ThemeToggle />
     </div>
   );
 };
