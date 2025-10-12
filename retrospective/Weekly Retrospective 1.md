@@ -2,7 +2,7 @@
 ## **Regular Schedule:** Every Sunday before 18:00
 
 **Team Name:** Zero cool  
-**Team member** Diwen Xiao, Denis Muriuki, Mingde Zhou
+**Team member** Diwen Xiao, Denis Muriuki, Mingde Zhou  
 **Period Covered:** Sun 28 Sep – Sun 12 Oct
 
 ---
@@ -27,8 +27,7 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 - **Dependency Overlap:** Progress on sketches and wireframes occasionally depended on feedback loops between teammates, which slowed iteration and meant redrawing
   and resketching.  
 - **Limited Backend Progress:** Most work focused on design and planning, with little technical foundation established yet for the backend or NLP components.  
-- **Communication Barrier:** Sometimes communication has diffcuities when talking about some professional technologies and abstract designs, which cause some block
-  in the meeting
+- **Communication Barrier:** Sometimes communication has diffcuities when talking about some professional technologies and abstract designs, which cause some block in the meeting.
 
 ---
 
@@ -47,6 +46,7 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 - Continue refining the front-end prototype, integrating user feedback from the survey.  
 - Maintain shorter, goal-driven meetings and improve timeboxing for future retrospectives.  
 - Finish interim report and interim presentation.
+
 ---
 
 **Reflection:**  
