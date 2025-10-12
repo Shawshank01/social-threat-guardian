@@ -22,7 +22,6 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 ---
 
 ## **Challenges / What Could Be Improved**
-- **Communication:** Language barrier slowed down majority of the work planned to be done.  
 - **Time Management:** Several meetings ran longer than planned, and there were too many meetings overall.  
 - **Workload Balance:** Much time was spent on coordination and documentation, leaving less room for deeper technical work during the first sprint.  
 - **Dependency Overlap:** Progress on sketches and wireframes occasionally depended on feedback loops between teammates, which slowed iteration and meant redrawing
