@@ -46,6 +46,7 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 - Continue refining the front-end prototype, integrating user feedback from the survey.  
 - Maintain shorter, goal-driven meetings and improve timeboxing for future retrospectives.  
 - Finish interim report and interim presentation.
+
 ---
 
 **Reflection:**  
