@@ -53,15 +53,15 @@ const Home = () => {
         <div className="order-1 lg:order-2">
           <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
             <header className="flex flex-col gap-2">
-              <h2 className="text-lg font-semibold tracking-wide text-white">
+              <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
                 Cross-platform Threat Speech
               </h2>
-              <p className="text-sm text-slate-300">
+              <p className="text-sm text-slate-600 dark:text-slate-300">
                 Recent posts surfaced by our classifiers across monitored communities. Prioritize review of
                 critical items with on-ground security teams.
               </p>
             </header>
-            <div className="flex-1 space-y-4 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/40 p-4">
+            <div className="flex-1 space-y-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
               <div className="max-h-[32rem] space-y-4 overflow-y-auto pr-2" role="list">
                 {platformCards.map((card) => (
                   <PlatformCard key={card.platform} {...card} />

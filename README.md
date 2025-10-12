@@ -16,6 +16,7 @@ The Social Threat Guardian project was developed in response to the alarming ris
 - All React, TypeScript, and Tailwind source files live in `frontend/`.
 - Run UI tooling from that directory: `cd frontend && npm install`, followed by `npm run dev` or `npm run build`.
 - Production assets will be emitted to `frontend/dist` and can be served by the backend or a static host.
+- Theme toggle (light, dark, auto) is available via the floating control on the bottom-right corner of the UI.
 
 
 ## Technical Approach
