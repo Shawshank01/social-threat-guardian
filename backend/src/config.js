@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import path from 'node:path';
 
 export const config = {
     port: process.env.PORT || 4000,
@@ -7,12 +8,12 @@ export const config = {
     vapid: {
         publicKey: process.env.VAPID_PUBLIC_KEY,
         privateKey: process.env.VAPID_PRIVATE_KEY,
-        subject: process.env.VAPID_SUBJECT || 'mailto:admin@example.com'
+        subject: process.env.VAPID_SUBJECT || 'mindezhou1@outlook.com'
       }
 };
 
-[mongoUri, vapid].forEach((k) => {
-    if (!config.vapid.privateKey || !config.vapid.publicKey) {
-        console.warn('[WARN] VAPID keys not set')
-    }
-});
+export const storagePath = path.resolve(config.storageFile, config.storageDir);
+
+if (!config.vapid.publicKey || !config.vapid.privateKey) {
+    console.warn('[WARN] VAPID keys not set. Fill .env first.');
+  }
