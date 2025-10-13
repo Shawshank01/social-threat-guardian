@@ -1,15 +1,16 @@
-const express = require('express');
-const app = express();
+import { createApp } from './app.js';
+import { config } from './config.js';
+import { initStorage } from './storage.js';
 
-app.use(express.json());
+async function main() {
+  await initStorage();
+  const app = createApp();
+  app.listen(config.port, () => {
+    console.log(`[Server] http://localhost:${config.port}`);
+  });
+}
 
-app.get('/', (req, res) => {
-    res.send("backend page")
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
 });
-
-const PORT = 3001;
-app.listen(PORT, () => {
-    console.log(`The server is running at http://localhost:${PORT}`)
-});
-
-
