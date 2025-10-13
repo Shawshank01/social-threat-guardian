@@ -61,41 +61,31 @@ Date: Thu 9 Oct
 Date: Fri 10 Oct
     Time: 13:10 to 14:00
 
-    What did we talking about:
-    Feedback from today onsite meeting:
-    1. Seperate Guest users and Login/Paid users
-    2. Change the theme to 2 different types, light and dark
-    3. Place each platform's filter under the index
-    4. Design a LOGO
-    5. Split frontend, backend and load balancer in the architecture
-    6. The use case should be distinct from both guest users and logged-in/paid users
-    7. Improve GitHub Projects for use with SCRUM. The following features need to be added:
-        - Roadmaps (Gantt view)
-        - Milestones as sprints
-        - Workflow automation
-        - etc.
-        
-    Who did what:
-    Denis: Looking forward to improving GitHub Projects.
-    Mingde: Design LOGO, re-design the architecture.
-    Diwen: Post feedback, improving the frontend.
+        What did we talking about:
+        Feedback from today onsite meeting:
+        1. Seperate Guest users and Login/Paid users
+        2. Change the theme to 2 different types, light and dark
+        3. Place each platform's filter under the index
+        4. Design a LOGO
+        5. Split frontend, backend and load balancer in the architecture
+        6. The use case should be distinct from both guest users and logged-in/paid users
+        7. Improve GitHub Projects for use with SCRUM. The following features need to be added:
+            - Roadmaps (Gantt view)
+            - Milestones as sprints
+            - Workflow automation
+            - etc.
+            
+        Who did what:
+        Denis: Looking forward to improving GitHub Projects.
+        Mingde: Design LOGO, re-design the architecture.
+        Diwen: Post feedback, improving the frontend.
 
 
 Date: Sun 12 Oct
     Time: 17:00 to 17:30, 20:00 to 20:30
 
-    What did we talking about:
-    Weekly retrospective and individual work.
+        What did we talking about:
+        Weekly retrospective and individual work.
 
-    Who Did what:
-    All individuals participated in the relevant discussions.
-
-
-Date: Sun 12 Oct
-    Time: 20:00 - 20:25
-
-    What we talked about:
-    ospective and individual work of each person.
-
-    Who did what:
-    All members discussed individual and edited and pushed works on the file one by one.
+        Who Did what:
+        All individuals participated in the relevant discussions.
