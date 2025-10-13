@@ -1,0 +1,17 @@
+Week 4
+
+Date: Mon 13 Oct
+    Time: 17:00 - 17:40
+
+        What we talked about:
+        The data Api's and other options available such as PRAW and Tweepy.
+        We also came to a conclusion on what logo we would go with. 
+        
+        Who did what:
+        Denis : Setup Apache Kakfa on local machine, created a topic and started looking into Social Media Apis
+        and notified the team about the challenges with official API's requiring a subscription and also gave the team recommendations.
+        Diwen: Explained to the team about the Blur-effect on the frontend and also how the guest user and paid user will interact with the system,
+        expained how to use API to connect each tier in the system.
+        Mingde: Agreed to share his work on backend through an api and also worked on the logo.
+
+
