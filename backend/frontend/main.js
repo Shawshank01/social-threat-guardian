@@ -1,10 +1,10 @@
 // === 配置区 ===
 const BACKEND = 'http://localhost:4000';
-const PUBLIC_VAPID_KEY = 'BNYjB13pyyjg_IIF-GIBrX0i0mX0OdNJZ9eZX86tMgP10fl5ZFnM19jRHGaGgGDa-cBi_srOptgw-82kpKBZRZg'; // 形如 'BOaN_...'
-const TAGS = ['demo']; // 可选：上报给后端用于群发筛选
+const PUBLIC_VAPID_KEY = 'BNYjB13pyyjg_IIF-GIBrX0i0mX0OdNJZ9eZX86tMgP10fl5ZFnM19jRHGaGgGDa-cBi_srOptgw-82kpKBZRZg'; // 
+const TAGS = ['demo']; // 
 
 // === 工具函数 ===
-// VAPID 公钥（URL-safe Base64） -> Uint8Array
+// VAPID 公钥（URL-safe Base64） -> Ui
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -106,8 +106,8 @@ async function testPush() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       payload: {
-        title: '来自后端的测试通知',
-        body: '网页关闭也能收到～ 点击可返回站点',
+        title: 'Knock knock',
+        body: 'You have a new notification',
         icon: '/icon.png',   // 可选：放一个 128x128 左右的图标
         badge: '/badge.png', // 可选：monochrome 小图标
         data: { url: location.origin }, // 点击通知要打开/聚焦的地址

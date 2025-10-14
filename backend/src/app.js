@@ -16,6 +16,6 @@ export function createApp() {
     console.error(err);
     res.status(500).json({ message: 'Internal Server Error' });
   });
-
+  console.log('[CORS]', config.corsOrigin);
   return app;
 }
