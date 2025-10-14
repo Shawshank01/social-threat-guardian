@@ -91,7 +91,7 @@
         "p256dh": "BApPzoWHKhAx16sybRqluWEq01HvDdUUQ_yjCIAxAC7M-sIsk9pkUhKTR_t09QfNGpTsKM7GSwkfUiyQGe4poSM",
         "auth": "3EBQtWmLDwxi7G_92gkWkA"
       },
-      "isActive": true,
+      "isActive": false,
       "sendFailCount": 0,
       "lastError": null,
       "tags": [
@@ -100,7 +100,24 @@
       "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
       "lastActiveAt": "2025-10-14T00:07:02.653Z",
       "createdAt": "2025-10-14T00:07:02.653Z",
-      "updatedAt": "2025-10-14T00:13:48.252Z"
+      "updatedAt": "2025-10-14T09:48:09.286Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/crtGY-708qA:APA91bHC7jGOeDhZ_gO5iVM_OhBjZ9nDPGMmJacv0VWx5_ittmur_3aw2mfh_Nzk1TbQNkFn5tSDwHI-xKUqbnw2s_5F7TCuKOuNaEumgTVN765tVn0m3UN3YWraygVHNl7ysvcNKXw8",
+      "keys": {
+        "p256dh": "BPCzuRugcU3KMtqRUV_SIys1_z4FOyaD0JL_XS2LDYMtAuwtK1OQNTJZuFGEnP5teY-Q9y4ebl_MymsbTPDDDrM",
+        "auth": "qdordV1pSr73HlHfowrNBQ"
+      },
+      "isActive": true,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-14T09:48:23.626Z",
+      "createdAt": "2025-10-14T09:48:23.626Z",
+      "updatedAt": "2025-10-14T09:48:35.319Z"
     }
   ]
 }
