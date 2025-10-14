@@ -2,7 +2,7 @@ self.addEventListener('push', (event) => {
     if (!event.data) return;
     const data = event.data.json?.() || {};
     // data structure same as backend
-    const title = data.title || '通知';
+    const title = data.title || 'notifications';
     const options = {
       body: data.body || '',
       icon: data.icon,

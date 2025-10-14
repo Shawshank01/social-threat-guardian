@@ -1,0 +1,106 @@
+{
+  "subscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/djDtyYHVITI:APA91bEuuAhjvzEfwJ4zskIUIL90cRI1NUvk4J0y3FD0U_FNC0VnTepo202CkB6Bz7O-yc6Wt8LspbU31Ps715fvnHQvHb5meqP4wzmZk3tFkaW3od4lZyr4C6FxyS92ECPtefMZbEe0",
+      "keys": {
+        "p256dh": "BHUxdrUV-VwsV0pYFg-nwmW7b9SjODs9I4LvAPod5DWix7JNGPsVQCEAxa45v65fnzPKkzCLBu5BsgyNpxMDaX8",
+        "auth": "zYwxPSCXrmELp2kQalJ-Nw"
+      },
+      "isActive": false,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-13T23:51:37.911Z",
+      "createdAt": "2025-10-13T23:51:37.911Z",
+      "updatedAt": "2025-10-13T23:51:39.964Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/cPmyLsbpPDI:APA91bHFEw3Pp22Pg5sa-PPuf0M-AefDr2myhSErMxhleJWscFkk0GrmVUfS_XIgpqcFnwr0n8EHDzDPiFDiPCPx8rPrGUyHdaONmknvBE-U8Rm6nzL4rLDAwy4HSyyWnmz4p8UwwcJs",
+      "keys": {
+        "p256dh": "BMc-E2fctu5Gv7_8wtON1obw9Klq5jrwFUG5EWY1BhmLR8VZOZj4wZWkjOf0qHQ5JyMIjdjnNS4eES9uNwFmgqU",
+        "auth": "gxmIrhkf2aKOHncmfbNF3w"
+      },
+      "isActive": false,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-13T23:51:54.043Z",
+      "createdAt": "2025-10-13T23:51:41.811Z",
+      "updatedAt": "2025-10-13T23:51:58.853Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/fxc0-Pvh_tU:APA91bF2IB-8CiORzJQyk4IDBFqhOPEXq_jACbh8mo-xgjaMeQiKoM-eLNavtY-nkeHFSXdUye_gp8110Fp2OHmNFNnvEfYTMiDXAyvb0u-4a_zE0SKMjSTZiz8qWuwAT-SGvS8TjtMF",
+      "keys": {
+        "p256dh": "BMx3U3VW3UPp9KdDpZ2HF2pVllT0jgKQhIdsKknVQrrUbsEWjDHTThmk_sSM1sqqwfCt0MNI_w9yqL0-WSqZPbQ",
+        "auth": "vfPPnbb7xT_VJW5H7pW5pw"
+      },
+      "isActive": false,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-13T23:52:35.928Z",
+      "createdAt": "2025-10-13T23:52:02.676Z",
+      "updatedAt": "2025-10-13T23:52:43.792Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/c4aWL1MdAKM:APA91bGbUeyvBAejMrEC4qC5Gu7z2nX7d88-B1qXGCm9nSKMGw5jOCNQVhbcV12lf5fER5zcpH7F8Wnqb8BV5iuBQY3tNROdhsjVdYiu6Ossgwyp7poWm4I61x2-qq2-or_3ZgIyVnz7",
+      "keys": {
+        "p256dh": "BKs9BZBHjpTZeQbeMN3DtOblWDaLIdg6LA0BwDG0Y9sdSVWPu4f5dutW4FuYfZgBAIgswqq5XSITa1eHODt7QoQ",
+        "auth": "Rn3F-N-Ceizdn4dpsoiGwg"
+      },
+      "isActive": false,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-14T00:00:51.076Z",
+      "createdAt": "2025-10-13T23:52:47.724Z",
+      "updatedAt": "2025-10-14T00:00:51.692Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/c9h0ork7vEs:APA91bGb3h2azthhPflYKSMfMXxiuhMmyaDn7ZuUNEUUoQj6GbNm6tW8CyqMlqOYFEklFaLqgFizNLN0x235SPGyUd0vBgfo9MM5N6noi0NsWRVXH4ZrhFq6PhpM6WsDYWrmgckTF5gR",
+      "keys": {
+        "p256dh": "BMRuXaWf20jLW6mUcCN-AjEFBGPK00udL36AuDkttpVvT-KnUcozxxdleknlhD9rBA8FN6Hht80A0TuCt1sy2L8",
+        "auth": "i0litKPAZewA3DSf6F91sQ"
+      },
+      "isActive": false,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-14T00:00:54.048Z",
+      "createdAt": "2025-10-14T00:00:54.048Z",
+      "updatedAt": "2025-10-14T00:06:59.346Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/dvLZNBV59cg:APA91bEFmzYFD3XgfChDwaOigjKrU0018zcAVMoUviMhAxBPnW3E_GekJ4LH6YkQbaSqMPcdkWZd5wPfg2Eo6M4GUGTvJ24lfOu5VbgY8fvGTECsLMvkXCQYMik-g2FXyZqG4olC4Qlj",
+      "keys": {
+        "p256dh": "BApPzoWHKhAx16sybRqluWEq01HvDdUUQ_yjCIAxAC7M-sIsk9pkUhKTR_t09QfNGpTsKM7GSwkfUiyQGe4poSM",
+        "auth": "3EBQtWmLDwxi7G_92gkWkA"
+      },
+      "isActive": true,
+      "sendFailCount": 0,
+      "lastError": null,
+      "tags": [
+        "demo"
+      ],
+      "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+      "lastActiveAt": "2025-10-14T00:07:02.653Z",
+      "createdAt": "2025-10-14T00:07:02.653Z",
+      "updatedAt": "2025-10-14T00:13:48.252Z"
+    }
+  ]
+}
