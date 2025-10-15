@@ -241,3 +241,8 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+
+# oracle db wallet
+backend/secure/oracle_wallet/
+backend/.env
