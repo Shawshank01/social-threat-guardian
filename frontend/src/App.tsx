@@ -2,16 +2,19 @@ import { Route, Routes } from "react-router-dom";
 import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
+import ProtectedRoute from "@/components/ProtectedRoute";
 import Home from "@/pages/Home";
 import HarassmentNetworks from "@/pages/HarassmentNetworks";
-import DoxxingMultilingual from "@/pages/DoxxingMultilingual";
-import Monitors from "@/pages/Monitors";
+import PersonalMonitors from "@/pages/PersonalMonitors";
 import Settings from "@/pages/Settings";
 import Articles from "@/pages/Articles";
 import Privacy from "@/pages/Privacy";
 import Terms from "@/pages/Terms";
 import About from "@/pages/About";
 import Api from "@/pages/Api";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import Dashboard from "@/pages/Dashboard";
 
 const App = () => {
   return (
@@ -21,9 +24,13 @@ const App = () => {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/harassment-networks" element={<HarassmentNetworks />} />
-          <Route path="/doxxing" element={<DoxxingMultilingual />} />
-          <Route path="/monitors" element={<Monitors />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+          <Route path="/personal-monitors" element={<PersonalMonitors />} />
           <Route path="/articles" element={<Articles />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
