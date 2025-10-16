@@ -7,28 +7,6 @@ This is a Node.js backend project built with **Express**, integrated with **Web 
 
 ---
 
-## roject Structure
-
-backend/
-├── server.js
-├── package.json
-├── .env.example
-├── .gitignore
-├── /config
-│   └── db.js
-├── /routes
-│   ├── index.js
-│   ├── dbtest.js
-│   └── push.js
-├── /push
-│   └── webpush.js
-├── /utils
-│   └── logger.js
-└── /public
-└── service-worker.js  (frontend SW only if needed)
-
----
-
 ## Prerequisites
 
 - **Node.js 18+**
