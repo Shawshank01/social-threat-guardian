@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Oracle Wallet (VERY important)
+oracle_wallet/
+wallet/
+**/Wallet_*/
+**/wallet_*/
+
+# Logs
+logs
+*.log
+logs/*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Build output (if you add builds later)
+dist/
+build/
+
+# IDE / Editor configs
+.vscode/
+.idea/
