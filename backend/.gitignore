@@ -9,7 +9,7 @@ yarn-error.log
 .env.local
 .env.*.local
 
-# Oracle Wallet (VERY important)
+# Oracle Wallet 
 oracle_wallet/
 wallet/
 **/Wallet_*/
@@ -24,7 +24,7 @@ logs/*.log
 .DS_Store
 Thumbs.db
 
-# Build output (if you add builds later)
+# Build output 
 dist/
 build/
 
