@@ -1,12 +1,17 @@
 // server.js
 import express from "express";
 import dotenv from "dotenv";
+dotenv.config({ override: true });
 import path from "path";
 import { fileURLToPath } from "url";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import userRouter from "./routes/user.js";
+
+//print tns admin and connect string
+console.log("[ENV] TNS_ADMIN =", process.env.TNS_ADMIN);
+console.log("[ENV] ORACLE_CONNECT_STRING =", process.env.ORACLE_CONNECT_STRING);
 
 // env
 dotenv.config();
