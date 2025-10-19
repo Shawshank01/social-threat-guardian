@@ -35,3 +35,15 @@ Date: Tue 14 Oct
         created Oracle 23 ai database and shared the wallet.
 
 
+Date: Thu 16 Oct
+    Time: 21:00 - 22:30
+
+        What we talked about:
+        Model trainning, flowchart and database ER diagram.
+
+        Who did what:
+        Denis: Explained how he trained the model, improved the flowchart and finalised the presentation slides.
+        Diwen: Introduced the flowchart diagram and database ER diagram, finalised the presentation slides.
+        Mingde: Pushed backend code, finalised the presentation slides.
+
+
