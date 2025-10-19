@@ -11,6 +11,7 @@ import userRouter from "./routes/user.js";
 import { ensureUsersTable } from "./models/userModel.js";
 import indexRouter from "./routes/index.js";
 import pushRouter from "./routes/push.js";
+import authRouter from "./routes/auth.js";
 
 
 // env
@@ -36,6 +37,7 @@ app.use("/push", pushRouter);
 app.use("/db", dbTestRouter);
 app.use("/users", userRouter);
 app.use(errorHandler);
+app.use("/auth", authRouter);
 
 // start server
 await initOraclePool();
