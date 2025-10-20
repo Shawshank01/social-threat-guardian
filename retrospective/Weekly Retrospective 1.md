@@ -21,15 +21,17 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 ---
 
 ## **Challenges / What Could Be Improved**
+- **Communication:** Language barrier slowed down majority of the work planned to be done.  
 - **Time Management:** Several meetings ran longer than planned, and there were too many meetings overall.  
 - **Workload Balance:** Much time was spent on coordination and documentation, leaving less room for deeper technical work during the first sprint.  
-- **Dependency Overlap:** Progress on sketches and wireframes occasionally depended on feedback loops between teammates, which slowed iteration.  
+- **Dependency Overlap:** Progress on sketches and wireframes occasionally depended on feedback loops between teammates, which slowed iteration and meant redrawing and resketching.  
 - **Limited Backend Progress:** Most work focused on design and planning, with little technical foundation established yet for the backend or NLP components.  
 
 ---
 
 ## **Lessons Learned**
-- Early communication of system logic prevents design misalignment later.  
+- Early communication of system logic prevents design misalignment later.
+- Proper communication and translation of each aspect of the project will actually save time and some work will get done.  
 - Effective use of GitHub Projects can substantially improve team coordination, but it needs consistent updates and automation to fully support SCRUM workflows.  
 
 ---
