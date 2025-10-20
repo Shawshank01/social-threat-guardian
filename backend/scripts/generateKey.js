@@ -1,4 +1,6 @@
 // /scripts/generateKey.js
+
+//node run generateKey.js to get new VAPID keys
 import webpush from "web-push";
 
 const { publicKey, privateKey } = webpush.generateVAPIDKeys();

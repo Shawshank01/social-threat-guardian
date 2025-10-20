@@ -2,7 +2,6 @@
 import { withConnection } from "../config/db.js";
 
 /**
- * Example users table (adjust to your schema):
  *   USERS (
  *     ID          VARCHAR2(36) PRIMARY KEY,
  *     EMAIL       VARCHAR2(255) UNIQUE NOT NULL,

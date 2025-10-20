@@ -8,10 +8,11 @@ import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import userRouter from "./routes/user.js";
+import { ensureUsersTable } from "./models/userModel.js";
+import indexRouter from "./routes/index.js";
+import pushRouter from "./routes/push.js";
+import authRouter from "./routes/auth.js";
 
-//print tns admin and connect string
-console.log("[ENV] TNS_ADMIN =", process.env.TNS_ADMIN);
-console.log("[ENV] ORACLE_CONNECT_STRING =", process.env.ORACLE_CONNECT_STRING);
 
 // env
 dotenv.config();
@@ -26,16 +27,17 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// routes
-import indexRouter from "./routes/index.js";
-import pushRouter from "./routes/push.js";
+//oracle connection
+await initOraclePool();
+await ensureUsersTable();
 
+// routes
 app.use("/", indexRouter);
 app.use("/push", pushRouter);
 app.use("/db", dbTestRouter);
 app.use("/users", userRouter);
 app.use(errorHandler);
-
+app.use("/auth", authRouter);
 
 // start server
 await initOraclePool();
