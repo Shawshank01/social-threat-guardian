@@ -2,7 +2,7 @@
 ## **Regular Schedule:** Every Sunday before 18:00
 
 **Team Name:** Zero cool  
-**Team member** Diwen Xiao, Denis Muriuki, Mingde Zhou  
+**Team member:** Diwen Xiao, Denis Muriuki, Mingde Zhou  
 **Period Covered:** Sun 28 Sep – Sun 12 Oct
 
 ---
