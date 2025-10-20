@@ -5,6 +5,7 @@ import PlatformCard from "@/components/PlatformCard";
 
 const Home = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("all");
+  const [isFeedRevealed, setIsFeedRevealed] = useState(false);
 
   const platformCards = useMemo(
     () => [
@@ -61,12 +62,38 @@ const Home = () => {
                 critical items with on-ground security teams.
               </p>
             </header>
-            <div className="flex-1 space-y-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
-              <div className="max-h-[32rem] space-y-4 overflow-y-auto pr-2" role="list">
+            <div className="relative flex-1 space-y-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
+              <div
+                className={`max-h-[32rem] space-y-4 overflow-y-auto pr-2 transition duration-200 ${
+                  isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
+                }`}
+                role="list"
+                aria-live={isFeedRevealed ? "polite" : "off"}
+              >
                 {platformCards.map((card) => (
                   <PlatformCard key={card.platform} {...card} />
                 ))}
               </div>
+              {!isFeedRevealed && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 p-6 text-center backdrop-blur-sm">
+                  <div className="space-y-4 max-w-sm">
+                    <h3 className="text-base font-semibold text-white">
+                      Sensitive content ahead
+                    </h3>
+                    <p className="text-sm text-slate-200">
+                      Some posts may contain explicit hate speech or harassment. Confirm to reveal the latest
+                      flagged content.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsFeedRevealed(true)}
+                      className="w-full rounded-full bg-stg-accent px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                    >
+                      Reveal posts
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </div>

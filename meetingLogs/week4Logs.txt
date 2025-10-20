@@ -1,0 +1,58 @@
+Week 4
+
+Date: Mon 13 Oct
+    Time: 17:00 - 17:40
+
+        What we talked about:
+        The data Api's and other options available such as PRAW and Tweepy.
+        We also came to a conclusion on what logo we would go with. 
+        
+        Who did what:
+        Denis : Setup Apache Kakfa on local machine, created a topic and started looking into Social Media Apis
+        and notified the team about the challenges with official API's requiring a subscription and also gave the team recommendations.
+        Diwen: Explained to the team about the Blur-effect on the frontend and also how the guest user and paid user will interact with the system,
+        expained how to use API to connect each tier in the system.
+        Mingde: Agreed to share his work on backend through an api and also worked on the logo.
+
+
+Date: Tue 14 Oct
+    Time: 10:00 - 10:30 (with mentor), 10:30 - 11:30, 17:00 - 17:30
+
+        What we talked about:
+        Data extraction, data storage, data flow and data engineering.
+        API resources for social media platforms.
+        High-level system architecture.
+        Web push notification function from the backend.
+        Select a database to store and retrieve post content.
+
+        Who did what:
+        Denis: A brief explanation of how the DL will be trained and how it will work within the system.
+        Explained Kafka's role within the system. Explored the legitimacy of the data.
+        Diwen: Explained how the flowchart may help to create the high-level system architecture.
+        Discussed the API specifications connecting each tier.
+        The most streamlined system operation workflow and implementation plan.
+        Mingde: Demonstrated the backend push notification functionality.
+        created Oracle 23 ai database and shared the wallet.
+
+
+Date: Thu 16 Oct
+    Time: 21:00 - 22:30
+
+        What we talked about:
+        Model trainning, flowchart and database ER diagram.
+
+        Who did what:
+        Denis: Explained how he trained the model, improved the flowchart and finalised the presentation slides.
+        Diwen: Introduced the flowchart diagram and database ER diagram, finalised the presentation slides.
+        Mingde: Pushed backend code, finalised the presentation slides.
+
+
+Date: Fri 17 Oct
+    Time: 13:10 - 14:00
+
+        What we talked about:
+        Feedback from the presentation. Index feature improvment, spark consideration and the intrim report.
+
+        Who did what:
+        All individuals participated in the relevant discussions.
+
