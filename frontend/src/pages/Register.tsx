@@ -12,13 +12,18 @@ const Register = () => {
   const { register, isAuthenticating } = useAuth();
   const navigate = useNavigate();
 
+  const isUsernameValid = useMemo(() => username.trim().length >= 3, [username]);
+  const isEmailValid = useMemo(() => /.+@.+\..+/.test(email), [email]);
+  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
   const passwordsMismatch = useMemo(() => {
     return Boolean(password) && Boolean(confirmPassword) && password !== confirmPassword;
   }, [password, confirmPassword]);
+  const formInvalid = !isUsernameValid || !isEmailValid || !isPasswordValid || passwordsMismatch;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (passwordsMismatch) {
+    if (formInvalid) {
+      setError("Please fix the highlighted fields before continuing.");
       return;
     }
 
@@ -60,7 +65,14 @@ const Register = () => {
             onChange={(event) => setUsername(event.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             placeholder="ThreatGuardian"
+            aria-invalid={!isUsernameValid}
+            aria-describedby={!isUsernameValid ? "register-username-error" : undefined}
           />
+          {!isUsernameValid && (
+            <p id="register-username-error" className="text-xs font-semibold text-red-400">
+              Username must be at least 3 characters long.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -76,7 +88,14 @@ const Register = () => {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             autoComplete="email"
             placeholder="you@example.org"
+            aria-invalid={!isEmailValid}
+            aria-describedby={!isEmailValid ? "register-email-error" : undefined}
           />
+          {!isEmailValid && (
+            <p id="register-email-error" className="text-xs font-semibold text-red-400">
+              Enter a valid email address.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -95,7 +114,14 @@ const Register = () => {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             autoComplete="new-password"
             placeholder=""
+            aria-invalid={!isPasswordValid}
+            aria-describedby={!isPasswordValid ? "register-password-error" : undefined}
           />
+          {!isPasswordValid && (
+            <p id="register-password-error" className="text-xs font-semibold text-red-400">
+              Password must be at least 6 characters long.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -114,9 +140,13 @@ const Register = () => {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             autoComplete="new-password"
             placeholder=""
+            aria-invalid={passwordsMismatch}
+            aria-describedby={passwordsMismatch ? "register-confirm-password-error" : undefined}
           />
           {passwordsMismatch && (
-            <p className="text-xs font-semibold text-red-400">Passwords do not match.</p>
+            <p id="register-confirm-password-error" className="text-xs font-semibold text-red-400">
+              Passwords do not match.
+            </p>
           )}
         </div>
 
@@ -133,7 +163,7 @@ const Register = () => {
 
         <button
           type="submit"
-          disabled={isAuthenticating}
+          disabled={isAuthenticating || formInvalid}
           className="w-full rounded-full bg-stg-accent px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isAuthenticating ? "Creating account…" : "Create account"}
