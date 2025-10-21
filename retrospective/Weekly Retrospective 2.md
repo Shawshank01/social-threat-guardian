@@ -17,7 +17,8 @@ This week marked the transition from conceptual and design stages into substanti
 - **Feature Development:** The login and registration frontend was implemented according to the system contract. A blur function was also added to the homepage to protect users from encountering offensive posts unexpectedly.  
 - **Database Design:** The first complete ER diagram was produced, providing a structured foundation for backend data storage and user preference management.  
 - **System Architecture & Flowchart:** The flowchart derived from the N-tier system design was finalised and optimised. This clarified Kafka’s position in the processing pipeline and strengthened communication between frontend and backend planning.  
-- **Effective Collaboration:** Team discussions about data engineering responsibilities resulted in more balanced task distribution. The mentor’s suggestion led to shared data tasks and better clarity of backend priorities.  
+- **Effective Collaboration:** Team discussions about data engineering responsibilities resulted in more balanced task distribution. The mentor’s suggestion led to shared data tasks and better clarity of backend priorities.
+- **AI:** Model training, dataset cleaning and dataset splitting went well with minor changes to minimize training time.  
 
 ---
 
