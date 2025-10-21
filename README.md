@@ -12,13 +12,6 @@ The Social Threat Guardian project was developed in response to the alarming ris
 - Incorporate visualization tools to monitor threat trends and patterns.
 - Provide real-time alerts and comprehensive reports to users.
 
-## Frontend Development
-- All React, TypeScript, and Tailwind source files live in `frontend/`.
-- Run UI tooling from that directory: `cd frontend && npm install`, followed by `npm run dev` or `npm run build`.
-- Production assets will be emitted to `frontend/dist` and can be served by the backend or a static host.
-- Theme toggle (light, dark, auto) is available via the floating control on the bottom-right corner of the UI.
-
-
 ## Technical Approach
 1. **Data Collection**
    - Gather social media data from platforms such as Reddit, Bluesky, Mastodon, Facebook, and Instagram using their APIs.
@@ -44,9 +37,10 @@ The Social Threat Guardian project was developed in response to the alarming ris
    - Allow users to customize alert preferences.
 
 ## Expected Outcomes
-- The indicator allows users to quickly grasp the current status of social media.
-- A functional AI system capable of detecting and monitoring social media threats.
-- Enhanced safety and awareness for social media users.
+- The global index gauge allows users to quickly grasp the current status and atmosphere of social media platforms, helping them understand the overall tone and hostility levels across multiple sources.  
+- The system displays individual platform index metrics and random post content from multiple social media platforms, allowing users to understand current discussions and platform climates without needing to register accounts.  
+- Register users can monitor threat by setting keywords and languages, identify harmful or hostile content, and receive real-time alerts when potential risks are detected.  
+- Visualisation harassment network provide register users a clear overview of threat networks for enhanced safety and awareness.
 
 ## Key Features and Innovation
 - AI-driven threat monitoring that leverages advanced NLP techniques for accurate detection of nuanced and emerging threats.
