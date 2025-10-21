@@ -18,7 +18,7 @@ This week marked the transition from conceptual and design stages into substanti
 - **Database Design:** The first complete ER diagram was produced, providing a structured foundation for backend data storage and user preference management.  
 - **System Architecture & Flowchart:** The flowchart derived from the N-tier system design was finalised and optimised. This clarified Kafka’s position in the processing pipeline and strengthened communication between frontend and backend planning.  
 - **Effective Collaboration:** Team discussions about data engineering responsibilities resulted in more balanced task distribution. The mentor’s suggestion led to shared data tasks and better clarity of backend priorities.
-- **AI:** Model training, dataset cleaning and dataset splitting went well with minor changes to minimize training time.
+- **DistillBERT:** Model training, dataset cleaning and dataset splitting went well with minor changes to minimize training time.
 - **database:** Create oracle 26ai atonomous database and link the backend to it, create table of register/login user, test connection well
 - **backend:** Develop backend features, including web push service, login/register function, and connection test of database, solve the problem of oracle wallet with Brendan.
 - **System architecture:** Research system architecture, and adjust number of tiers in our system based on feedback mentors gave us. Draw the system architecture diagram.
@@ -30,7 +30,7 @@ This week marked the transition from conceptual and design stages into substanti
 - **Data Ethics Debate:** Differing opinions arose over whether to use synthetic or fabricated data for testing doxxing-related features. While the issue was resolved ethically, it reflected ongoing tension between functional ambition and compliance risk.  
 - **Technical Integration:** The lack of a fully functional backend API hindered frontend testing for features like registration and login. Closer coordination will be needed to synchronise API endpoints and frontend components.
 - **Database connection:** This problem wasted me more than 4 to 5 days, and finally disabled mTLS to connect successfully.
-- **AI tier handling:** Have little knowledge on AI tier, still finding ways to help teammates finish their work.
+- **DistillBERT tier handling:** Have little knowledge on AI tier, still finding ways to help teammates finish their work.
 
 ---
 
