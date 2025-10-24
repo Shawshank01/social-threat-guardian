@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -16,8 +16,17 @@ const Login = () => {
   const { login, isAuthenticating } = useAuth();
   const state = (location.state as LocationState) ?? {};
 
+  const isEmailValid = useMemo(() => /.+@.+\..+/.test(email), [email]);
+  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
+  const formInvalid = !isEmailValid || !isPasswordValid;
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (formInvalid) {
+      setError("Please enter a valid email and password (minimum 6 characters).");
+      return;
+    }
+
     setError(null);
     try {
       await login({ email, password });
@@ -63,7 +72,14 @@ const Login = () => {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             autoComplete="email"
             placeholder="you@example.org"
+            aria-invalid={!isEmailValid}
+            aria-describedby={!isEmailValid ? "login-email-error" : undefined}
           />
+          {!isEmailValid && (
+            <p id="login-email-error" className="text-xs font-semibold text-red-400">
+              Enter a valid email address.
+            </p>
+          )}
         </div>
 
         <div className="space-y-1.5">
@@ -82,7 +98,14 @@ const Login = () => {
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             autoComplete="current-password"
             placeholder=""
+            aria-invalid={!isPasswordValid}
+            aria-describedby={!isPasswordValid ? "login-password-error" : undefined}
           />
+          {!isPasswordValid && (
+            <p id="login-password-error" className="text-xs font-semibold text-red-400">
+              Password must be at least 6 characters long.
+            </p>
+          )}
         </div>
 
         {error && (
@@ -93,7 +116,7 @@ const Login = () => {
 
         <button
           type="submit"
-          disabled={isAuthenticating}
+          disabled={isAuthenticating || formInvalid}
           className="w-full rounded-full bg-stg-accent px-4 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isAuthenticating ? "Signing in…" : "Sign in"}
