@@ -1,8 +1,8 @@
 // server.js
 import express from "express";
 import dotenv from "dotenv";
-dotenv.config({ override: true });
 import path from "path";
+import cors from "cors";
 import { fileURLToPath } from "url";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
@@ -13,9 +13,8 @@ import indexRouter from "./routes/index.js";
 import pushRouter from "./routes/push.js";
 import authRouter from "./routes/auth.js";
 
+dotenv.config({ override: true });
 
-// env
-dotenv.config();
 
 // handle dir name
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +23,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // middleware
+const allowedOrigins = (process.env.CORS_ORIGINS ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+app.use(
+  cors({
+    origin:
+      allowedOrigins.length > 0
+        ? allowedOrigins
+        : ["https://social-threat-guardian-g1ys99v08-shawshank01s-projects-e5edc463.vercel.app"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -36,11 +49,11 @@ app.use("/", indexRouter);
 app.use("/push", pushRouter);
 app.use("/db", dbTestRouter);
 app.use("/users", userRouter);
-app.use(errorHandler);
 app.use("/auth", authRouter);
+app.use(errorHandler);
+
 
 // start server
-await initOraclePool();
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
