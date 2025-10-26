@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
+import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 const ZONES = [
@@ -34,12 +35,24 @@ const defaultPlatforms = [
   { label: "Mastodon", value: "mastodon" },
 ] as const;
 
+// Adjust these constants to reposition the arc labels
+const ARC_RADIUS_X = 35; // Horizontal distance from gauge center to labels
+const ARC_RADIUS_Y = 80; // Vertical distance from gauge center to labels (increase for taller oval)
+const ARC_CENTER_Y = 90; // Vertical center alignment of the label arc (lower value pushes labels upward)
+const ARC_START_ANGLE = 180; // Degrees from left to start label placement
+const ARC_END_ANGLE = 0; // Degrees on the right where labels end
+
+// Inner numeric scale constants (0-100)
+const INNER_RADIUS_X = 16;
+const INNER_RADIUS_Y = 55;
+const INNER_CENTER_Y = 95;
+
 const GaugeChart = ({
   platform,
   onPlatformChange,
   availablePlatforms = defaultPlatforms,
 }: GaugeChartProps) => {
-  const [targetValue, setTargetValue] = useState(() => 58 + (Math.random() - 0.5) * 10);
+  const [targetValue, setTargetValue] = useState(() => Math.floor(Math.random() * 101));
   const [displayValue, setDisplayValue] = useState(() => clamp(targetValue));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,10 +105,9 @@ const GaugeChart = ({
 
     const scheduleNext = () => {
       timeoutId = window.setTimeout(() => {
-        setDisplayValue(() => {
-          const jitter = (Math.random() - 0.5) * 6;
-          return clamp(targetValue + jitter);
-        });
+        const next = clamp(Math.floor(Math.random() * 101));
+        setTargetValue(next);
+        setDisplayValue(next);
         scheduleNext();
       }, 3200 + Math.random() * 1600);
     };
@@ -114,6 +126,7 @@ const GaugeChart = ({
   const chartOptions = useMemo<ApexOptions>(() => {
     return {
       chart: {
+        id: "stg-threat-index",
         type: "radialBar",
         background: "transparent",
         sparkline: { enabled: true },
@@ -155,7 +168,64 @@ const GaugeChart = ({
       grid: { padding: { left: -10, right: -10 } },
       tooltip: { enabled: false },
     } satisfies ApexOptions;
-  }, [zone.label]);
+  }, [zone.label, zone.colors]);
+
+  useEffect(() => {
+    ApexCharts.exec(
+      "stg-threat-index",
+      "updateOptions",
+      {
+        colors: [zone.colors[0]],
+        fill: {
+          type: "gradient",
+          gradient: {
+            shade: "dark",
+            gradientToColors: [zone.colors[1]],
+            stops: [0, 55, 100],
+          },
+        },
+      },
+      false,
+      true
+    ).catch(() => undefined);
+  }, [zone.colors]);
+
+  useEffect(() => {
+    ApexCharts.exec("stg-threat-index", "updateSeries", [displayValue], true).catch(() => undefined);
+  }, [displayValue]);
+
+  const arcLabels = useMemo(() => {
+    const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (ZONES.length - 1);
+
+    return ZONES.map((entry, index) => {
+      const angleDeg = ARC_START_ANGLE - step * index;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      const x = 50 + Math.cos(angleRad) * ARC_RADIUS_X;
+      const y = ARC_CENTER_Y - Math.sin(angleRad) * ARC_RADIUS_Y;
+      return {
+        ...entry,
+        left: `${x}%`,
+        top: `${y}%`,
+      };
+    });
+  }, []);
+
+  const numericLabels = useMemo(() => {
+    const values = Array.from({ length: 11 }, (_, index) => index * 10);
+    const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (values.length - 1);
+
+    return values.map((value, index) => {
+      const angleDeg = ARC_START_ANGLE - step * index;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      const x = 50 + Math.cos(angleRad) * INNER_RADIUS_X;
+      const y = INNER_CENTER_Y - Math.sin(angleRad) * INNER_RADIUS_Y;
+      return {
+        value,
+        left: `${x}%`,
+        top: `${y}%`,
+      };
+    });
+  }, []);
 
   return (
     <section
@@ -166,15 +236,46 @@ const GaugeChart = ({
         <h2 id="threat-index-heading" className="text-xl font-semibold tracking-wide text-slate-900 dark:text-white">
           Social Network Threat Index
         </h2>
-        <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
-          Aggregated risk score for {platform === "all" ? "all monitored platforms" : platform}. Updated in near real-time as monitoring data
-          arrives.
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          {platform !== "all" && (
+            <span className="rounded-full border border-slate-300/60 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-white/20 dark:bg-slate-900/70 dark:text-slate-200">
+              {platform}
+            </span>
+          )}
+          <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
+            Aggregated risk score for {platform === "all" ? "all monitored platforms" : platform}.
+          </p>
+        </div>
       </header>
 
       <div className="flex flex-col items-center justify-center gap-6">
-        <div className="w-full max-w-xl">
+        <div className="relative w-full max-w-xl">
           <Chart options={chartOptions} series={[displayValue]} type="radialBar" height={320} />
+          <div className="pointer-events-none absolute inset-0">
+            {arcLabels.map((entry) => (
+              <span
+                key={entry.label}
+                className={`absolute -translate-x-1/2 -translate-y-1/2 text-center text-[11px] font-semibold uppercase tracking-widest ${entry.label === zone.label
+                  ? "text-stg-accent drop-shadow"
+                  : "text-slate-500 dark:text-slate-300"
+                  }`}
+                style={{ left: entry.left, top: entry.top }}
+              >
+                {entry.label}
+              </span>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-0">
+            {numericLabels.map((entry) => (
+              <span
+                key={entry.value}
+                className="absolute -translate-x-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-600 dark:text-slate-200"
+                style={{ left: entry.left, top: entry.top }}
+              >
+                {entry.value}
+              </span>
+            ))}
+          </div>
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Current signal</span>
@@ -189,21 +290,6 @@ const GaugeChart = ({
           </p>
         </div>
       </div>
-
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {ZONES.map((entry) => (
-          <div
-            key={entry.label}
-            className={`rounded-xl border border-slate-200/80 px-4 py-3 text-center text-xs uppercase tracking-wide transition-colors ${entry.label === zone.label
-              ? "bg-stg-accent/10 text-stg-accent dark:bg-white/15 dark:text-white"
-              : "bg-white text-slate-600 dark:bg-white/5 dark:text-slate-300"
-              }`}
-          >
-            {entry.label}
-          </div>
-        ))}
-      </div>
-
       {onPlatformChange && (
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 transition-colors dark:border-white/10 dark:bg-slate-900/60">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Filter by platform</h3>
