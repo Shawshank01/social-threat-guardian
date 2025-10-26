@@ -202,7 +202,6 @@ const GaugeChart = ({
     });
   }, []);
 
-
   return (
     <section
       aria-labelledby="threat-index-heading"
@@ -212,10 +211,16 @@ const GaugeChart = ({
         <h2 id="threat-index-heading" className="text-xl font-semibold tracking-wide text-slate-900 dark:text-white">
           Social Network Threat Index
         </h2>
-        <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
-          Aggregated risk score for {platform === "all" ? "all monitored platforms" : platform}. Updated in near real-time as monitoring data
-          arrives.
-        </p>
+        <div className="flex flex-col items-center gap-1">
+          {platform !== "all" && (
+            <span className="rounded-full border border-slate-300/60 bg-white/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-700 shadow-sm dark:border-white/20 dark:bg-slate-900/70 dark:text-slate-200">
+              {platform}
+            </span>
+          )}
+          <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
+            Aggregated risk score for {platform === "all" ? "all monitored platforms" : platform}.
+          </p>
+        </div>
       </header>
 
       <div className="flex flex-col items-center justify-center gap-6">
@@ -226,8 +231,8 @@ const GaugeChart = ({
               <span
                 key={entry.label}
                 className={`absolute -translate-x-1/2 -translate-y-1/2 text-center text-[11px] font-semibold uppercase tracking-widest ${entry.label === zone.label
-                    ? "text-stg-accent drop-shadow"
-                    : "text-slate-500 dark:text-slate-300"
+                  ? "text-stg-accent drop-shadow"
+                  : "text-slate-500 dark:text-slate-300"
                   }`}
                 style={{ left: entry.left, top: entry.top }}
               >
@@ -245,11 +250,6 @@ const GaugeChart = ({
                 {entry.value}
               </span>
             ))}
-          </div>
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-lg dark:bg-white/80 dark:text-slate-900">
-              {displayValue.toFixed(0)}
-            </span>
           </div>
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
