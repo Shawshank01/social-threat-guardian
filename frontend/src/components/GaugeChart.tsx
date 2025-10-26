@@ -41,6 +41,11 @@ const ARC_CENTER_Y = 90; // Vertical center alignment of the label arc (lower va
 const ARC_START_ANGLE = 180; // Degrees from left to start label placement
 const ARC_END_ANGLE = 0; // Degrees on the right where labels end
 
+// Inner numeric scale constants (0-100)
+const INNER_RADIUS_X = 16;
+const INNER_RADIUS_Y = 55;
+const INNER_CENTER_Y = 95;
+
 const GaugeChart = ({
   platform,
   onPlatformChange,
@@ -180,6 +185,24 @@ const GaugeChart = ({
     });
   }, []);
 
+  const numericLabels = useMemo(() => {
+    const values = Array.from({ length: 11 }, (_, index) => index * 10);
+    const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (values.length - 1);
+
+    return values.map((value, index) => {
+      const angleDeg = ARC_START_ANGLE - step * index;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      const x = 50 + Math.cos(angleRad) * INNER_RADIUS_X;
+      const y = INNER_CENTER_Y - Math.sin(angleRad) * INNER_RADIUS_Y;
+      return {
+        value,
+        left: `${x}%`,
+        top: `${y}%`,
+      };
+    });
+  }, []);
+
+
   return (
     <section
       aria-labelledby="threat-index-heading"
@@ -211,6 +234,22 @@ const GaugeChart = ({
                 {entry.label}
               </span>
             ))}
+          </div>
+          <div className="pointer-events-none absolute inset-0">
+            {numericLabels.map((entry) => (
+              <span
+                key={entry.value}
+                className="absolute -translate-x-1/2 -translate-y-1/2 text-[10px] font-semibold text-slate-600 dark:text-slate-200"
+                style={{ left: entry.left, top: entry.top }}
+              >
+                {entry.value}
+              </span>
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white shadow-lg dark:bg-white/80 dark:text-slate-900">
+              {displayValue.toFixed(0)}
+            </span>
           </div>
         </div>
         <div className="flex flex-col items-center gap-2 text-center">
