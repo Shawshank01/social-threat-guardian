@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Chart from "react-apexcharts";
+import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 const ZONES = [
@@ -51,7 +52,7 @@ const GaugeChart = ({
   onPlatformChange,
   availablePlatforms = defaultPlatforms,
 }: GaugeChartProps) => {
-  const [targetValue, setTargetValue] = useState(() => 58 + (Math.random() - 0.5) * 10);
+  const [targetValue, setTargetValue] = useState(() => Math.floor(Math.random() * 101));
   const [displayValue, setDisplayValue] = useState(() => clamp(targetValue));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,10 +105,9 @@ const GaugeChart = ({
 
     const scheduleNext = () => {
       timeoutId = window.setTimeout(() => {
-        setDisplayValue(() => {
-          const jitter = (Math.random() - 0.5) * 6;
-          return clamp(targetValue + jitter);
-        });
+        const next = clamp(Math.floor(Math.random() * 101));
+        setTargetValue(next);
+        setDisplayValue(next);
         scheduleNext();
       }, 3200 + Math.random() * 1600);
     };
@@ -126,6 +126,7 @@ const GaugeChart = ({
   const chartOptions = useMemo<ApexOptions>(() => {
     return {
       chart: {
+        id: "stg-threat-index",
         type: "radialBar",
         background: "transparent",
         sparkline: { enabled: true },
@@ -167,7 +168,31 @@ const GaugeChart = ({
       grid: { padding: { left: -10, right: -10 } },
       tooltip: { enabled: false },
     } satisfies ApexOptions;
-  }, [zone.label]);
+  }, [zone.label, zone.colors]);
+
+  useEffect(() => {
+    ApexCharts.exec(
+      "stg-threat-index",
+      "updateOptions",
+      {
+        colors: [zone.colors[0]],
+        fill: {
+          type: "gradient",
+          gradient: {
+            shade: "dark",
+            gradientToColors: [zone.colors[1]],
+            stops: [0, 55, 100],
+          },
+        },
+      },
+      false,
+      true
+    ).catch(() => undefined);
+  }, [zone.colors]);
+
+  useEffect(() => {
+    ApexCharts.exec("stg-threat-index", "updateSeries", [displayValue], true).catch(() => undefined);
+  }, [displayValue]);
 
   const arcLabels = useMemo(() => {
     const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (ZONES.length - 1);
