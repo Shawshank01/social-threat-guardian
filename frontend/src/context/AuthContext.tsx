@@ -36,16 +36,13 @@ type RegisterPayload = {
 const STORAGE_TOKEN_KEY = "stg.auth.token";
 const STORAGE_USER_KEY = "stg.auth.user";
 
-// Temporary hard-coded account for demo login flows. Remove when backend auth is wired up.
-const TEST_ACCOUNT = {
-  email: "a@b.com",
-  password: "123qwe",
-  token: "demo-test-token",
-  user: {
-    username: "Demo Analyst",
-    email: "a@b.com",
-  },
-} as const;
+const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+
+const apiUrl = (path: string): string => {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (!apiBase) return normalized;
+  return `${apiBase}${normalized}`;
+};
 
 const AuthContext = createContext<AuthContextState | undefined>(undefined);
 
@@ -88,35 +85,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async ({ email, password }: LoginPayload) => {
     setIsAuthenticating(true);
     try {
-      if (email === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password) {
-        // Demo shortcut: allows QA to log in without hitting the backend. Remove once backend is ready.
-        setToken(TEST_ACCOUNT.token);
-        setUser(TEST_ACCOUNT.user);
-        return;
-      }
-
-      const response = await fetch("/api/login", {
+      const response = await fetch(apiUrl("/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       const data = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
         token?: string;
-        user?: User;
+        user?: { id?: string; email?: string; name?: string };
+        error?: string;
         message?: string;
       };
 
-      if (!response.ok) {
-        throw new Error(data.message ?? "Invalid email or password.");
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.error ?? data.message ?? "Invalid email or password.");
       }
 
-      if (!data.token || !data.user) {
+      if (!data.token || !data.user?.email) {
         throw new Error("Unexpected server response.");
       }
 
       setToken(data.token);
-      setUser(data.user);
+      setUser({
+        username: data.user.name ?? data.user.email,
+        email: data.user.email,
+      });
     } finally {
       setIsAuthenticating(false);
     }
@@ -125,16 +120,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = useCallback(async ({ username, email, password }: RegisterPayload) => {
     setIsAuthenticating(true);
     try {
-      const response = await fetch("/api/register", {
+      const response = await fetch(apiUrl("/auth/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ name: username, email, password }),
       });
 
-      const payload = (await response.json().catch(() => ({}))) as { message?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        message?: string;
+        error?: string;
+      };
 
-      if (!response.ok) {
-        throw new Error(payload.message ?? "Unable to create account.");
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error ?? payload.message ?? "Unable to create account.");
       }
     } finally {
       setIsAuthenticating(false);
