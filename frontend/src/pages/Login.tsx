@@ -17,13 +17,13 @@ const Login = () => {
   const state = (location.state as LocationState) ?? {};
 
   const isEmailValid = useMemo(() => /.+@.+\..+/.test(email), [email]);
-  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
+  const isPasswordValid = useMemo(() => password.trim().length >= 8, [password]);
   const formInvalid = !isEmailValid || !isPasswordValid;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (formInvalid) {
-      setError("Please enter a valid email and password (minimum 6 characters).");
+      setError("Please enter a valid email and password (minimum 8 characters).");
       return;
     }
 
@@ -43,10 +43,6 @@ const Login = () => {
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Welcome back</h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Sign in to access your dashboards and threat monitoring configuration.
-        </p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          {/* Temporary demo credentials for QA; remove once real auth is wired. */}
-          Demo account: <span className="font-semibold">a@b.com</span> / <span className="font-semibold">123qwe</span>
         </p>
         {state.registered && (
           <p className="rounded-full border border-emerald-400/40 bg-emerald-400/10 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-emerald-300">
@@ -103,7 +99,7 @@ const Login = () => {
           />
           {!isPasswordValid && (
             <p id="login-password-error" className="text-xs font-semibold text-red-400">
-              Password must be at least 6 characters long.
+              Password must be at least 8 characters long.
             </p>
           )}
         </div>
