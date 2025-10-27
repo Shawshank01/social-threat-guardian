@@ -119,8 +119,71 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
 
    Then your React code can keep using `/api/...` during dev while the production build uses `VITE_API_BASE_URL`.
 
-4. **Deploying on Vercel**  
-   - Set `VITE_API_BASE_URL` (Environment Variables → Production) to `http://127.0.0.1:3000`.  
-   - Re-deploy the frontend.
-   - When you open the Vercel URL on the same machine that runs the backend, the browser will talk to `http://127.0.0.1:3000`. Other users need their own backend instance or a publicly reachable API.
+## 3. Backend API endpoint
 
+### Register
+- `POST /auth/register` (also available as `/api/register`)
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "atLeast8Chars",
+    "name": "Optional display name"
+  }
+  ```
+- **Responses:**
+  - `201 Created`
+    ```json
+    {
+      "ok": true,
+      "user": {
+        "ID": 123,
+        "EMAIL": "user@example.com",
+        "NAME": "Optional display name",
+        "LAST_LOGIN_AT": "2024-01-01T12:34:56.000Z"
+      }
+    }
+    ```
+  - `400 Bad Request` when email/password are missing or invalid format/length.
+  - `409 Conflict` when the email is already registered.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/auth/register \
+       -H "Content-Type: application/json" \
+       -d '{"email":"user@example.com","password":"secret123","name":"User"}'
+  ```
+### Login
+- `POST /auth/login` (also available as `/api/login`)
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "secret123"
+  }
+  ```
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "token": "jwt-token-string",
+      "expiresIn": "1h",
+      "user": {
+        "id": 123,
+        "email": "user@example.com",
+        "name": "Optional display name"
+      }
+    }
+    ```
+  - `400 Bad Request` when email/password are missing.
+  - `401 Unauthorized` when credentials are invalid.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/auth/login \
+       -H "Content-Type: application/json" \
+       -d '{"email":"user@example.com","password":"secret123"}'
+  ```
