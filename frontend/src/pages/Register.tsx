@@ -14,7 +14,7 @@ const Register = () => {
 
   const isUsernameValid = useMemo(() => username.trim().length >= 3, [username]);
   const isEmailValid = useMemo(() => /.+@.+\..+/.test(email), [email]);
-  const isPasswordValid = useMemo(() => password.trim().length >= 6, [password]);
+  const isPasswordValid = useMemo(() => password.trim().length >= 8, [password]);
   const passwordsMismatch = useMemo(() => {
     return Boolean(password) && Boolean(confirmPassword) && password !== confirmPassword;
   }, [password, confirmPassword]);
@@ -30,7 +30,7 @@ const Register = () => {
     setError(null);
     setSuccess(null);
     try {
-      await register({ username, email, password });
+      await register({ name: username, email, password });
       setSuccess("Account created successfully.");
       setTimeout(() => {
         navigate("/login", { state: { registered: true } });
@@ -64,7 +64,7 @@ const Register = () => {
             value={username}
             onChange={(event) => setUsername(event.target.value)}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-inner focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-900 dark:text-white"
-            placeholder="ThreatGuardian"
+            placeholder="YourUserName"
             aria-invalid={!isUsernameValid}
             aria-describedby={!isUsernameValid ? "register-username-error" : undefined}
           />
@@ -119,7 +119,7 @@ const Register = () => {
           />
           {!isPasswordValid && (
             <p id="register-password-error" className="text-xs font-semibold text-red-400">
-              Password must be at least 6 characters long.
+              Password must be at least 8 characters long.
             </p>
           )}
         </div>

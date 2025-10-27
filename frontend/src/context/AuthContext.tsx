@@ -9,8 +9,9 @@ import {
 } from "react";
 
 type User = {
-  username: string;
+  id?: string;
   email: string;
+  name: string | null;
 };
 
 type AuthContextState = {
@@ -28,7 +29,7 @@ type LoginPayload = {
 };
 
 type RegisterPayload = {
-  username: string;
+  name: string;
   email: string;
   password: string;
 };
@@ -36,16 +37,14 @@ type RegisterPayload = {
 const STORAGE_TOKEN_KEY = "stg.auth.token";
 const STORAGE_USER_KEY = "stg.auth.user";
 
-// Temporary hard-coded account for demo login flows. Remove when backend auth is wired up.
-const TEST_ACCOUNT = {
-  email: "a@b.com",
-  password: "123qwe",
-  token: "demo-test-token",
-  user: {
-    username: "Demo Analyst",
-    email: "a@b.com",
-  },
-} as const;
+const DEFAULT_API_BASE = "/api";
+
+const apiBase = (import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE).replace(/\/+$/, "");
+
+const buildApiUrl = (path: string) => {
+  const normalizedPath = path.replace(/^\/+/, "");
+  return `${apiBase}/${normalizedPath}`;
+};
 
 const AuthContext = createContext<AuthContextState | undefined>(undefined);
 
@@ -59,7 +58,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const stored = window.localStorage.getItem(STORAGE_USER_KEY);
     if (!stored) return null;
     try {
-      return JSON.parse(stored) as User;
+      const parsed = JSON.parse(stored) as Partial<User> & { username?: string };
+      if (!parsed || typeof parsed !== "object") return null;
+      return {
+        id: parsed.id,
+        email: parsed.email ?? "",
+        name: parsed.name ?? (parsed.username ?? null),
+      };
     } catch {
       window.localStorage.removeItem(STORAGE_USER_KEY);
       return null;
@@ -88,14 +93,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = useCallback(async ({ email, password }: LoginPayload) => {
     setIsAuthenticating(true);
     try {
-      if (email === TEST_ACCOUNT.email && password === TEST_ACCOUNT.password) {
-        // Demo shortcut: allows QA to log in without hitting the backend. Remove once backend is ready.
-        setToken(TEST_ACCOUNT.token);
-        setUser(TEST_ACCOUNT.user);
-        return;
-      }
-
-      const response = await fetch("/api/login", {
+      const response = await fetch(buildApiUrl("/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -103,38 +101,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       const data = (await response.json().catch(() => ({}))) as {
         token?: string;
-        user?: User;
+        user?: { id?: string; email?: string; name?: string | null; username?: string | null };
         message?: string;
+        error?: string;
       };
 
       if (!response.ok) {
-        throw new Error(data.message ?? "Invalid email or password.");
+        throw new Error(data.message ?? data.error ?? "Invalid email or password.");
       }
 
-      if (!data.token || !data.user) {
+      if (!data.token || !data.user || !data.user.email) {
         throw new Error("Unexpected server response.");
       }
 
+      const normalisedUser: User = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name ?? data.user.username ?? null,
+      };
+
       setToken(data.token);
-      setUser(data.user);
+      setUser(normalisedUser);
     } finally {
       setIsAuthenticating(false);
     }
   }, []);
 
-  const register = useCallback(async ({ username, email, password }: RegisterPayload) => {
+  const register = useCallback(async ({ name, email, password }: RegisterPayload) => {
     setIsAuthenticating(true);
     try {
-      const response = await fetch("/api/register", {
+      const response = await fetch(buildApiUrl("/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ name, email, password }),
       });
-
-      const payload = (await response.json().catch(() => ({}))) as { message?: string };
+      const payload = (await response.json().catch(() => ({}))) as {
+        message?: string;
+        error?: string;
+      };
 
       if (!response.ok) {
-        throw new Error(payload.message ?? "Unable to create account.");
+        throw new Error(payload.message ?? payload.error ?? "Unable to create account.");
       }
     } finally {
       setIsAuthenticating(false);
