@@ -77,12 +77,12 @@ const PersonalMonitors = () => {
 
   const preferences = useMemo(() => {
     const baseKeywords = ["Free Voices Coalition", "Campus Speech Night"];
-    const personalisedKeyword = user?.username ? `${user.username}` : undefined;
+    const personalisedKeyword = user?.name ? `${user.name}` : undefined;
     return {
       languages: ["English", "Spanish", "Portuguese"],
       keywords: personalisedKeyword ? [...baseKeywords, personalisedKeyword] : baseKeywords,
     };
-  }, [user?.username]);
+  }, [user?.name]);
 
   const personalisedPosts = useMemo(() => {
     const matches = basePosts.filter((post) => {

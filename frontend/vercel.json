@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "${BACKEND_URL}/:path*" }
+    { "source": "/api/:path*", "destination": "${env:BACKEND_URL}/auth/:path*" }
   ]
 }

@@ -79,7 +79,7 @@ const NavBar = () => {
                 <Settings className="h-4 w-4" aria-hidden />
               </NavLink>
               <span className="hidden text-sm font-semibold text-slate-700 dark:text-slate-200 sm:inline-flex">
-                {user?.username ?? "Analyst"}
+                {user?.name ?? "Analyst"}
               </span>
               <button
                 type="button"
