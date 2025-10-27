@@ -19,7 +19,8 @@
     "noImplicitAny": true,
     "noEmit": true,
     "types": [
-      "vite/client"
+      "vite/client",
+      "node"
     ],
     "baseUrl": ".",
     "paths": {
@@ -29,7 +30,8 @@
     }
   },
   "include": [
-    "src"
+    "src",
+    "api"
   ],
   "references": [
     {
