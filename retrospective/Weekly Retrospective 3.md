@@ -28,6 +28,8 @@ This week's works focus on frontend and backend connection on deployment, apache
 ## **Lessons Learned**
 - Render is good for setting up backend deployment, but for connection wallet, it can't be added in, so either use name/password to connect or use VM for deployment.
 - Pm2 can be used for load balancer, keep project running while close terminal, keep running when upgrade and pull new code, set script for managing project.
+- 
+
 ---
 
 ## **Next Steps**
