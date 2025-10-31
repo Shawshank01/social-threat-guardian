@@ -187,3 +187,26 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -H "Content-Type: application/json" \
        -d '{"email":"user@example.com","password":"secret123"}'
   ```
+
+### Fetch Latest Comments
+- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL`) ##This is only for dummy data
+- **Description:** Returns the newest hate-speech comments from table `HATE_SPEECH_DUMMY_RESULTS`, sorted by `POST_TIMESTAMP` descending. Each item contains the original text, predicted intent, and a human-readable time difference (e.g., `1 min ago`). Use `predIntent` to filter by intent (e.g., `NEUTRAL`).
+- **Example (Postman / curl):**
+  ```bash test
+  curl "http://localhost:3000/comments/latest?limit=4"
+  curl "http://localhost:3000/comments/latest?limit=4&predIntent=NEUTRAL"
+  ```
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "count": 4,
+    "comments": [
+      {
+        "postText": "text",
+        "predIntent": "NEUTRAL",
+        "timeAgo": "12 mins ago"
+      }
+    ]
+  }
+  ```

@@ -33,7 +33,7 @@ export async function ensureUsersTable() {
       END;`;
     await conn.execute(createTablePLSQL, {}, { autoCommit: true });
 
-    // 2) Add columns if missing (each guarded)
+    // 2) Add columns if missing
     const addColumnsPLSQL = `
       BEGIN
         -- PASSWORD_HASH

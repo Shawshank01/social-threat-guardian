@@ -12,6 +12,7 @@ import { ensureUsersTable } from "./models/userModel.js";
 import indexRouter from "./routes/index.js";
 import pushRouter from "./routes/push.js";
 import authRouter from "./routes/auth.js";
+import commentsRouter from "./routes/comments.js";
 
 dotenv.config({ override: true });
 
@@ -38,6 +39,7 @@ app.use("/db", dbTestRouter);
 app.use("/users", userRouter);
 app.use("/auth", authRouter);
 app.use("/api", authRouter); // Mirror /auth endpoints for frontend expectations
+app.use("/comments", commentsRouter);
 
 app.use(errorHandler);
 
