@@ -190,11 +190,11 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
 
 ### Fetch Latest Comments
 - `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL`) ##This is only for dummy data
-- **Description:** Returns the newest hate-speech comments from table `HATE_SPEECH_DUMMY_RESULTS`, sorted by `POST_TIMESTAMP` descending. Each item contains the original text, predicted intent, and a human-readable time difference (e.g., `1 min ago`). Use `predIntent` to filter by intent (e.g., `NEUTRAL`).
+- **Description:** Returns the newest comments from table `BLUESKY`, sorted by `POST_TIMESTAMP` descending. By default it filters to `PRED_INTENT = 'NEUTRAL'`; override via the `predIntent` query parameter. Each item contains the original text, predicted intent, and a human-readable time difference (e.g., `1 min ago`).
 - **Example (Postman / curl):**
   ```bash test
   curl "http://localhost:3000/comments/latest?limit=4"
-  curl "http://localhost:3000/comments/latest?limit=4&predIntent=NEUTRAL"
+  curl "http://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
   ```
 - **Response:**
   ```json

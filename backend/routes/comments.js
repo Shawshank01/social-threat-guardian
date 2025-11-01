@@ -29,9 +29,10 @@ function formatTimeAgo(timestamp) {
 
 router.get("/latest", async (req, res) => {
   const limit = Number(req.query.limit) || 4;
-  const predIntent = req.query.predIntent ? String(req.query.predIntent) : null;
 
   try {
+    const predIntent =
+      req.query.predIntent !== undefined ? String(req.query.predIntent).trim() : undefined;
     const rows = await fetchLatestComments(limit, { predIntent });
     const comments = rows.map((row) => ({
       postText: row.POST_TEXT,
