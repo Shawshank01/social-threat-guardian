@@ -184,8 +184,32 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/auth/login \
-       -H "Content-Type: application/json" \
+      -H "Content-Type: application/json" \
        -d '{"email":"user@example.com","password":"secret123"}'
+  ```
+
+### Logout
+- `POST /auth/logout` (also available as `/api/logout`)
+- **Headers:** `Content-Type: application/json` (optional) and optionally `Authorization: Bearer <token>`
+- **Request Body (optional):**
+  ```json
+  {
+    "token": "jwt-token-string"
+  }
+  ```
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true
+    }
+    ```
+  - `400 Bad Request` when an invalid (non-JWT) token is supplied.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/auth/logout \
+       -H "Authorization: Bearer <token>"
   ```
 
 ### Fetch Latest Comments
