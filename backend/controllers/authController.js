@@ -6,6 +6,28 @@ import {
   updateLastLoginModel,
 } from "../models/userModel.js";
 import jwt from "jsonwebtoken";
+
+// In-memory store for revoked JWT tokens (cleared automatically on expiry)
+const revokedTokens = new Map();
+
+function cleanupRevokedTokens(now = Date.now()) {
+  for (const [token, expMs] of revokedTokens) {
+    if (expMs <= now) {
+      revokedTokens.delete(token);
+    }
+  }
+}
+
+function revokeToken(token, expSeconds) {
+  const expMs = expSeconds ? expSeconds * 1000 : Date.now();
+  revokedTokens.set(token, expMs);
+  cleanupRevokedTokens();
+}
+
+export function isTokenRevoked(token) {
+  cleanupRevokedTokens();
+  return revokedTokens.has(token);
+}
 /**
  * POST /auth/register
  * Body: { email, password, name? }
@@ -88,6 +110,42 @@ export async function login(req, res) {
     });
   } catch (err) {
     console.error("[authController.login] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+}
+
+export async function logout(req, res) {
+  try {
+    const authHeader = req.get("Authorization");
+    const tokenFromHeader =
+      authHeader && authHeader.startsWith("Bearer ")
+        ? authHeader.slice(7).trim()
+        : null;
+    const token = req.body?.token || tokenFromHeader;
+
+    if (!token) {
+      return res.json({ ok: true });
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded?.exp) {
+        revokeToken(token, decoded.exp);
+      } else {
+        revokeToken(token);
+      }
+    } catch (verifyErr) {
+      if (verifyErr?.name !== "TokenExpiredError") {
+        console.warn("[authController.logout] invalid token supplied:", verifyErr?.message);
+        return res.status(400).json({ ok: false, error: "Invalid token" });
+      }
+      // Expired tokens are effectively logged out already
+      cleanupRevokedTokens();
+    }
+
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error("[authController.logout] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
   }
 }
