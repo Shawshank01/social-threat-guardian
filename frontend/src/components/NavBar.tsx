@@ -31,9 +31,16 @@ const NavBar = () => {
       <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link
           to="/"
-          className="text-lg font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white"
+          className="inline-flex items-center gap-2 text-lg font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white"
         >
-          Social Threat Guardian
+          <img
+            src="/icon.svg"
+            alt="Social Threat Guardian logo"
+            className="h-6 w-6 rounded-md shadow-sm"
+            loading="lazy"
+            decoding="async"
+          />
+          <span>Social Threat Guardian</span>
         </Link>
 
         <ul className="hidden flex-1 items-center justify-center gap-8 text-sm font-medium md:flex">
