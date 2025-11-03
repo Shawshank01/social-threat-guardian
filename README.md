@@ -10,7 +10,7 @@ Social Threat Guardian is an AI-powered system designed to detect, monitor, and 
 
 ## Technical Approach
 1. **Data Ingestion**
-   - Collect data from social media platforms (X, Reddit, Bluesky, Mastodon, Facebook, Instagram) via their APIs.
+   - Collect data from social media platforms (Bluesky, Mastodon, Telegram) via their APIs.
    - Supplement live data streams with historical datasets in CSV and JSON formats.
    - Employ Apache Kafka for event-driven streaming and real-time data pipeline management.
 
@@ -42,19 +42,19 @@ The Social Threat Guardian project responds to the increasing sophistication and
 
 ## Objectives
 - Develop an AI-driven platform for detecting social media threats against freedom of speech users.
-- Utilize state-of-the-art NLP models for accurate text-based threat identification.
+- Utilise state-of-the-art NLP models for accurate text-based threat identification.
 - Implement real-time data streaming and processing pipelines.
-- Provide intuitive visualizations and customizable alerting mechanisms for diverse user needs.
+- Provide intuitive visualisations and customizable alerting mechanisms for diverse user needs.
 
 ## Key Features and Innovation
-- Integration of Kafka-based event streaming with Oracle 23c AI database for scalable, high-performance threat analysis.
+- Integration of Kafka-based event streaming with Oracle 26 AI database for scalable, high-performance threat analysis.
 - DistilBERT-powered NLP models tailored to nuanced threat detection.
-- Real-time threat indices and anonymized content visualization to protect user privacy.
+- Real-time threat indices and anonymised content visualisation to protect user privacy.
 - Harassment network mapping to reveal coordinated threat campaigns.
 - Ethical data handling and GDPR compliance.
 - Customizable alert system aligned with user risk profiles and preferences.
 
 ## Optional Work May Apply to Future Use
 - Expand threat detection capabilities to multimedia content such as images and videos.
-- Integrate with law enforcement and support organizations for enhanced response.
+- Integrate with law enforcement and support organisations for enhanced response.
 - Improve multilingual and cross-cultural model robustness.

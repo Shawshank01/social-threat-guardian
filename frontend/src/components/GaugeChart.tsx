@@ -29,8 +29,7 @@ type GaugeChartProps = {
 
 const defaultPlatforms = [
   { label: "All Platforms", value: "all" },
-  { label: "Reddit", value: "reddit" },
-  { label: "Facebook", value: "facebook" },
+  { label: "Telegram", value: "telegram" },
   { label: "Bluesky", value: "bluesky" },
   { label: "Mastodon", value: "mastodon" },
 ] as const;
