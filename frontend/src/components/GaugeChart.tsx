@@ -35,14 +35,14 @@ const defaultPlatforms = [
 ] as const;
 
 // Adjust these constants to reposition the arc labels
-const ARC_RADIUS_X_RATIO = 0.35; // Horizontal distance from gauge center to labels relative to width
+const ARC_RADIUS_X_RATIO = 0.45; // Horizontal distance from gauge center to labels relative to width
 const ARC_RADIUS_Y_RATIO = 0.45; // Vertical distance from gauge center to labels relative to height
 const ARC_CENTER_Y_RATIO = 0.5; // Vertical center alignment of the label arc (lower value pushes labels upward)
 const ARC_START_ANGLE = 180; // Degrees from left to start label placement
 const ARC_END_ANGLE = 0; // Degrees on the right where labels end
 
 // Inner numeric scale constants (0-100)
-const INNER_RADIUS_X_RATIO = 0.15; // Horizontal distance for 0-100 scale relative to width
+const INNER_RADIUS_X_RATIO = 0.17; // Horizontal distance for 0-100 scale relative to width
 const INNER_RADIUS_Y_RATIO = 0.28; // Vertical distance for 0-100 scale relative to height
 const INNER_CENTER_Y_RATIO = 0.51; // Vertical center for numeric scale (tweak to lift/drop numbers)
 
