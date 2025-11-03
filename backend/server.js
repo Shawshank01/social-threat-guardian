@@ -1,8 +1,6 @@
 // server.js
 import express from "express";
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -16,14 +14,10 @@ import commentsRouter from "./routes/comments.js";
 
 dotenv.config({ override: true });
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 
 app.use(corsMiddleware);
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
 
 try {
   await initOraclePool();
