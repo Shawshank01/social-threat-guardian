@@ -212,29 +212,29 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -H "Authorization: Bearer <token>"
   ```
 ### Search Comments by Keyword
-- `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUESKY" }`)  
-- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUESKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
+- `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
+- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
     "keywords": ["hate speech", "alert"],
     "limit": 4,
     "predIntent": "NEUTRAL",
-    "source": "BLUESKY"
+    "source": "BLUSKY"
   }
   ```
 - **Example (curl):**
   ```bash
   curl -X POST http://localhost:3000/comments/search \
        -H "Content-Type: application/json" \
-       -d '{"keywords":["hate","alert"],"limit":4,"source":"BLUESKY2"}'
+       -d '{"keywords":["hate","alert"],"limit":4,"source":"BLUSKY2"}'
   ```
 - **Response:**
   ```json
   {
     "ok": true,
-    "sourceTable": "BLUESKY2",
-    "platform": "BLUESKY2",
+    "sourceTable": "BLUSKY2",
+    "platform": "BLUSKY2",
     "keywordCount": 2,
     "results": [
       {
@@ -244,8 +244,8 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
           {
             "postText": "text mentioning hate",
             "predIntent": "NEUTRAL",
-            "platform": "BLUESKY2",
-            "sourceTable": "BLUESKY2",
+            "platform": "BLUSKY2",
+            "sourceTable": "BLUSKY2",
             "timeAgo": "12 mins ago"
           }
         ]
@@ -259,27 +259,27 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   }
   ```
 ### Fetch Latest Comments
-- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUESKY`)  
-- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUESKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes the friendly `platform` label, exact `sourceTable`, and a human-readable `timeAgo`.
+- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUSKY`)  
+- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes the friendly `platform` label, exact `sourceTable`, and a human-readable `timeAgo`.
 - **Example (curl):**
   ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
   curl "http://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
-  curl "http://localhost:3000/comments/latest?limit=4&source=BLUESKY2"
+  curl "http://localhost:3000/comments/latest?limit=4&source=BLUSKY2"
   ```
 - **Response:**
   ```json
   {
     "ok": true,
     "count": 4,
-    "platform": "BLUESKY2",
-    "sourceTable": "BLUESKY2",
+    "platform": "BLUSKY2",
+    "sourceTable": "BLUSKY2",
     "comments": [
       {
         "postText": "text mentioning hate",
         "predIntent": "NEUTRAL",
-        "platform": "BLUESKY2",
-        "sourceTable": "BLUESKY2",
+        "platform": "BLUSKY2",
+        "sourceTable": "BLUSKY2",
         "timeAgo": "12 mins ago"
       }
     ]

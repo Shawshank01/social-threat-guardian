@@ -19,7 +19,7 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
   const tableName =
     filters.tableName !== undefined && filters.tableName !== null
       ? String(filters.tableName).trim().toUpperCase()
-      : "BLUESKY";
+      : "BLUSKY";
 
   if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
     throw new Error("Invalid table name");

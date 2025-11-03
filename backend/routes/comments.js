@@ -6,13 +6,13 @@ const router = express.Router();
 
 // Extend this map when onboard new datasets to control the friendly label that appears in responses.
 const PLATFORM_LABELS = {
-  BLUESKY: "Blusky",
+  BLUSKY: "Blusky",
 };
 
 function sanitizeTableName(value) {
-  if (value === undefined || value === null) return "BLUESKY";
+  if (value === undefined || value === null) return "BLUSKY";
   const upper = String(value).trim().toUpperCase();
-  if (!upper) return "BLUESKY";
+  if (!upper) return "BLUSKY";
   if (!/^[A-Z0-9_]+$/.test(upper)) return null;
   return upper;
 }
