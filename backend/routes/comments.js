@@ -4,6 +4,23 @@ import { fetchLatestComments } from "../models/commentModel.js";
 
 const router = express.Router();
 
+// Extend this map when onboard new datasets to control the friendly label that appears in responses.
+const PLATFORM_LABELS = {
+  BLUESKY: "Blusky",
+};
+
+function sanitizeTableName(value) {
+  if (value === undefined || value === null) return "BLUESKY";
+  const upper = String(value).trim().toUpperCase();
+  if (!upper) return "BLUESKY";
+  if (!/^[A-Z0-9_]+$/.test(upper)) return null;
+  return upper;
+}
+
+function resolvePlatformLabel(tableName) {
+  return PLATFORM_LABELS[tableName] || tableName;
+}
+
 function formatTimeAgo(timestamp) {
   if (!timestamp) return null;
   const date = new Date(timestamp);
@@ -33,10 +50,20 @@ router.get("/latest", async (req, res) => {
   try {
     const predIntent =
       req.query.predIntent !== undefined ? String(req.query.predIntent).trim() : undefined;
-    const rows = await fetchLatestComments(limit, { predIntent });
+    const tableName = sanitizeTableName(req.query.source);
+
+    if (!tableName) {
+      return res.status(400).json({ ok: false, error: "Invalid source table" });
+    }
+
+    const rows = await fetchLatestComments(limit, { predIntent, tableName });
+    const platformLabel = resolvePlatformLabel(tableName);
+
     const comments = rows.map((row) => ({
       postText: row.POST_TEXT,
       predIntent: row.PRED_INTENT,
+      platform: platformLabel,
+      sourceTable: tableName,
       timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
     }));
 

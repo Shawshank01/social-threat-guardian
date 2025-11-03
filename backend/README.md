@@ -211,14 +211,14 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   curl -X POST http://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
-
 ### Fetch Latest Comments
-- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL`) ##This is only for dummy data
-- **Description:** Returns the newest comments from table `BLUESKY`, sorted by `POST_TIMESTAMP` descending. By default it filters to `PRED_INTENT = 'NEUTRAL'`; override via the `predIntent` query parameter. Each item contains the original text, predicted intent, and a human-readable time difference (e.g., `1 min ago`).
+- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUESKY`) ##This is only for dummy data
+- **Description:** Returns the newest comments from the requested table (defaults to `BLUESKY`), ordered by `POST_TIMESTAMP` descending. By default it filters to `PRED_INTENT = 'NEUTRAL'`; override the intent with the `predIntent` query parameter or switch datasets with `source` (e.g., `BLUESKY2`). Each item includes the original text, predicted intent, a human-readable time difference (e.g., `1 min ago`), and both a friendly `platform` label plus the exact `sourceTable`.
 - **Example (Postman / curl):**
-  ```bash test
+  ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
   curl "http://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
+  curl "http://localhost:3000/comments/latest?limit=4&source=BLUESKY2"
   ```
 - **Response:**
   ```json
@@ -229,6 +229,8 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
       {
         "postText": "text",
         "predIntent": "NEUTRAL",
+        "platform": "Blusky",
+        "sourceTable": "BLUESKY",
         "timeAgo": "12 mins ago"
       }
     ]

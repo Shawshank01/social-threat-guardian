@@ -4,38 +4,56 @@ import { withConnection } from "../config/db.js";
 
 export async function fetchLatestComments(limit = 4, filters = {}) {
   const capped = Math.max(1, Math.min(Number(limit) || 4, 50));
-  const predIntent =
-    filters.predIntent !== undefined && filters.predIntent !== null
-      ? String(filters.predIntent).trim()
-      : "NEUTRAL";
+
+  let predIntent = filters.predIntent;
+  if (predIntent === undefined || predIntent === null) {
+    predIntent = "NEUTRAL";
+  } else {
+    predIntent = String(predIntent).trim();
+    if (!predIntent) {
+      predIntent = "NEUTRAL";
+    }
+  }
+  predIntent = predIntent ? predIntent.toUpperCase() : null;
+
+  const tableName =
+    filters.tableName !== undefined && filters.tableName !== null
+      ? String(filters.tableName).trim().toUpperCase()
+      : "BLUESKY";
+
+  if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
 
   return withConnection(async (conn) => {
     const binds = { limit: capped };
-    const whereClause = predIntent ? "WHERE PRED_INTENT = :predIntent" : "";
+    const whereClauses = [];
+
     if (predIntent) {
       binds.predIntent = predIntent;
+      whereClauses.push("PRED_INTENT = :predIntent");
     }
 
-    const result = await conn.execute(
-      `
-        SELECT POST_TEXT, PRED_INTENT, POST_TIMESTAMP
-          FROM (
-            SELECT POST_TEXT, PRED_INTENT, POST_TIMESTAMP
-              FROM BLUSKY
-             ${whereClause}
-             ORDER BY POST_TIMESTAMP DESC NULLS LAST
-          )
-         WHERE ROWNUM <= :limit
-      `,
-      binds,
-      {
-        outFormat: oracledb.OUT_FORMAT_OBJECT,
-        fetchInfo: {
-          POST_TEXT: { type: oracledb.STRING },
-          PRED_INTENT: { type: oracledb.STRING },
-        },
-      }
-    );
+    const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT POST_TEXT, PRED_INTENT, POST_TIMESTAMP
+        FROM (
+          SELECT POST_TEXT, PRED_INTENT, POST_TIMESTAMP
+            FROM ${tableName}
+           ${whereSql}
+           ORDER BY POST_TIMESTAMP DESC NULLS LAST
+        )
+       WHERE ROWNUM <= :limit
+    `;
+
+    const result = await conn.execute(sql, binds, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      fetchInfo: {
+        POST_TEXT: { type: oracledb.STRING },
+        PRED_INTENT: { type: oracledb.STRING },
+      },
+    });
 
     return result.rows || [];
   });
