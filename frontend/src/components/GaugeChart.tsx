@@ -56,7 +56,7 @@ const GaugeChart = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [gaugeDimensions, setGaugeDimensions] = useState({ width: 320, height: 220 });
+  const [gaugeDimensions, setGaugeDimensions] = useState({ width: 320, height: 340 });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -308,17 +308,17 @@ const GaugeChart = ({
               </span>
             ))}
           </div>
-          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 text-center">
-            <span className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">
+          <div className="absolute inset-x-0 bottom-2 flex flex-col items-center gap-1 text-center">
+            <span className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
               Current signal
             </span>
             <div className="flex items-end gap-2">
-              <span className="text-5xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
-              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
+              <span className="text-4xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
+              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
                 {zone.label}
               </span>
             </div>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
             </p>
           </div>
