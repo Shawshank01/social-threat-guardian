@@ -25,6 +25,18 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     throw new Error("Invalid table name");
   }
 
+  let keyword = filters.keyword;
+  if (keyword !== undefined && keyword !== null) {
+    keyword = String(keyword).trim();
+    if (!keyword) {
+      keyword = null;
+    } else {
+      keyword = keyword.toUpperCase();
+    }
+  } else {
+    keyword = null;
+  }
+
   return withConnection(async (conn) => {
     const binds = { limit: capped };
     const whereClauses = [];
@@ -32,6 +44,11 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     if (predIntent) {
       binds.predIntent = predIntent;
       whereClauses.push("PRED_INTENT = :predIntent");
+    }
+
+    if (keyword) {
+      binds.keyword = keyword;
+      whereClauses.push("INSTR(UPPER(POST_TEXT), :keyword) > 0");
     }
 
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";

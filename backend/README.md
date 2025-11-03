@@ -211,10 +211,57 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   curl -X POST http://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
+### Search Comments by Keyword
+- `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUESKY" }`)  
+- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUESKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
+- **Request Body:**
+  ```json
+  {
+    "keywords": ["hate speech", "alert"],
+    "limit": 4,
+    "predIntent": "NEUTRAL",
+    "source": "BLUESKY"
+  }
+  ```
+- **Example (curl):**
+  ```bash
+  curl -X POST http://localhost:3000/comments/search \
+       -H "Content-Type: application/json" \
+       -d '{"keywords":["hate","alert"],"limit":4,"source":"BLUESKY2"}'
+  ```
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "sourceTable": "BLUESKY2",
+    "platform": "BLUESKY2",
+    "keywordCount": 2,
+    "results": [
+      {
+        "keyword": "hate",
+        "count": 3,
+        "comments": [
+          {
+            "postText": "text mentioning hate",
+            "predIntent": "NEUTRAL",
+            "platform": "BLUESKY2",
+            "sourceTable": "BLUESKY2",
+            "timeAgo": "12 mins ago"
+          }
+        ]
+      },
+      {
+        "keyword": "alert",
+        "count": 0,
+        "comments": []
+      }
+    ]
+  }
+  ```
 ### Fetch Latest Comments
-- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUESKY`) ##This is only for dummy data
-- **Description:** Returns the newest comments from the requested table (defaults to `BLUESKY`), ordered by `POST_TIMESTAMP` descending. By default it filters to `PRED_INTENT = 'NEUTRAL'`; override the intent with the `predIntent` query parameter or switch datasets with `source` (e.g., `BLUESKY2`). Each item includes the original text, predicted intent, a human-readable time difference (e.g., `1 min ago`), and both a friendly `platform` label plus the exact `sourceTable`.
-- **Example (Postman / curl):**
+- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUESKY`)  
+- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUESKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes the friendly `platform` label, exact `sourceTable`, and a human-readable `timeAgo`.
+- **Example (curl):**
   ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
   curl "http://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
@@ -225,12 +272,14 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   {
     "ok": true,
     "count": 4,
+    "platform": "BLUESKY2",
+    "sourceTable": "BLUESKY2",
     "comments": [
       {
-        "postText": "text",
+        "postText": "text mentioning hate",
         "predIntent": "NEUTRAL",
-        "platform": "Blusky",
-        "sourceTable": "BLUESKY",
+        "platform": "BLUESKY2",
+        "sourceTable": "BLUESKY2",
         "timeAgo": "12 mins ago"
       }
     ]
