@@ -28,10 +28,10 @@ const NavBar = () => {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur transition-colors duration-200 dark:border-white/10 dark:bg-slate-950/70">
-      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-lg font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white"
+          className="inline-flex items-center gap-2 text-base font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white sm:text-lg"
         >
           <img
             src="/icon.svg"
@@ -43,7 +43,7 @@ const NavBar = () => {
           <span>Social Threat Guardian</span>
         </Link>
 
-        <ul className="hidden flex-1 items-center justify-center gap-8 text-sm font-medium md:flex">
+        <ul className="hidden flex-1 items-center justify-center gap-6 text-xs font-medium sm:gap-8 sm:text-sm md:flex">
           {navItems.map((item) => (
             <li key={item.to}>
               <NavLink
@@ -61,7 +61,7 @@ const NavBar = () => {
           ))}
         </ul>
 
-        <div className="flex items-center gap-3 text-slate-500 dark:text-slate-300">
+        <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300 sm:gap-3">
           <button
             type="button"
             aria-label="Change language"

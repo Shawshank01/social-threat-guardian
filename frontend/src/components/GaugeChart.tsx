@@ -308,18 +308,20 @@ const GaugeChart = ({
               </span>
             ))}
           </div>
-        </div>
-        <div className="mt-4 flex flex-col items-center gap-2 text-center">
-          <span className="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Current signal</span>
-          <div className="flex items-end gap-3">
-            <span className="text-5xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
-            <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
-              {zone.label}
+          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 text-center">
+            <span className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">
+              Current signal
             </span>
+            <div className="flex items-end gap-2">
+              <span className="text-5xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
+              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
+                {zone.label}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
-          </p>
         </div>
       </div>
       {onPlatformChange && (

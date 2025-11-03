@@ -97,11 +97,11 @@ const Home = () => {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4">
-      <div className="mt-4 flex flex-col gap-12 lg:mt-0 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
-        <div className="order-2 lg:order-1">
+      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
+        <div className="order-1">
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
-        <div className="order-1 lg:order-2">
+        <div className="order-2">
           <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
             <header className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
