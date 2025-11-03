@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Chart from "react-apexcharts";
 import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
@@ -35,16 +35,16 @@ const defaultPlatforms = [
 ] as const;
 
 // Adjust these constants to reposition the arc labels
-const ARC_RADIUS_X = 35; // Horizontal distance from gauge center to labels
-const ARC_RADIUS_Y = 80; // Vertical distance from gauge center to labels (increase for taller oval)
-const ARC_CENTER_Y = 90; // Vertical center alignment of the label arc (lower value pushes labels upward)
+const ARC_RADIUS_X_RATIO = 0.35; // Horizontal distance from gauge center to labels relative to width
+const ARC_RADIUS_Y_RATIO = 0.45; // Vertical distance from gauge center to labels relative to height
+const ARC_CENTER_Y_RATIO = 0.5; // Vertical center alignment of the label arc (lower value pushes labels upward)
 const ARC_START_ANGLE = 180; // Degrees from left to start label placement
 const ARC_END_ANGLE = 0; // Degrees on the right where labels end
 
 // Inner numeric scale constants (0-100)
-const INNER_RADIUS_X = 16;
-const INNER_RADIUS_Y = 55;
-const INNER_CENTER_Y = 95;
+const INNER_RADIUS_X_RATIO = 0.15; // Horizontal distance for 0-100 scale relative to width
+const INNER_RADIUS_Y_RATIO = 0.28; // Vertical distance for 0-100 scale relative to height
+const INNER_CENTER_Y_RATIO = 0.51; // Vertical center for numeric scale (tweak to lift/drop numbers)
 
 const GaugeChart = ({
   platform,
@@ -55,6 +55,8 @@ const GaugeChart = ({
   const [displayValue, setDisplayValue] = useState(() => clamp(targetValue));
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [gaugeDimensions, setGaugeDimensions] = useState({ width: 320, height: 220 });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -119,6 +121,24 @@ const GaugeChart = ({
   useEffect(() => {
     setDisplayValue((prev) => clamp((prev + targetValue) / 2));
   }, [targetValue]);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+
+    const updateDimensions = () => {
+      const width = element.getBoundingClientRect().width || 320;
+      const height = Math.max(200, Math.min(340, width * 0.68));
+      setGaugeDimensions({ width, height });
+    };
+
+    updateDimensions();
+
+    const observer = new ResizeObserver(() => updateDimensions());
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   const zone = useMemo(() => readZone(displayValue), [displayValue]);
 
@@ -195,36 +215,44 @@ const GaugeChart = ({
 
   const arcLabels = useMemo(() => {
     const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (ZONES.length - 1);
+    const centerX = gaugeDimensions.width / 2;
+    const centerY = gaugeDimensions.height * ARC_CENTER_Y_RATIO;
+    const radiusX = gaugeDimensions.width * ARC_RADIUS_X_RATIO;
+    const radiusY = gaugeDimensions.height * ARC_RADIUS_Y_RATIO;
 
     return ZONES.map((entry, index) => {
       const angleDeg = ARC_START_ANGLE - step * index;
       const angleRad = (angleDeg * Math.PI) / 180;
-      const x = 50 + Math.cos(angleRad) * ARC_RADIUS_X;
-      const y = ARC_CENTER_Y - Math.sin(angleRad) * ARC_RADIUS_Y;
+      const x = centerX + Math.cos(angleRad) * radiusX;
+      const y = centerY - Math.sin(angleRad) * radiusY;
       return {
         ...entry,
-        left: `${x}%`,
-        top: `${y}%`,
+        left: `${x}px`,
+        top: `${y}px`,
       };
     });
-  }, []);
+  }, [gaugeDimensions.height, gaugeDimensions.width]);
 
   const numericLabels = useMemo(() => {
     const values = Array.from({ length: 11 }, (_, index) => index * 10);
     const step = (ARC_START_ANGLE - ARC_END_ANGLE) / (values.length - 1);
+    const centerX = gaugeDimensions.width / 2;
+    const centerY = gaugeDimensions.height * INNER_CENTER_Y_RATIO;
+    const radiusX = gaugeDimensions.width * INNER_RADIUS_X_RATIO;
+    const radiusY = gaugeDimensions.height * INNER_RADIUS_Y_RATIO;
 
     return values.map((value, index) => {
       const angleDeg = ARC_START_ANGLE - step * index;
       const angleRad = (angleDeg * Math.PI) / 180;
-      const x = 50 + Math.cos(angleRad) * INNER_RADIUS_X;
-      const y = INNER_CENTER_Y - Math.sin(angleRad) * INNER_RADIUS_Y;
+      const x = centerX + Math.cos(angleRad) * radiusX;
+      const y = centerY - Math.sin(angleRad) * radiusY;
       return {
         value,
-        left: `${x}%`,
-        top: `${y}%`,
+        left: `${x}px`,
+        top: `${y}px`,
       };
     });
-  }, []);
+  }, [gaugeDimensions.height, gaugeDimensions.width]);
 
   return (
     <section
@@ -247,9 +275,14 @@ const GaugeChart = ({
         </div>
       </header>
 
-      <div className="flex flex-col items-center justify-center gap-6">
-        <div className="relative w-full max-w-xl">
-          <Chart options={chartOptions} series={[displayValue]} type="radialBar" height={320} />
+      <div className="flex flex-col items-center justify-center">
+        <div ref={containerRef} className="relative w-full max-w-xl" style={{ height: `${gaugeDimensions.height}px` }}>
+          <Chart
+            options={chartOptions}
+            series={[displayValue]}
+            type="radialBar"
+            height={Math.round(gaugeDimensions.height)}
+          />
           <div className="pointer-events-none absolute inset-0">
             {arcLabels.map((entry) => (
               <span
@@ -275,18 +308,20 @@ const GaugeChart = ({
               </span>
             ))}
           </div>
-        </div>
-        <div className="flex flex-col items-center gap-2 text-center">
-          <span className="text-sm uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Current signal</span>
-          <div className="flex items-end gap-3">
-            <span className="text-5xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
-            <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
-              {zone.label}
+          <div className="absolute inset-x-0 bottom-4 flex flex-col items-center gap-2 text-center">
+            <span className="text-xs uppercase tracking-[0.32em] text-slate-500 dark:text-slate-400">
+              Current signal
             </span>
+            <div className="flex items-end gap-2">
+              <span className="text-5xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
+              <span className="rounded-full border border-slate-200/80 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
+                {zone.label}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
+            </p>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
-          </p>
         </div>
       </div>
       {onPlatformChange && (
