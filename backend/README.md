@@ -211,6 +211,42 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   curl -X POST http://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
+### Save User Preferences
+- `POST /user-preferences`
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "userId": "user-uuid",
+    "languages": ["en"],
+    "keywords": ["trump", "election"]
+  }
+  ```
+  - `userId`/`user_id` 必填；`languages`/`language` 与 `keywords`/`keyword` 支持字符串或数组形式，后端会清理为空字符串并保存为 JSON 数组。
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "message": "User preferences saved",
+      "preferences": {
+        "id": "pref-uuid",
+        "userId": "user-uuid",
+        "languages": ["en"],
+        "keywords": ["trump", "election"],
+        "createdAt": "2024-01-01T12:34:56.000Z",
+        "updatedAt": "2024-01-01T12:34:56.000Z"
+      }
+    }
+    ```
+  - `400 Bad Request` 当缺少 `userId`。
+  - `500 Internal Server Error` 非预期错误。
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/user-preferences \
+       -H "Content-Type: application/json" \
+       -d '{"userId":"user-uuid","language":"en","keywords":["trump"]}'
+  ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
 - **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
