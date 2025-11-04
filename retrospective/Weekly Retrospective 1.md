@@ -51,5 +51,3 @@ This first retrospective covers the initial two weeks of work on the *Social Thr
 
 **Reflection:**  
 These past two weeks have laid the groundwork for *Social Threat Guardian*. Although much of the time was spent aligning the design, personas, and communications, the groundwork is now in place for stronger technical execution in the next phase. Moving forward, the team will continue to focus on front-end development, backend preparation, and efficient communication.
-
----

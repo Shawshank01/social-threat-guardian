@@ -3,7 +3,7 @@
 
 **Team Name:** Zero cool  
 **Team member:** Diwen Xiao, Denis Muriuki, Mingde Zhou  
-**Period Covered:** Sun 13 Oct – Sun 19 Oct
+**Period Covered:** Mon 13 Oct – Sun 19 Oct
 
 ---
 
@@ -54,5 +54,3 @@ This week marked the transition from conceptual and design stages into substanti
 
 **Reflection:**  
 Week 3 represented a turning point for *Social Threat Guardian*, with the project moving from planning to tangible development. The team demonstrated adaptability in addressing workflow issues, ethical dilemmas, and technical challenges. While difficulties emerged in integrating AI and backend systems, the team showed strong collaboration and resilience. With clearer structure, improved governance, and ongoing mentor feedback, the foundation is now set for accelerating technical development in the next sprint and delivering the upcoming interim presentation and report.  
-
----
