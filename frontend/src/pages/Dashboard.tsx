@@ -605,7 +605,7 @@ const Dashboard = () => {
         <header className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Search results</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            Results are grouped by platform and keyword, prioritizing the most recent posts.
+            Results are grouped by platform and keyword, prioritising the most recent posts.
           </p>
         </header>
 
