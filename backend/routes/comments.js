@@ -65,12 +65,12 @@ router.get("/latest", async (req, res) => {
       postText: row.POST_TEXT,
       predIntent: row.PRED_INTENT,
       platform: platformLabel,
-      sourceTable: tableName,
+      postUrl: row.POST_URL || null,
       timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
       collectedAt: row.POST_TIMESTAMP ?? null,
     }));
 
-    return res.json({ ok: true, count: comments.length, comments, platform: platformLabel, sourceTable: tableName });
+    return res.json({ ok: true, count: comments.length, comments, platform: platformLabel });
   } catch (err) {
     console.error("[GET /comments/latest] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
@@ -117,7 +117,7 @@ router.post("/search", async (req, res) => {
         postText: row.POST_TEXT,
         predIntent: row.PRED_INTENT,
         platform: platformLabel,
-        sourceTable: tableName,
+        postUrl: row.POST_URL || null,
         timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
         collectedAt: row.POST_TIMESTAMP ?? null,
       }));
@@ -132,7 +132,6 @@ router.post("/search", async (req, res) => {
     return res.json({
       ok: true,
       results,
-      sourceTable: tableName,
       platform: platformLabel,
       keywordCount: results.length,
     });

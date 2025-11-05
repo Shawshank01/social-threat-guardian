@@ -169,10 +169,11 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     ```json
     {
       "ok": true,
+      "id": "user-uuid",
       "token": "jwt-token-string",
       "expiresIn": "1h",
       "user": {
-        "id": 123,
+        "id": "user-uuid",
         "email": "user@example.com",
         "name": "Optional display name"
       }
@@ -181,6 +182,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `400 Bad Request` when email/password are missing.
   - `401 Unauthorized` when credentials are invalid.
   - `500 Internal Server Error` for unexpected issues.
+  - The response user id is same as user table id, for tracking user preference 
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/auth/login \
@@ -211,9 +213,66 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   curl -X POST http://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
+### Save User Preferences
+- `POST /user-preferences`
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "userId": "user-uuid",
+    "languages": ["en"],
+    "keywords": ["trump", "election"]
+  }
+  ```
+  - `userId`/`user_id` is required; `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "message": "User preferences saved",
+      "preferences": {
+        "id": "pref-uuid",
+        "userId": "user-uuid",
+        "languages": ["en"],
+        "keywords": ["trump", "election"],
+        "createdAt": "2024-01-01T12:34:56.000Z",
+        "updatedAt": "2024-01-01T12:34:56.000Z"
+      }
+    }
+    ```
+  - `400 Bad Request` when `userId` is missing.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/user-preferences \
+       -H "Content-Type: application/json" \
+       -d '{"userId":"user-uuid","language":"en","keywords":["trump"]}'
+  ```
+### Fetch User Preferences
+- `GET /user-preferences?userId=<id>` (also accepts `user_id` or `id` query keys)
+- **Description:** Returns the saved keyword and language preferences for the given user. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
+- **Successful Response (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "preferences": {
+      "userId": "user-uuid",
+      "keywords": ["trump", "election"],
+      "languages": ["en", "es"]
+    }
+  }
+  ```
+- **Errors:**
+  - `400 Bad Request` when the user identifier is missing.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl "http://localhost:3000/user-preferences?userId=user-uuid"
+  ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
-- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
+- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
@@ -233,7 +292,6 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```json
   {
     "ok": true,
-    "sourceTable": "BLUSKY2",
     "platform": "BLUSKY2",
     "keywordCount": 2,
     "results": [
@@ -245,7 +303,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
             "postText": "text mentioning hate",
             "predIntent": "NEUTRAL",
             "platform": "BLUSKY2",
-            "sourceTable": "BLUSKY2",
+            "postUrl": "https://blusky.example/posts/12345",
             "timeAgo": "12 mins ago"
           }
         ]
@@ -260,7 +318,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```
 ### Fetch Latest Comments
 - `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUSKY`)  
-- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes the friendly `platform` label, exact `sourceTable`, and a human-readable `timeAgo`.
+- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes a friendly `platform` label, a navigable `postUrl`, and a human-readable `timeAgo`.
 - **Example (curl):**
   ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
@@ -273,13 +331,12 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     "ok": true,
     "count": 4,
     "platform": "BLUSKY2",
-    "sourceTable": "BLUSKY2",
     "comments": [
       {
         "postText": "text mentioning hate",
         "predIntent": "NEUTRAL",
         "platform": "BLUSKY2",
-        "sourceTable": "BLUSKY2",
+        "postUrl": "https://blusky.example/posts/12345",
         "timeAgo": "12 mins ago"
       }
     ]
