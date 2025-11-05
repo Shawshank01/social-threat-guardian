@@ -3,7 +3,7 @@
 
 **Team Name:** Zero cool  
 **Team member:** Diwen Xiao, Denis Muriuki, Mingde Zhou  
-**Period Covered:** Sun 13 Oct – Sun 19 Oct
+**Period Covered:** Mon 13 Oct – Sun 19 Oct
 
 ---
 
@@ -38,7 +38,8 @@ This week marked the transition from conceptual and design stages into substanti
 - Establishing repository governance early prevents future errors and saves significant recovery time.  
 - Backend logic should complement model limitations instead of over-relying on AI capabilities.  
 - Ethical considerations must remain at the centre of design decisions, particularly when dealing with sensitive or personal data.  
-Using deployment tools to manage our frontend and backend is good decision, but concerning about changing absolute path of some environment files to is also important.
+- Using deployment tools to manage our frontend and backend is good decision, but concerning about changing absolute path of some environment files to is also important.  
+
 ---
 
 ## **Next Steps**
@@ -49,10 +50,7 @@ Using deployment tools to manage our frontend and backend is good decision, but 
 - Maintain regular reviews and streamlined communication to ensure consistent progress across all technical components.
 - Link backend to frontend and deploy both.
 
-
 ---
 
 **Reflection:**  
 Week 3 represented a turning point for *Social Threat Guardian*, with the project moving from planning to tangible development. The team demonstrated adaptability in addressing workflow issues, ethical dilemmas, and technical challenges. While difficulties emerged in integrating AI and backend systems, the team showed strong collaboration and resilience. With clearer structure, improved governance, and ongoing mentor feedback, the foundation is now set for accelerating technical development in the next sprint and delivering the upcoming interim presentation and report.  
-
----

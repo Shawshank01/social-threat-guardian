@@ -34,3 +34,17 @@ Discussed the mentor's feedback and tasks to be completed today.
 - **Denis:** Responsible for developing a functional social media API and completing the *Technical Problem* section of the interim report.  
 - **Diwen:** Responsible for refining the front-end user settings interface and completing the first two sections of the interim report.  
 - **Mingde:** Responsible for implementing communication between the backend and frontend, and contributing to parts of the interim report.  
+
+---
+
+**Date:** Wed 22 Oct  
+**Time:** 14:00 – 20:00  
+
+The team held a six-hour meeting focused entirely on completing the **Interim Report**. All members participated in discussion, writing, and editing to ensure the report’s progress and quality.
+
+---
+
+**Date:** Thu 23 Oct  
+**Time:** 11:00 – 18:00  
+
+The team continued work on the **Interim Report** during a seven-hour session. Everyone contributed to finalising, reviewing, and polishing the report before submission.

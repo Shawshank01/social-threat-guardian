@@ -15,6 +15,8 @@ import Api from "@/pages/Api";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import Dashboard from "@/pages/Dashboard";
+import PostDetail from "@/pages/PostDetail";
+import Bookmarks from "@/pages/Bookmarks";
 
 const App = () => {
   return (
@@ -29,6 +31,8 @@ const App = () => {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/bookmarks" element={<Bookmarks />} />
+            <Route path="/posts/:postId" element={<PostDetail />} />
           </Route>
           <Route path="/personal-monitors" element={<PersonalMonitors />} />
           <Route path="/articles" element={<Articles />} />

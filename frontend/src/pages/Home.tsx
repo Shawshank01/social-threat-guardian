@@ -1,57 +1,107 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { MessageSquare, Share2, Megaphone, ShieldAlert } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
-import PlatformCard from "@/components/PlatformCard";
+import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
+
+type CommentPost = {
+  postText?: string | null;
+  predIntent?: string | null;
+  timeAgo?: string | null;
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+
+const buildApiUrl = (path: string) => {
+  const normalizedPath = path.replace(/^\/+/, "");
+  return `${API_BASE}/${normalizedPath}`;
+};
+
+const mapIntentToSentiment = (intent?: string | null): PlatformCardProps["sentiment"] => {
+  if (!intent) return "medium";
+  const normalized = intent.toLowerCase();
+
+  if (/(threat|violence|attack|kill|harm)/.test(normalized)) {
+    return "critical";
+  }
+  if (/(hate|harass|abuse|target)/.test(normalized)) {
+    return "high";
+  }
+  if (normalized.includes("neutral") || normalized.includes("benign")) {
+    return "low";
+  }
+
+  return "medium";
+};
+
+const sentimentIcons: Record<PlatformCardProps["sentiment"], ReactNode> = {
+  low: <MessageSquare className="h-5 w-5" aria-hidden />,
+  medium: <Share2 className="h-5 w-5" aria-hidden />,
+  high: <Megaphone className="h-5 w-5" aria-hidden />,
+  critical: <ShieldAlert className="h-5 w-5" aria-hidden />,
+};
 
 const Home = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [isFeedRevealed, setIsFeedRevealed] = useState(false);
+  const [posts, setPosts] = useState<CommentPost[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [postsError, setPostsError] = useState<string | null>(null);
 
-  const platformCards = useMemo(
-    () => [
-      {
-        platform: "Reddit",
-        summary:
-          "Coordinated thread targeting keynote speakers with instructions for disruption at the campus entrance tonight.",
-        updated: "4 minutes ago",
-        sentiment: "critical" as const,
-        icon: <MessageSquare className="h-5 w-5" aria-hidden />,
-      },
-      {
-        platform: "Facebook",
-        summary:
-          "Group admins report rapid spread of edited event flyers calling for aggressive counter-protest.",
-        updated: "11 minutes ago",
-        sentiment: "high" as const,
-        icon: <Share2 className="h-5 w-5" aria-hidden />,
-      },
-      {
-        platform: "Bluesky",
-        summary:
-          "Emerging network of new accounts amplifying unfounded threats toward volunteer stewards.",
-        updated: "18 minutes ago",
-        sentiment: "medium" as const,
-        icon: <Megaphone className="h-5 w-5" aria-hidden />,
-      },
-      {
-        platform: "Mastodon",
-        summary:
-          "Federated instance moderators suppress flagged doxxing attempts; hostilities trending lower but volatile.",
-        updated: "26 minutes ago",
-        sentiment: "low" as const,
-        icon: <ShieldAlert className="h-5 w-5" aria-hidden />,
-      },
-    ],
-    []
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadPosts = async () => {
+      setIsLoadingPosts(true);
+      setPostsError(null);
+      try {
+        const response = await fetch(buildApiUrl("comments/latest?limit=10"), {
+          signal: controller.signal,
+        });
+        const payload = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          comments?: CommentPost[];
+          error?: string;
+        };
+
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error ?? "Unable to load latest posts.");
+        }
+
+        setPosts(Array.isArray(payload.comments) ? payload.comments : []);
+      } catch (err) {
+        if ((err as Error).name === "AbortError") return;
+        setPosts([]);
+        setPostsError((err as Error).message || "Unable to load latest posts.");
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+
+    void loadPosts();
+
+    return () => controller.abort();
+  }, []);
+
+  const platformCards = useMemo(() => {
+    return posts.map((post, index) => {
+      const sentiment = mapIntentToSentiment(post.predIntent);
+      return {
+        platform: post.predIntent ? `Intent: ${post.predIntent}` : `Post ${index + 1}`,
+        summary: post.postText?.trim() || "No content provided for this post.",
+        updated: post.timeAgo ?? "moments ago",
+        sentiment,
+        icon: sentimentIcons[sentiment],
+      };
+    });
+  }, [posts]);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4">
-      <div className="mt-4 flex flex-col gap-12 lg:mt-0 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
-        <div className="order-2 lg:order-1">
+      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
+        <div className="order-1">
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
-        <div className="order-1 lg:order-2">
+        <div className="order-2">
           <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
             <header className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
@@ -68,11 +118,27 @@ const Home = () => {
                   isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
                 }`}
                 role="list"
+                aria-busy={isLoadingPosts}
                 aria-live={isFeedRevealed ? "polite" : "off"}
               >
-                {platformCards.map((card) => (
-                  <PlatformCard key={card.platform} {...card} />
+                {platformCards.map((card, idx) => (
+                  <PlatformCard key={`${card.platform}-${idx}`} {...card} />
                 ))}
+                {!isLoadingPosts && !postsError && platformCards.length === 0 && (
+                  <p className="rounded-2xl border border-dashed border-slate-300/60 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+                    No flagged posts are available right now.
+                  </p>
+                )}
+                {postsError && (
+                  <p className="rounded-2xl border border-red-500/60 bg-red-500/15 p-6 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
+                    {postsError}
+                  </p>
+                )}
+                {isLoadingPosts && platformCards.length === 0 && !postsError && (
+                  <p className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-300">
+                    Loading latest posts…
+                  </p>
+                )}
               </div>
               {!isFeedRevealed && (
                 <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 p-6 text-center backdrop-blur-sm">

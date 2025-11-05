@@ -1,34 +1,668 @@
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { type SavedPreferences } from "@/types/monitors";
+import {
+  loadPreferencesFromStorage,
+  normalizePreferences,
+  savePreferencesToStorage,
+} from "@/utils/monitoringStorage";
+
+type CommentMatch = {
+  postText?: string | null;
+  predIntent?: string | null;
+  timeAgo?: string | null;
+};
+
+type KeywordResultPayload = {
+  keyword?: string;
+  count?: number;
+  comments?: CommentMatch[];
+};
+
+type SearchResponse = {
+  ok?: boolean;
+  error?: string;
+  results?: KeywordResultPayload[];
+  sourceTable?: string;
+  platform?: string;
+};
+
+type PlatformResult = {
+  platform: string;
+  sourceTable: string;
+  results: {
+    keyword: string;
+    count: number;
+    comments: CommentMatch[];
+  }[];
+};
+
+const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+
+const buildApiUrl = (path: string) => {
+  const normalizedPath = path.replace(/^\/+/, "");
+  return `${API_BASE}/${normalizedPath}`;
+};
+
+const SEARCH_RESULTS_LIMIT = 3;
+
+const PLATFORM_OPTIONS = [
+  { id: "BLUSKY", label: "Bluesky" },
+  { id: "MASTODON", label: "Mastodon" },
+  { id: "TELEGRAM", label: "Telegram" },
+];
+
+const LANGUAGE_OPTIONS = Array.from({ length: 10 }, (_, index) => {
+  const value = String(index + 1);
+  return { value, label: `Language ${index + 1}` };
+});
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const navigate = useNavigate();
+
+  const [keywordInput, setKeywordInput] = useState("");
+  const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(
+    () => new Set(PLATFORM_OPTIONS.map((platform) => platform.id)),
+  );
+  const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
+    () => new Set(LANGUAGE_OPTIONS.map((language) => language.value)),
+  );
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchResults, setSearchResults] = useState<PlatformResult[]>([]);
+  const [showNavigationPrompt, setShowNavigationPrompt] = useState(false);
+  const [lastSavedSettings, setLastSavedSettings] = useState<{
+    keywords: string[];
+    platforms: string[];
+    languages: string[];
+  } | null>(null);
+  const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
+  const [preferencesError, setPreferencesError] = useState<string | null>(null);
+
+  const applySavedPreferences = useCallback(
+    (preferences: SavedPreferences) => {
+      const seenKeywords = new Set<string>();
+      const trimmedKeywords = preferences.keywords
+        .map((keyword) => keyword.trim())
+        .filter((keyword) => {
+          if (!keyword) return false;
+          const key = keyword.toLowerCase();
+          if (seenKeywords.has(key)) return false;
+          seenKeywords.add(key);
+          return true;
+        });
+
+      const originalPlatformIds = Array.isArray(preferences.platforms) ? preferences.platforms : [];
+      const validPlatformIds = Array.from(
+        new Set(
+          originalPlatformIds.filter((platformId) =>
+            PLATFORM_OPTIONS.some((platform) => platform.id === platformId),
+          ),
+        ),
+      );
+      const platformsToApply =
+        validPlatformIds.length > 0
+          ? validPlatformIds
+          : PLATFORM_OPTIONS.map((platform) => platform.id);
+
+      const originalLanguageIds = Array.isArray(preferences.languages) ? preferences.languages : [];
+      const validLanguageIds = Array.from(
+        new Set(
+          originalLanguageIds.filter((languageId) =>
+            LANGUAGE_OPTIONS.some((language) => language.value === languageId),
+          ),
+        ),
+      );
+      const languagesToApply =
+        validLanguageIds.length > 0
+          ? validLanguageIds
+          : LANGUAGE_OPTIONS.map((language) => language.value);
+
+      setKeywordInput(trimmedKeywords.join("\n"));
+      setSelectedPlatforms(new Set(platformsToApply));
+      setSelectedLanguages(new Set(languagesToApply));
+
+      const hasExplicitPreferences =
+        trimmedKeywords.length > 0 ||
+        originalPlatformIds.length > 0 ||
+        originalLanguageIds.length > 0;
+
+      if (hasExplicitPreferences) {
+        setLastSavedSettings({
+          keywords: trimmedKeywords,
+          platforms: platformsToApply.map(
+            (platformId) =>
+              PLATFORM_OPTIONS.find((platform) => platform.id === platformId)?.label ?? platformId,
+          ),
+          languages: languagesToApply.map(
+            (languageId) =>
+              LANGUAGE_OPTIONS.find((language) => language.value === languageId)?.label ?? languageId,
+          ),
+        });
+      } else {
+        setLastSavedSettings(null);
+      }
+    },
+    [setKeywordInput, setLastSavedSettings, setSelectedLanguages, setSelectedPlatforms],
+  );
+
+  const normalizedKeywords = useMemo(() => {
+    const seen = new Set<string>();
+    return keywordInput
+      .split(/[\n,]/)
+      .map((keyword) => keyword.trim())
+      .filter((keyword) => {
+        if (!keyword) return false;
+        const key = keyword.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }, [keywordInput]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      const localPreferences = loadPreferencesFromStorage();
+      if (localPreferences) {
+        applySavedPreferences(localPreferences);
+        setPreferencesError(
+          "Sign in to sync preferences across devices. Using this browser's saved configuration.",
+        );
+      } else {
+        setPreferencesError(null);
+      }
+      return;
+    }
+
+    const controller = new AbortController();
+    let isCancelled = false;
+
+    const loadPreferences = async () => {
+      setIsSyncingPreferences(true);
+      setPreferencesError(null);
+      try {
+        const response = await fetch(buildApiUrl(`users/${user.id}/monitoring-preferences`), {
+          method: "GET",
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          signal: controller.signal,
+        });
+
+        const payload = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+          preferences?: SavedPreferences;
+        };
+
+        if (!response.ok || payload.ok === false) {
+          throw new Error(payload.error ?? "Unable to load saved settings from the server.");
+        }
+
+        const normalized: SavedPreferences =
+          normalizePreferences(payload.preferences) ?? {
+            keywords: [],
+            platforms: [],
+            languages: [],
+          };
+
+        if (isCancelled) return;
+
+        applySavedPreferences(normalized);
+        savePreferencesToStorage({
+          ...normalized,
+          updatedAt: new Date().toISOString(),
+        });
+        setPreferencesError(null);
+      } catch (error) {
+        if (isCancelled || (error as Error).name === "AbortError") return;
+
+        const fallback = loadPreferencesFromStorage();
+        if (fallback) {
+          applySavedPreferences(fallback);
+          setPreferencesError(
+            (error as Error).message
+              ? `${(error as Error).message} Using this browser's saved configuration instead.`
+              : "Using this browser's saved configuration because the server is unavailable.",
+          );
+        } else {
+          setPreferencesError(
+            (error as Error).message ??
+            "Unable to load saved settings right now. Configure new preferences and save again.",
+          );
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsSyncingPreferences(false);
+        }
+      }
+    };
+
+    void loadPreferences();
+
+    return () => {
+      isCancelled = true;
+      controller.abort();
+    };
+  }, [applySavedPreferences, token, user?.id]);
+
+  const persistPreferencesToBackend = async (preferences: SavedPreferences) => {
+    if (!user?.id) {
+      setPreferencesError(
+        "Sign in to sync your monitoring filters across devices. We'll keep these changes on this browser.",
+      );
+      return false;
+    }
+
+    try {
+      const response = await fetch(buildApiUrl(`users/${user.id}/monitoring-preferences`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          preferences: {
+            keywords: preferences.keywords,
+            platforms: preferences.platforms,
+            languages: preferences.languages,
+          },
+        }),
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        preferences?: SavedPreferences;
+      };
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error ?? "Unable to update saved settings on the server.");
+      }
+
+      setPreferencesError(null);
+      return true;
+    } catch (error) {
+      console.error("Failed to persist dashboard preferences", error);
+      setPreferencesError(
+        (error as Error).message ??
+        "Unable to sync settings to the server. We'll keep your latest changes on this browser.",
+      );
+      return false;
+    }
+  };
+
+  const togglePlatform = (platformId: string) => {
+    setSelectedPlatforms((prev) => {
+      const next = new Set(prev);
+      if (next.has(platformId)) {
+        next.delete(platformId);
+      } else {
+        next.add(platformId);
+      }
+      return next;
+    });
+  };
+
+  const toggleLanguage = (language: string) => {
+    setSelectedLanguages((prev) => {
+      const next = new Set(prev);
+      if (next.has(language)) {
+        next.delete(language);
+      } else {
+        next.add(language);
+      }
+      return next;
+    });
+  };
+
+  const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (normalizedKeywords.length === 0) {
+      setSearchError("Enter at least one keyword to search.");
+      setSearchResults([]);
+      setShowNavigationPrompt(false);
+      return;
+    }
+
+    if (selectedPlatforms.size === 0) {
+      setSearchError("Select at least one platform.");
+      setSearchResults([]);
+      setShowNavigationPrompt(false);
+      return;
+    }
+
+    if (selectedLanguages.size === 0) {
+      setSearchError("Select at least one language option.");
+      setSearchResults([]);
+      setShowNavigationPrompt(false);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
+    setShowNavigationPrompt(false);
+
+    try {
+      const platformResponses = await Promise.all(
+        Array.from(selectedPlatforms).map(async (platformId) => {
+          const platformMeta = PLATFORM_OPTIONS.find((platform) => platform.id === platformId);
+          if (!platformMeta) {
+            throw new Error(`Unknown platform "${platformId}".`);
+          }
+
+          const response = await fetch(buildApiUrl("comments/search"), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              keywords: normalizedKeywords,
+              source: platformId,
+              limit: SEARCH_RESULTS_LIMIT,
+              languages: Array.from(selectedLanguages),
+            }),
+          });
+
+          const payload = (await response.json().catch(() => ({}))) as SearchResponse;
+
+          if (!response.ok || payload.ok === false) {
+            throw new Error(payload.error ?? `Unable to search ${platformMeta.label}.`);
+          }
+
+          const results = Array.isArray(payload.results) ? payload.results : [];
+
+          return {
+            platform: platformMeta.label,
+            sourceTable: payload.sourceTable ?? platformId,
+            results: results.map((result) => ({
+              keyword: result.keyword ?? "",
+              count: result.count ?? 0,
+              comments: Array.isArray(result.comments)
+                ? result.comments.slice(0, SEARCH_RESULTS_LIMIT)
+                : [],
+            })),
+          };
+        }),
+      );
+
+      setSearchResults(platformResponses);
+
+      const preferencesToPersist: SavedPreferences = {
+        keywords: normalizedKeywords,
+        platforms: Array.from(selectedPlatforms),
+        languages: Array.from(selectedLanguages),
+        updatedAt: new Date().toISOString(),
+      };
+
+      await persistPreferencesToBackend(preferencesToPersist);
+      savePreferencesToStorage(preferencesToPersist);
+
+      const savedPlatforms = preferencesToPersist.platforms.map(
+        (platformId) => PLATFORM_OPTIONS.find((platform) => platform.id === platformId)?.label ?? platformId,
+      );
+      const savedLanguages = preferencesToPersist.languages.map(
+        (languageId) => LANGUAGE_OPTIONS.find((language) => language.value === languageId)?.label ?? languageId,
+      );
+
+      setLastSavedSettings({
+        keywords: preferencesToPersist.keywords,
+        platforms: savedPlatforms,
+        languages: savedLanguages,
+      });
+      setShowNavigationPrompt(true);
+    } catch (error) {
+      setSearchError((error as Error).message || "Search failed. Try again.");
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleGoToPersonalMonitors = () => {
+    setShowNavigationPrompt(false);
+    navigate("/personal-monitors");
+  };
+
+  const handleStayOnDashboard = () => {
+    setShowNavigationPrompt(false);
+  };
 
   return (
-    <section className="mx-auto max-w-5xl space-y-6 px-4 py-12">
+    <section className="mx-auto max-w-5xl space-y-10 px-4 py-12">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">
-          Welcome back, {user?.username ?? "Analyst"}
+          Welcome back, {user?.name ?? "Analyst"}
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Manage your monitoring keywords, track escalations, and configure notifications from this workspace.
+          Fine-tune your monitoring preferences to surface posts that match mission-critical keywords.
         </p>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <article className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition-colors dark:border-white/10 dark:bg-slate-900/70">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Alert Channels</h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            Configure delivery methods for urgent notifications. Integrations with email and web push.
-          </p>
-        </article>
+      {isSyncingPreferences && (
+        <p className="rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 text-xs text-slate-600 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-300">
+          Syncing your saved monitoring settings…
+        </p>
+      )}
 
-        <article className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition-colors dark:border-white/10 dark:bg-slate-900/70">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Keyword Monitors</h2>
-          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
-            Add keywords you track. Use granular thresholds to reduce noise while still catching critical threats.
+      {preferencesError && (
+        <p className="rounded-2xl border border-amber-500/60 bg-amber-500/15 px-4 py-3 text-sm font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/20 dark:text-amber-100">
+          {preferencesError}
+        </p>
+      )}
+
+      <form
+        onSubmit={handleSearch}
+        className="space-y-8 rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition-colors dark:border-white/10 dark:bg-slate-900/70"
+      >
+        <section className="space-y-4">
+          <header>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Keyword search</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Enter the keywords you want to monitor. Separate multiple entries with commas or new lines.
+            </p>
+          </header>
+          <textarea
+            value={keywordInput}
+            onChange={(event) => setKeywordInput(event.target.value)}
+            className="h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/30 dark:border-white/10 dark:bg-slate-900 dark:text-white"
+            placeholder="e.g., targeted harassment, credible threat, extremist rally"
+          />
+        </section>
+
+        <section className="space-y-4">
+          <header>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Platforms</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Choose the platforms to include in your search. Select any combination that fits your watch list.
+            </p>
+          </header>
+          <div className="flex flex-wrap gap-3">
+            {PLATFORM_OPTIONS.map((platform) => {
+              const isSelected = selectedPlatforms.has(platform.id);
+              return (
+                <button
+                  key={platform.id}
+                  type="button"
+                  onClick={() => togglePlatform(platform.id)}
+                  className={`rounded-full px-5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
+                    ? "bg-stg-accent text-white shadow"
+                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                  aria-pressed={isSelected}
+                >
+                  {platform.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <header>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Languages</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Select the language identifiers to filter by. Support for full language names arrives soon.
+            </p>
+          </header>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {LANGUAGE_OPTIONS.map((language) => {
+              const isSelected = selectedLanguages.has(language.value);
+              return (
+                <button
+                  key={language.value}
+                  type="button"
+                  onClick={() => toggleLanguage(language.value)}
+                  className={`rounded-2xl px-4 py-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
+                    ? "bg-stg-accent-soft text-stg-accent shadow-inner"
+                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    }`}
+                  aria-pressed={isSelected}
+                >
+                  {language.label}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-slate-500 dark:text-slate-300">
+            {lastSavedSettings ? (
+              <span>
+                Last saved search: {lastSavedSettings.keywords.join(", ")} • Platforms:{" "}
+                {lastSavedSettings.platforms.join(", ")} • Languages: {lastSavedSettings.languages.join(", ")}
+              </span>
+            ) : (
+              <span>Configure your keywords, platforms, and languages, then save to load matching posts.</span>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={isSearching}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-stg-accent px-6 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {isSearching ? "Searching…" : "Save & Search"}
+          </button>
+        </div>
+
+        {searchError && (
+          <p className="rounded-2xl border border-red-500/60 bg-red-500/15 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
+            {searchError}
           </p>
-        </article>
-      </div>
+        )}
+      </form>
+
+      <section className="space-y-6">
+        <header className="space-y-1">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Search results</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Results are grouped by platform and keyword, prioritising the most recent posts.
+          </p>
+        </header>
+
+        {isSearching && searchResults.length === 0 && (
+          <div className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-300">
+            Fetching posts from your selected sources…
+          </div>
+        )}
+
+        {!isSearching && searchResults.length === 0 && !searchError && (
+          <div className="rounded-3xl border border-dashed border-slate-300/70 bg-white/40 p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/40 dark:text-slate-300">
+            Save your monitoring preferences to review the {SEARCH_RESULTS_LIMIT} latest matching posts here.
+            Additional results are available on the Personal Monitors page.
+          </div>
+        )}
+
+        <div className="space-y-5">
+          {searchResults.map((platformResult) => (
+            <article
+              key={platformResult.sourceTable}
+              className="space-y-4 rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition-colors dark:border-white/10 dark:bg-slate-900/70"
+            >
+              <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800 dark:text-white">
+                    {platformResult.platform}
+                  </h3>
+                  <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
+                    Source table: {platformResult.sourceTable}
+                  </p>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-300">
+                  Showing the {SEARCH_RESULTS_LIMIT} most recent posts per keyword. Review Personal Monitors for the full feed.
+                </p>
+              </header>
+
+              {platformResult.results.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-slate-300/70 p-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+                  No posts matched the provided keywords on this platform.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {platformResult.results.map((keywordResult) => (
+                    <section key={`${platformResult.sourceTable}-${keywordResult.keyword}`} className="space-y-3">
+                      <header className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-200">
+                          Keyword: {keywordResult.keyword || "Unknown"}
+                        </h4>
+                        <span className="text-xs text-slate-500 dark:text-slate-300">
+                          Matches: {keywordResult.count}
+                        </span>
+                      </header>
+                      <div className="space-y-3">
+                        {keywordResult.comments.length === 0 ? (
+                          <p className="rounded-2xl border border-dashed border-slate-300/70 p-4 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+                            No recent posts contain this keyword.
+                          </p>
+                        ) : (
+                          keywordResult.comments.map((comment, index) => (
+                            <div
+                              key={`${keywordResult.keyword}-${index}`}
+                              className="space-y-2 rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
+                            >
+                              <p>{comment.postText?.trim() || "No content provided."}</p>
+                              <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-300">
+                                <span>Intent: {comment.predIntent ?? "Unknown"}</span>
+                                <span>Posted: {comment.timeAgo ?? "Unspecified"}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {showNavigationPrompt && (
+        <aside className="rounded-3xl border border-stg-accent/40 bg-stg-accent/10 p-6 text-sm text-slate-700 shadow-lg dark:border-stg-accent/30 dark:bg-stg-accent/20 dark:text-white">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-semibold">
+              Settings saved. Would you like to visit the Personal Monitors page to review these results?
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={handleGoToPersonalMonitors}
+                className="inline-flex items-center justify-center rounded-full bg-stg-accent px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60"
+              >
+                Go to Personal Monitors
+              </button>
+              <button
+                type="button"
+                onClick={handleStayOnDashboard}
+                className="inline-flex items-center justify-center rounded-full border border-slate-300/70 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 dark:border-white/10 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Stay on Dashboard
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
     </section>
   );
 };
