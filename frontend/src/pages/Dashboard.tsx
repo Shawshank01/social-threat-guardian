@@ -1,6 +1,12 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { type SavedPreferences } from "@/types/monitors";
+import {
+  loadPreferencesFromStorage,
+  normalizePreferences,
+  savePreferencesToStorage,
+} from "@/utils/monitoringStorage";
 
 type CommentMatch = {
   postText?: string | null;
@@ -32,13 +38,6 @@ type PlatformResult = {
   }[];
 };
 
-type SavedPreferences = {
-  keywords: string[];
-  platforms: string[];
-  languages: string[];
-  updatedAt?: string;
-};
-
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
 const buildApiUrl = (path: string) => {
@@ -47,54 +46,6 @@ const buildApiUrl = (path: string) => {
 };
 
 const SEARCH_RESULTS_LIMIT = 3;
-const LOCAL_STORAGE_KEY = "stg.dashboard.preferences";
-
-const isStringArray = (value: unknown): value is string[] => {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-};
-
-const normalizePreferences = (raw: unknown): SavedPreferences | null => {
-  if (!raw || typeof raw !== "object") return null;
-  const record = raw as Record<string, unknown>;
-  const keywords = isStringArray(record.keywords) ? record.keywords : [];
-  const platforms = isStringArray(record.platforms) ? record.platforms : [];
-  const languages = isStringArray(record.languages) ? record.languages : [];
-  return {
-    keywords,
-    platforms,
-    languages,
-    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
-  };
-};
-
-const loadPreferencesFromLocalStorage = (): SavedPreferences | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return normalizePreferences(parsed);
-  } catch {
-    return null;
-  }
-};
-
-const savePreferencesToLocalStorage = (preferences: SavedPreferences) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      LOCAL_STORAGE_KEY,
-      JSON.stringify({
-        keywords: preferences.keywords,
-        platforms: preferences.platforms,
-        languages: preferences.languages,
-        updatedAt: preferences.updatedAt ?? new Date().toISOString(),
-      }),
-    );
-  } catch {
-    // Ignore storage errors; local fallback is a best-effort cache.
-  }
-};
 
 const PLATFORM_OPTIONS = [
   { id: "BLUSKY", label: "Bluesky" },
@@ -213,7 +164,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user?.id) {
-      const localPreferences = loadPreferencesFromLocalStorage();
+      const localPreferences = loadPreferencesFromStorage();
       if (localPreferences) {
         applySavedPreferences(localPreferences);
         setPreferencesError(
@@ -258,7 +209,7 @@ const Dashboard = () => {
         if (isCancelled) return;
 
         applySavedPreferences(normalized);
-        savePreferencesToLocalStorage({
+        savePreferencesToStorage({
           ...normalized,
           updatedAt: new Date().toISOString(),
         });
@@ -266,7 +217,7 @@ const Dashboard = () => {
       } catch (error) {
         if (isCancelled || (error as Error).name === "AbortError") return;
 
-        const fallback = loadPreferencesFromLocalStorage();
+        const fallback = loadPreferencesFromStorage();
         if (fallback) {
           applySavedPreferences(fallback);
           setPreferencesError(
@@ -444,7 +395,7 @@ const Dashboard = () => {
       };
 
       await persistPreferencesToBackend(preferencesToPersist);
-      savePreferencesToLocalStorage(preferencesToPersist);
+      savePreferencesToStorage(preferencesToPersist);
 
       const savedPlatforms = preferencesToPersist.platforms.map(
         (platformId) => PLATFORM_OPTIONS.find((platform) => platform.id === platformId)?.label ?? platformId,
@@ -534,8 +485,8 @@ const Dashboard = () => {
                   type="button"
                   onClick={() => togglePlatform(platform.id)}
                   className={`rounded-full px-5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
-                      ? "bg-stg-accent text-white shadow"
-                      : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    ? "bg-stg-accent text-white shadow"
+                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     }`}
                   aria-pressed={isSelected}
                 >
@@ -562,8 +513,8 @@ const Dashboard = () => {
                   type="button"
                   onClick={() => toggleLanguage(language.value)}
                   className={`rounded-2xl px-4 py-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
-                      ? "bg-stg-accent-soft text-stg-accent shadow-inner"
-                      : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                    ? "bg-stg-accent-soft text-stg-accent shadow-inner"
+                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                     }`}
                   aria-pressed={isSelected}
                 >

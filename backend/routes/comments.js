@@ -1,6 +1,7 @@
 // /routes/comments.js
 import express from "express";
 import { fetchLatestComments } from "../models/commentModel.js";
+import { createCommentForPost, listCommentsForPost } from "../models/commentNoteModel.js";
 
 const router = express.Router();
 
@@ -60,11 +61,13 @@ router.get("/latest", async (req, res) => {
     const platformLabel = resolvePlatformLabel(tableName);
 
     const comments = rows.map((row) => ({
+      processedId: row.PROCESSED_ID ?? null,
       postText: row.POST_TEXT,
       predIntent: row.PRED_INTENT,
       platform: platformLabel,
       sourceTable: tableName,
       timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
+      collectedAt: row.POST_TIMESTAMP ?? null,
     }));
 
     return res.json({ ok: true, count: comments.length, comments, platform: platformLabel, sourceTable: tableName });
@@ -110,11 +113,13 @@ router.post("/search", async (req, res) => {
       });
 
       const comments = rows.map((row) => ({
+        processedId: row.PROCESSED_ID ?? null,
         postText: row.POST_TEXT,
         predIntent: row.PRED_INTENT,
         platform: platformLabel,
         sourceTable: tableName,
         timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
+        collectedAt: row.POST_TIMESTAMP ?? null,
       }));
 
       results.push({
@@ -137,4 +142,55 @@ router.post("/search", async (req, res) => {
   }
 });
 
+router.get("/:processedId/notes", async (req, res) => {
+  const processedId = sanitizeProcessedId(req.params.processedId);
+  if (!processedId) {
+    return res.status(400).json({ ok: false, error: "Invalid post identifier" });
+  }
+
+  try {
+    const comments = await listCommentsForPost(processedId);
+    return res.json({ ok: true, count: comments.length, comments });
+  } catch (err) {
+    console.error("[GET /comments/:processedId/notes] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+router.post("/:processedId/notes", async (req, res) => {
+  const processedId = sanitizeProcessedId(req.params.processedId);
+  if (!processedId) {
+    return res.status(400).json({ ok: false, error: "Invalid post identifier" });
+  }
+
+  const { userId, author, commentText } = req.body || {};
+  if (!userId || typeof userId !== "string" || !userId.trim()) {
+    return res.status(400).json({ ok: false, error: "userId is required" });
+  }
+  if (!commentText || typeof commentText !== "string" || !commentText.trim()) {
+    return res.status(400).json({ ok: false, error: "commentText is required" });
+  }
+
+  try {
+    const comment = await createCommentForPost({
+      postId: processedId,
+      userId: userId.trim(),
+      authorName: typeof author === "string" ? author.trim() : null,
+      commentText,
+    });
+
+    return res.status(201).json({ ok: true, comment });
+  } catch (err) {
+    console.error("[POST /comments/:processedId/notes] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
 export default router;
+function sanitizeProcessedId(value) {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 200) return null;
+  return trimmed;
+}
