@@ -20,6 +20,9 @@ export default defineConfig(({ mode }) => {
     if (path.startsWith("/api/comments")) {
       return path.replace(/^\/api\/comments/, "/comments");
     }
+    if (path.startsWith("/api/favorites")) {
+      return path.replace(/^\/api\/favorites/, "/favorites");
+    }
     return path.replace(/^\/api/, "");
   };
 

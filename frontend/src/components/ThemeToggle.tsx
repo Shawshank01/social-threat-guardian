@@ -1,4 +1,4 @@
-import { useCallback, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Laptop, MoonStar, SunMedium } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -11,9 +11,21 @@ const options = [
 const ThemeToggle = () => {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [pinned, setPinned] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
 
   const handleToggle = useCallback(() => {
-    setPinned((prev) => !prev);
+    setPinned((prev) => {
+      const next = !prev;
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+        hideTimerRef.current = null;
+      }
+      if (next) {
+        setIsHovering(true);
+      }
+      return next;
+    });
   }, []);
 
   const handleKeyDown = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
@@ -22,16 +34,55 @@ const ThemeToggle = () => {
     }
   }, []);
 
+  const showPanel = pinned || isHovering;
+
   const panelBaseClasses =
-    "absolute bottom-14 right-0 w-48 origin-bottom-right rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-xl backdrop-blur transition-all duration-200 ease-out pointer-events-none opacity-0 translate-y-2 scale-95 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:translate-y-0 group-hover:scale-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-focus-within:translate-y-0 group-focus-within:scale-100 dark:border-white/10 dark:bg-slate-900/90";
+    "absolute bottom-14 right-0 w-48 origin-bottom-right rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-xl backdrop-blur transition-all duration-200 ease-out pointer-events-none opacity-0 translate-y-2 scale-95 dark:border-white/10 dark:bg-slate-900/90";
   const panelClassName = `${panelBaseClasses} ${
-    pinned ? "pointer-events-auto opacity-100 translate-y-0 scale-100" : ""
+    showPanel ? "pointer-events-auto opacity-100 translate-y-0 scale-100" : ""
   }`;
+
+  const handleMouseEnter = () => {
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+    setIsHovering(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (pinned) return;
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+    }
+    hideTimerRef.current = window.setTimeout(() => {
+      setIsHovering(false);
+      hideTimerRef.current = null;
+    }, 200);
+  };
+
+  useEffect(() => {
+    if (!pinned) return;
+    setIsHovering(true);
+  }, [pinned]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
 
   const ActiveIcon = resolvedTheme === "dark" ? MoonStar : SunMedium;
 
   return (
-    <div className="group fixed bottom-6 right-6 z-40" onKeyDown={handleKeyDown}>
+    <div
+      className="group fixed bottom-6 right-6 z-40"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onKeyDown={handleKeyDown}
+    >
       <button
         type="button"
         onClick={handleToggle}
