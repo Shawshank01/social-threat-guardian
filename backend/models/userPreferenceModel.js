@@ -139,3 +139,42 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
     };
   });
 }
+
+export async function getUserPreferenceModel(userId) {
+  const resolvedUserId = String(userId || "").trim();
+  if (!resolvedUserId) {
+    throw new Error("userId is required");
+  }
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      `
+        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, CREATED_AT, UPDATED_AT
+          FROM USER_PREFERENCES
+         WHERE USER_ID = :userId
+      `,
+      { userId: resolvedUserId },
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        fetchInfo: {
+          KEYWORDS: { type: oracledb.STRING },
+          LANGUAGES: { type: oracledb.STRING },
+        },
+      }
+    );
+
+    const row = result.rows?.[0];
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.ID,
+      userId: row.USER_ID,
+      keywords: row.KEYWORDS ? JSON.parse(row.KEYWORDS) : [],
+      languages: row.LANGUAGES ? JSON.parse(row.LANGUAGES) : [],
+      createdAt: row.CREATED_AT,
+      updatedAt: row.UPDATED_AT,
+    };
+  });
+}

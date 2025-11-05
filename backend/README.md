@@ -249,6 +249,27 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -H "Content-Type: application/json" \
        -d '{"userId":"user-uuid","language":"en","keywords":["trump"]}'
   ```
+### Fetch User Preferences
+- `GET /user-preferences?userId=<id>` (also accepts `user_id` or `id` query keys)
+- **Description:** Returns the saved keyword and language preferences for the given user. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
+- **Successful Response (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "preferences": {
+      "userId": "user-uuid",
+      "keywords": ["trump", "election"],
+      "languages": ["en", "es"]
+    }
+  }
+  ```
+- **Errors:**
+  - `400 Bad Request` when the user identifier is missing.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl "http://localhost:3000/user-preferences?userId=user-uuid"
+  ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
 - **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.

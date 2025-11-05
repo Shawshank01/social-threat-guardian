@@ -1,14 +1,53 @@
 // /routes/userPreferences.js
 import express from "express";
-import { upsertUserPreferenceModel } from "../models/userPreferenceModel.js";
+import {
+  getUserPreferenceModel,
+  upsertUserPreferenceModel,
+} from "../models/userPreferenceModel.js";
 
 const router = express.Router();
 
+router.get("/", async (req, res) => {
+  try {
+    const { userId, user_id, id } = req.query || {};
+    const resolvedUserId = String(userId || user_id || id || "").trim();
+
+    if (!resolvedUserId) {
+      return res.status(400).json({ ok: false, error: "userId is required" });
+    }
+
+    const preferences = await getUserPreferenceModel(resolvedUserId);
+
+    if (!preferences) {
+      return res.json({
+        ok: true,
+        preferences: {
+          userId: resolvedUserId,
+          keywords: [],
+          languages: [],
+        },
+      });
+    }
+
+    return res.json({
+      ok: true,
+      preferences: {
+        userId: preferences.userId,
+        keywords: preferences.keywords,
+        languages: preferences.languages,
+      },
+    });
+  } catch (err) {
+    console.error("[GET /user-preferences] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
 router.post("/", async (req, res) => {
   try {
-    const { userId, user_id, keywords, keyword, languages, language } = req.body || {};
+    const { id, userId, user_id, keywords, keyword, languages, language } = req.body || {};
 
-    const resolvedUserId = String(userId || user_id || "").trim();
+    const resolvedUserId = String(userId || user_id || id || "").trim();
     if (!resolvedUserId) {
       return res.status(400).json({ ok: false, error: "userId is required" });
     }
