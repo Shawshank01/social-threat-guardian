@@ -222,7 +222,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     "keywords": ["trump", "election"]
   }
   ```
-  - `userId`/`user_id` 必填；`languages`/`language` 与 `keywords`/`keyword` 支持字符串或数组形式，后端会清理为空字符串并保存为 JSON 数组。
+  - `userId`/`user_id` is required; `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
 - **Responses:**
   - `200 OK`
     ```json
@@ -239,8 +239,8 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
       }
     }
     ```
-  - `400 Bad Request` 当缺少 `userId`。
-  - `500 Internal Server Error` 非预期错误。
+  - `400 Bad Request` when `userId` is missing.
+  - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/user-preferences \
