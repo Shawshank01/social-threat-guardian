@@ -64,6 +64,7 @@ router.get("/latest", async (req, res) => {
       predIntent: row.PRED_INTENT,
       platform: platformLabel,
       sourceTable: tableName,
+      postUrl: row.POST_URL || null,
       timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
     }));
 
@@ -114,6 +115,7 @@ router.post("/search", async (req, res) => {
         predIntent: row.PRED_INTENT,
         platform: platformLabel,
         sourceTable: tableName,
+        postUrl: row.POST_URL || null,
         timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
       }));
 

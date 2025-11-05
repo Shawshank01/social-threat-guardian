@@ -104,8 +104,9 @@ export async function login(req, res) {
 
     return res.json({
       ok: true,
+      id: user.ID,
       token,
-      expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+      expiresIn: process.env.JWT_EXPIRES_IN || "24h",
       user: { id: user.ID, email: user.EMAIL, name: user.NAME },
     });
   } catch (err) {

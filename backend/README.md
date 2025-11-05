@@ -169,10 +169,11 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     ```json
     {
       "ok": true,
+      "id": "user-uuid",
       "token": "jwt-token-string",
       "expiresIn": "1h",
       "user": {
-        "id": 123,
+        "id": "user-uuid",
         "email": "user@example.com",
         "name": "Optional display name"
       }
@@ -181,6 +182,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `400 Bad Request` when email/password are missing.
   - `401 Unauthorized` when credentials are invalid.
   - `500 Internal Server Error` for unexpected issues.
+  - The response user id is same as user table id, for tracking user preference 
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/auth/login \
@@ -249,7 +251,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
-- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, original table name, and a human-readable `timeAgo`.
+- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each returned comment includes the friendly `platform` label, POST_URL for jumping to original post, original table name, and a human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
@@ -282,6 +284,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
             "predIntent": "NEUTRAL",
             "platform": "BLUSKY2",
             "sourceTable": "BLUSKY2",
+            "postUrl": "https://blusky.example/posts/12345",
             "timeAgo": "12 mins ago"
           }
         ]
@@ -296,7 +299,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```
 ### Fetch Latest Comments
 - `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUSKY`)  
-- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes the friendly `platform` label, exact `sourceTable`, and a human-readable `timeAgo`.
+- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment comes with a friendly `platform` tag, an original `sourceTable`, a jumpable `postUrl`, and a human-readable `timeAgo`.
 - **Example (curl):**
   ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
@@ -316,6 +319,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
         "predIntent": "NEUTRAL",
         "platform": "BLUSKY2",
         "sourceTable": "BLUSKY2",
+        "postUrl": "https://blusky.example/posts/12345",
         "timeAgo": "12 mins ago"
       }
     ]
