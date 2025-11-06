@@ -54,9 +54,9 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
     
     const sql = `
-      SELECT PROCESSED_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL
+      SELECT /* PROCESSED_ID, */ POST_TEXT, PRED_INTENT, POST_TIMESTAMP, POST_URL
         FROM (
-          SELECT PROCESSED_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL
+          SELECT /* PROCESSED_ID, */ POST_TEXT, PRED_INTENT, POST_TIMESTAMP, POST_URL
             FROM ${tableName}
            ${whereSql}
            ORDER BY POST_TIMESTAMP DESC NULLS LAST
@@ -67,7 +67,6 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     const result = await conn.execute(sql, binds, {
       outFormat: oracledb.OUT_FORMAT_OBJECT,
       fetchInfo: {
-        PROCESSED_ID: { type: oracledb.STRING },
         POST_TEXT: { type: oracledb.STRING },
         PRED_INTENT: { type: oracledb.STRING },
         PRED_INTENSITY: {type: oracledb.STRING},
