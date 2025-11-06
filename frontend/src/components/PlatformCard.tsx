@@ -1,34 +1,48 @@
 import type { FC, ReactNode } from "react";
 
+const DEFAULT_SEVERITY = {
+  label: "Elevated",
+  badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+};
+
 export type PlatformCardProps = {
+  heading: string;
   platform: string;
   summary: string;
   updated: string;
-  sentiment: "low" | "medium" | "high" | "critical";
+  severity: {
+    label: string;
+    badgeClass: string;
+  };
   icon: ReactNode;
+  linkUrl?: string | null;
 };
 
-const sentimentCopy: Record<PlatformCardProps["sentiment"], { label: string; badgeClass: string }> = {
-  low: {
-    label: "Low",
-    badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
-  },
-  medium: {
-    label: "Elevated",
-    badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
-  },
-  high: {
-    label: "High",
-    badgeClass: "bg-orange-500/10 text-orange-600 dark:text-orange-300",
-  },
-  critical: {
-    label: "Critical",
-    badgeClass: "bg-red-500/10 text-red-600 dark:text-red-300",
-  },
-};
-
-const PlatformCard: FC<PlatformCardProps> = ({ platform, summary, updated, sentiment, icon }) => {
-  const { label, badgeClass } = sentimentCopy[sentiment];
+const PlatformCard: FC<PlatformCardProps> = ({
+  heading,
+  platform,
+  summary,
+  updated,
+  severity,
+  icon,
+  linkUrl,
+}) => {
+  const label = severity.label || DEFAULT_SEVERITY.label;
+  const badgeClass = severity.badgeClass || DEFAULT_SEVERITY.badgeClass;
+  const action = linkUrl ? (
+    <a
+      href={linkUrl}
+      target="_blank"
+      rel="noreferrer"
+      className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
+    >
+      Original link
+    </a>
+  ) : (
+    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+      Original link unavailable
+    </span>
+  );
 
   return (
     <article className="flex flex-col gap-3 rounded-2xl border border-slate-200/70 bg-white/90 p-4 shadow-soft transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/60">
@@ -39,7 +53,7 @@ const PlatformCard: FC<PlatformCardProps> = ({ platform, summary, updated, senti
           </span>
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800 dark:text-white">
-              Threat Speech
+              {heading}
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-300">{platform}</p>
           </div>
@@ -56,12 +70,7 @@ const PlatformCard: FC<PlatformCardProps> = ({ platform, summary, updated, senti
           <span className="block h-2 w-2 rounded-full bg-stg-accent" aria-hidden />
           Updated {updated}
         </span>
-        <button
-          type="button"
-          className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
-        >
-          View details
-        </button>
+        {action}
       </footer>
     </article>
   );

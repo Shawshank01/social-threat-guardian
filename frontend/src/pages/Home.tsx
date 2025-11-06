@@ -1,12 +1,29 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { MessageSquare, Share2, Megaphone, ShieldAlert } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { MessageSquare, Share2, Megaphone, ShieldAlert, type LucideIcon } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
 
 type CommentPost = {
   postText?: string | null;
   predIntent?: string | null;
+  predIntensity?: string | null;
   timeAgo?: string | null;
+  platform?: string | null;
+  postUrl?: string | null;
+};
+
+type FeedFraming = {
+  sectionTitle: string;
+  sectionDescription: string;
+  cardHeading: string;
+};
+
+type SeverityLevel = "low" | "medium" | "high" | "critical";
+
+type SeverityPreset = {
+  label: string;
+  badgeClass: string;
+  Icon: LucideIcon;
 };
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
@@ -16,7 +33,37 @@ const buildApiUrl = (path: string) => {
   return `${API_BASE}/${normalizedPath}`;
 };
 
-const mapIntentToSentiment = (intent?: string | null): PlatformCardProps["sentiment"] => {
+const FEED_FRAMING: FeedFraming = {
+  sectionTitle: "Cross-platform Threat Speech",
+  sectionDescription:
+    "Recent posts surfaced by our classifiers across monitored communities. Prioritize review of critical items with on-ground security teams.",
+  cardHeading: "Threat Speech",
+};
+
+const SEVERITY_PRESETS: Record<SeverityLevel, SeverityPreset> = {
+  low: {
+    label: "Low",
+    badgeClass: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+    Icon: MessageSquare,
+  },
+  medium: {
+    label: "Elevated",
+    badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-300",
+    Icon: Share2,
+  },
+  high: {
+    label: "High",
+    badgeClass: "bg-orange-500/10 text-orange-600 dark:text-orange-300",
+    Icon: Megaphone,
+  },
+  critical: {
+    label: "Critical",
+    badgeClass: "bg-red-500/10 text-red-600 dark:text-red-300",
+    Icon: ShieldAlert,
+  },
+};
+
+const mapIntentToSeverityLevel = (intent?: string | null): SeverityLevel => {
   if (!intent) return "medium";
   const normalized = intent.toLowerCase();
 
@@ -33,11 +80,33 @@ const mapIntentToSentiment = (intent?: string | null): PlatformCardProps["sentim
   return "medium";
 };
 
-const sentimentIcons: Record<PlatformCardProps["sentiment"], ReactNode> = {
-  low: <MessageSquare className="h-5 w-5" aria-hidden />,
-  medium: <Share2 className="h-5 w-5" aria-hidden />,
-  high: <Megaphone className="h-5 w-5" aria-hidden />,
-  critical: <ShieldAlert className="h-5 w-5" aria-hidden />,
+const mapIntensityToSeverityLevel = (
+  intensity?: string | null,
+  intentFallback?: string | null,
+): SeverityLevel => {
+  if (intensity) {
+    const normalized = intensity.trim().toLowerCase();
+    const simplified = normalized.replace(/[^a-z]/g, "");
+    if (["low", "minimal", "minor"].includes(simplified)) return "low";
+    if (["medium", "moderate", "elevated"].includes(simplified)) return "medium";
+    if (["high", "severe"].includes(simplified)) return "high";
+    if (["critical", "extreme"].includes(simplified)) return "critical";
+  }
+  return mapIntentToSeverityLevel(intentFallback);
+};
+
+const resolveSeverityPresentation = (intensity?: string | null, intent?: string | null) => {
+  const level = mapIntensityToSeverityLevel(intensity, intent);
+  const preset = SEVERITY_PRESETS[level] ?? SEVERITY_PRESETS.medium;
+  const Icon = preset.Icon;
+  const intentLabel = intent?.trim();
+
+  return {
+    label:
+      intentLabel && intentLabel.length > 0 ? intentLabel.toUpperCase() : preset.label,
+    badgeClass: preset.badgeClass,
+    icon: <Icon className="h-5 w-5" aria-hidden />,
+  };
 };
 
 const Home = () => {
@@ -82,16 +151,21 @@ const Home = () => {
     return () => controller.abort();
   }, []);
 
-  const platformCards = useMemo(() => {
+  const platformCards = useMemo<PlatformCardProps[]>(() => {
     return posts.map((post, index) => {
-      const sentiment = mapIntentToSentiment(post.predIntent);
+      const severity = resolveSeverityPresentation(post.predIntensity, post.predIntent);
       return {
-        platform: post.predIntent ? `Intent: ${post.predIntent}` : `Post ${index + 1}`,
+        heading: FEED_FRAMING.cardHeading,
+        platform: post.platform?.trim() || "Unattributed source",
         summary: post.postText?.trim() || "No content provided for this post.",
         updated: post.timeAgo ?? "moments ago",
-        sentiment,
-        icon: sentimentIcons[sentiment],
-      };
+        severity: {
+          label: severity.label,
+          badgeClass: severity.badgeClass,
+        },
+        icon: severity.icon,
+        linkUrl: post.postUrl ?? null,
+      } satisfies PlatformCardProps;
     });
   }, [posts]);
 
@@ -105,18 +179,16 @@ const Home = () => {
           <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
             <header className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
-                Cross-platform Threat Speech
+                {FEED_FRAMING.sectionTitle}
               </h2>
               <p className="text-sm text-slate-600 dark:text-slate-300">
-                Recent posts surfaced by our classifiers across monitored communities. Prioritize review of
-                critical items with on-ground security teams.
+                {FEED_FRAMING.sectionDescription}
               </p>
             </header>
             <div className="relative flex-1 space-y-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
               <div
-                className={`max-h-[32rem] space-y-4 overflow-y-auto pr-2 transition duration-200 ${
-                  isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
-                }`}
+                className={`max-h-[32rem] space-y-4 overflow-y-auto pr-2 transition duration-200 ${isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
+                  }`}
                 role="list"
                 aria-busy={isLoadingPosts}
                 aria-live={isFeedRevealed ? "polite" : "off"}
