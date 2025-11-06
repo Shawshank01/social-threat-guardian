@@ -19,7 +19,7 @@ Social Threat Guardian is an AI-powered system designed to detect, monitor, and 
    - Process data within an Oracle 26 AI-enabled database to leverage in-database machine learning and enhance performance.
 
 3. **Backend Orchestration**
-   - Use FastAPI to coordinate data flow, model inference, and user request handling.
+   - Use Express to coordinate data flow, model inference, and user request handling.
    - Integrate Kafka consumers and producers for seamless data streaming and event processing.
 
 4. **Frontend Visualization**
