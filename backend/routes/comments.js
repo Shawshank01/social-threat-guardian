@@ -61,7 +61,7 @@ router.get("/latest", async (req, res) => {
     const platformLabel = resolvePlatformLabel(tableName);
 
     const comments = rows.map((row) => ({
-      processedId: row.PROCESSED_ID ?? null,
+      post_id: row.POST_ID,
       postText: row.POST_TEXT,
       predIntent: row.PRED_INTENT,
       platform: platformLabel,
@@ -113,7 +113,7 @@ router.post("/search", async (req, res) => {
       });
 
       const comments = rows.map((row) => ({
-        processedId: row.PROCESSED_ID ?? null,
+        post_id: row.POST_ID,
         postText: row.POST_TEXT,
         predIntent: row.PRED_INTENT,
         platform: platformLabel,
