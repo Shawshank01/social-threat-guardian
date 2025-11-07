@@ -270,6 +270,34 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```bash
   curl "http://localhost:3000/user-preferences?userId=user-uuid"
   ```
+### Fetch User Preferences (body-based)
+- `POST /user-preferences/get`
+- **Headers:** `Content-Type: application/json`
+- **Request Body:**
+  ```json
+  {
+    "user_id": "user-uuid"
+  }
+  ```
+  - Accepts `user_id`, `userId`, or `id` in the JSON body.
+- **Successful Response (`200 OK`):**
+  ```json
+  {
+    "ID": "pref-uuid",
+    "KEYWORDS": ["trump", "election"],
+    "LANGUAGES": ["en", "es"]
+  }
+  ```
+  - Returns an empty object (`{}`) when no preferences exist for the supplied user.
+- **Errors:**
+  - `400 Bad Request` when the user identifier is missing.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X POST http://localhost:3000/user-preferences/get \
+       -H "Content-Type: application/json" \
+       -d '{"user_id":"user-uuid"}'
+  ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
 - **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
