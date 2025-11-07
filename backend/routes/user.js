@@ -5,7 +5,9 @@ import {
   getUserByIdModel,
   listUsersModel,
   deleteUserModel,
+  updateUserEmailModel,
 } from "../models/userModel.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = express.Router();
 
@@ -73,6 +75,42 @@ router.delete("/:id", async (req, res) => {
     return res.json({ ok: true, deleted: id });
   } catch (err) {
     console.error("[DELETE /users/:id] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+/**
+ * PUT /users/email
+ * Protected: Require jwt token in head
+ * Body: { email }  (front-end handles format validation)
+ */
+router.put("/email", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body?.user_id;
+    const { email } = req.body || {};
+
+    if (!userId) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+    if (!email) {
+      return res.status(400).json({ ok: false, error: "email is required" });
+    }
+
+    const updated = await updateUserEmailModel(userId, email);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: "User not found" });
+    }
+
+    return res.json({
+      ok: true,
+      user: updated,
+    });
+  } catch (err) {
+    if (err?.code === "EMAIL_IN_USE") {
+      return res.status(409).json({ ok: false, error: "email already in use" });
+    }
+
+    console.error("[PUT /users/email] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
   }
 });

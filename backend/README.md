@@ -213,6 +213,42 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   curl -X POST http://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
+
+### Update Email
+- `PUT /users/email`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <token>`
+- **Authentication:** `requireAuth.js` validates the JWT and injects `req.user.id`, so the body only needs the target email.
+- **Request Body:**
+  ```json
+  {
+    "email": "new-email@example.com"
+  }
+  ```
+  (Email format validation happens on the frontend.)
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "user": {
+        "id": "user-uuid",
+        "email": "new-email@example.com"
+      }
+    }
+    ```
+  - `400 Bad Request` when `email` is missing.
+  - `401 Unauthorized` when the JWT is missing/invalid.
+  - `404 Not Found` if the authenticated user no longer exists.
+  - `409 Conflict` if the new email already exists (`ORA-00001`).
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X PUT http://localhost:3000/users/email \
+       -H "Content-Type: application/json" \
+       -H "Authorization: Bearer <token>" \
+       -d '{"email":"new-email@example.com"}'
+  ```
+
 ### Save User Preferences
 - `POST /user-preferences`
 - **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
