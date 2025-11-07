@@ -4,13 +4,15 @@ import {
   getUserPreferenceModel,
   upsertUserPreferenceModel,
 } from "../models/userPreferenceModel.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = express.Router();
 
+router.use(requireAuth);
+
 router.get("/", async (req, res) => {
   try {
-    const { userId, user_id, id } = req.query || {};
-    const resolvedUserId = String(userId || user_id || id || "").trim();
+    const resolvedUserId = String(req.body?.user_id || "").trim();
 
     if (!resolvedUserId) {
       return res.status(400).json({ ok: false, error: "userId is required" });
@@ -45,8 +47,7 @@ router.get("/", async (req, res) => {
 
 router.post("/get", async (req, res) => {
   try {
-    const { userId, user_id, id } = req.body || {};
-    const resolvedUserId = String(userId || user_id || id || "").trim();
+    const resolvedUserId = String(req.body?.user_id || "").trim();
 
     if (!resolvedUserId) {
       return res.status(400).json({ ok: false, error: "userId is required" });
@@ -71,9 +72,9 @@ router.post("/get", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { id, userId, user_id, keywords, keyword, languages, language } = req.body || {};
+    const { keywords, keyword, languages, language } = req.body || {};
 
-    const resolvedUserId = String(userId || user_id || id || "").trim();
+    const resolvedUserId = String(req.body?.user_id || "").trim();
     if (!resolvedUserId) {
       return res.status(400).json({ ok: false, error: "userId is required" });
     }

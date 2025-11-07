@@ -215,16 +215,16 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```
 ### Save User Preferences
 - `POST /user-preferences`
-- **Headers:** `Content-Type: application/json`
+- **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
+- **Authentication:** The server derives the `userId` from the JWT payload, so the body only needs the preference data.
 - **Request Body:**
   ```json
   {
-    "userId": "user-uuid",
     "languages": ["en"],
     "keywords": ["trump", "election"]
   }
   ```
-  - `userId`/`user_id` is required; `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
+  - `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
 - **Responses:**
   - `200 OK`
     ```json
@@ -241,17 +241,19 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
       }
     }
     ```
-  - `400 Bad Request` when `userId` is missing.
+  - `401 Unauthorized` when the JWT is missing or invalid.
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/user-preferences \
+       -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
-       -d '{"userId":"user-uuid","language":"en","keywords":["trump"]}'
+       -d '{"language":"en","keywords":["trump"]}'
   ```
 ### Fetch User Preferences
-- `GET /user-preferences?userId=<id>` (also accepts `user_id` or `id` query keys)
-- **Description:** Returns the saved keyword and language preferences for the given user. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
+- `GET /user-preferences`
+- **Headers:** `Authorization: Bearer <token>`
+- **Description:** Returns the authenticated user’s keyword and language preferences. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
 - **Successful Response (`200 OK`):**
   ```json
   {
@@ -264,22 +266,17 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   }
   ```
 - **Errors:**
-  - `400 Bad Request` when the user identifier is missing.
+  - `401 Unauthorized` when the JWT is missing or invalid.
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl "http://localhost:3000/user-preferences?userId=user-uuid"
+  curl http://localhost:3000/user-preferences \
+       -H "Authorization: Bearer <token>"
   ```
 ### Fetch User Preferences (body-based)
 - `POST /user-preferences/get`
-- **Headers:** `Content-Type: application/json`
-- **Request Body:**
-  ```json
-  {
-    "user_id": "user-uuid"
-  }
-  ```
-  - Accepts `user_id`, `userId`, or `id` in the JSON body.
+- **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`
+- **Request Body:** Optional (may be `{}`); the server still uses the JWT for user identification.
 - **Successful Response (`200 OK`):**
   ```json
   {
@@ -288,15 +285,16 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     "LANGUAGES": ["en", "es"]
   }
   ```
-  - Returns an empty object (`{}`) when no preferences exist for the supplied user.
+  - Returns an empty object (`{}`) when no preferences exist for the authenticated user.
 - **Errors:**
-  - `400 Bad Request` when the user identifier is missing.
+  - `401 Unauthorized` when the JWT is missing or invalid.
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
   curl -X POST http://localhost:3000/user-preferences/get \
+       -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
-       -d '{"user_id":"user-uuid"}'
+       -d '{}'
   ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
