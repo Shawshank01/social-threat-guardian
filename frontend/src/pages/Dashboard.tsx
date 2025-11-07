@@ -171,12 +171,14 @@ const Dashboard = () => {
   }, [keywordInput]);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || !token) {
       const localPreferences = loadPreferencesFromStorage();
       if (localPreferences) {
         applySavedPreferences(localPreferences);
         setPreferencesError(
-          "Sign in to sync preferences across devices. Using this browser's saved configuration.",
+          user?.id
+            ? "Unable to authenticate with the server. Using this browser's saved configuration."
+            : "Sign in to sync preferences across devices. Using this browser's saved configuration.",
         );
       } else {
         setPreferencesError(null);
@@ -191,9 +193,12 @@ const Dashboard = () => {
       setIsSyncingPreferences(true);
       setPreferencesError(null);
       try {
-        const response = await fetch(buildApiUrl(`users/${user.id}/monitoring-preferences`), {
+        const response = await fetch(buildApiUrl("user-preferences"), {
           method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           signal: controller.signal,
         });
 
@@ -255,9 +260,11 @@ const Dashboard = () => {
   }, [applySavedPreferences, token, user?.id]);
 
   const persistPreferencesToBackend = async (preferences: SavedPreferences) => {
-    if (!user?.id) {
+    if (!user?.id || !token) {
       setPreferencesError(
-        "Sign in to sync your monitoring filters across devices. We'll keep these changes on this browser.",
+        user?.id
+          ? "Unable to authenticate with the server. We'll keep these changes on this browser."
+          : "Sign in to sync your monitoring filters across devices. We'll keep these changes on this browser.",
       );
       return false;
     }
