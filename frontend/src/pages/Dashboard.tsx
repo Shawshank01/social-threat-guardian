@@ -53,10 +53,18 @@ const PLATFORM_OPTIONS = [
   { id: "TELEGRAM", label: "Telegram" },
 ];
 
-const LANGUAGE_OPTIONS = Array.from({ length: 10 }, (_, index) => {
-  const value = String(index + 1);
-  return { value, label: `Language ${index + 1}` };
-});
+const LANGUAGE_OPTIONS = [
+  { value: "en", label: "English" },
+  { value: "ja", label: "Japanese" },
+  { value: "hi", label: "Hindi" },
+  { value: "es", label: "Spanish" },
+  { value: "ar", label: "Arabic" },
+  { value: "fr", label: "French" },
+  { value: "pt", label: "Portuguese" },
+  { value: "ru", label: "Russian" },
+  { value: "id", label: "Indonesian" },
+  { value: "de", label: "German" },
+];
 
 const Dashboard = () => {
   const { user, token } = useAuth();
@@ -512,10 +520,11 @@ const Dashboard = () => {
                   key={language.value}
                   type="button"
                   onClick={() => toggleLanguage(language.value)}
-                  className={`rounded-2xl px-4 py-3 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
-                    ? "bg-stg-accent-soft text-stg-accent shadow-inner"
-                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                    }`}
+                  className={`flex items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${
+                    isSelected
+                      ? "border-stg-accent bg-stg-accent text-white shadow-lg"
+                      : "border-slate-300/80 bg-white text-slate-700 hover:border-stg-accent/40 hover:text-stg-accent dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-stg-accent/60"
+                  }`}
                   aria-pressed={isSelected}
                 >
                   {language.label}
