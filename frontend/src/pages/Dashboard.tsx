@@ -270,18 +270,16 @@ const Dashboard = () => {
     }
 
     try {
-      const response = await fetch(buildApiUrl(`users/${user.id}/monitoring-preferences`), {
-        method: "PUT",
+      const response = await fetch(buildApiUrl("user-preferences"), {
+        method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          preferences: {
-            keywords: preferences.keywords,
-            platforms: preferences.platforms,
-            languages: preferences.languages,
-          },
+          keywords: preferences.keywords,
+          languages: preferences.languages,
+          platforms: preferences.platforms,
         }),
       });
 
