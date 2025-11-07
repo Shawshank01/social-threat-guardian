@@ -70,7 +70,7 @@ const PersonalMonitors = () => {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || !token) {
       const cachedPreferences = loadPreferencesFromStorage();
       if (cachedPreferences) {
         setPreferences(cachedPreferences);
@@ -84,9 +84,12 @@ const PersonalMonitors = () => {
 
     const loadPreferences = async () => {
       try {
-        const response = await fetch(buildApiUrl(`users/${user.id}/monitoring-preferences`), {
+        const response = await fetch(buildApiUrl("user-preferences"), {
           method: "GET",
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: {
+            Accept: "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           signal: controller.signal,
         });
 
