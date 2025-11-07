@@ -219,11 +219,24 @@ const Dashboard = () => {
             languages: [],
           };
 
+        const cachedPreferences = loadPreferencesFromStorage();
+        const resolvedPlatforms =
+          normalized.platforms.length > 0
+            ? normalized.platforms
+            : cachedPreferences?.platforms && cachedPreferences.platforms.length > 0
+              ? cachedPreferences.platforms
+              : PLATFORM_OPTIONS.map((platform) => platform.id);
+
+        const mergedPreferences: SavedPreferences = {
+          ...normalized,
+          platforms: resolvedPlatforms,
+        };
+
         if (isCancelled) return;
 
-        applySavedPreferences(normalized);
+        applySavedPreferences(mergedPreferences);
         savePreferencesToStorage({
-          ...normalized,
+          ...mergedPreferences,
           updatedAt: new Date().toISOString(),
         });
         setPreferencesError(null);
