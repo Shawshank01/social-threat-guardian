@@ -198,3 +198,39 @@ export async function deleteUserModel(id) {
     return r.rowsAffected || 0;
   });
 }
+
+//update user email by ID
+export async function updateUserEmailModel(id, email) {
+  const normEmail = String(email || "").trim().toLowerCase();
+  if (!id) {
+    throw new Error("userId is required");
+  }
+  if (!normEmail) {
+    throw new Error("email is required");
+  }
+
+  try {
+    const result = await withConnection(async (conn) => {
+      const r = await conn.execute(
+        `UPDATE USERS SET EMAIL = :email WHERE ID = :id`,
+        { id, email: normEmail },
+        { autoCommit: true }
+      );
+      return r;
+    });
+
+    if (!result.rowsAffected) {
+      return null;
+    }
+
+    return { id, email: normEmail };
+  } catch (err) {
+    // ORA-00001 => duplicate email due to unique constraint
+    if (err?.errorNum === 1 || err?.message?.includes("ORA-00001")) {
+      const duplicateErr = new Error("email already in use");
+      duplicateErr.code = "EMAIL_IN_USE";
+      throw duplicateErr;
+    }
+    throw err;
+  }
+}
