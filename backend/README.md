@@ -249,6 +249,39 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -d '{"email":"new-email@example.com"}'
   ```
 
+### Update Name
+- `PUT /users/name`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <token>`
+- **Authentication:** `requireAuth.js` validates the JWT and injects `req.user.id`, so the body only needs the new `name` value.
+- **Request Body:**
+  ```json
+  {
+    "name": "New Display Name"
+  }
+  ```
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "user": {
+        "id": "user-uuid",
+        "name": "New Display Name"
+      }
+    }
+    ```
+  - `400 Bad Request` when `name` is missing or empty.
+  - `401 Unauthorized` when the JWT is missing/invalid.
+  - `404 Not Found` if the authenticated user no longer exists.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X PUT http://localhost:3000/users/name \
+       -H "Content-Type: application/json" \
+       -H "Authorization: Bearer <token>" \
+       -d '{"name":"New Display Name"}'
+  ```
+
 ### Save User Preferences
 - `POST /user-preferences`
 - **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`

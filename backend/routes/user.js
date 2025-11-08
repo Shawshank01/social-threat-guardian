@@ -6,6 +6,7 @@ import {
   listUsersModel,
   deleteUserModel,
   updateUserEmailModel,
+  updateUserNameModel,
 } from "../models/userModel.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -111,6 +112,38 @@ router.put("/email", requireAuth, async (req, res) => {
     }
 
     console.error("[PUT /users/email] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+/**
+ * PUT /users/name
+ * Protected: Require jwt token in head
+ * Body: { name }
+ */
+router.put("/name", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body?.user_id;
+    const { name } = req.body || {};
+
+    if (!userId) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+    if (!name) {
+      return res.status(400).json({ ok: false, error: "name is required" });
+    }
+
+    const updated = await updateUserNameModel(userId, name);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: "User not found" });
+    }
+
+    return res.json({
+      ok: true,
+      user: updated,
+    });
+  } catch (err) {
+    console.error("[PUT /users/name] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
   }
 });
