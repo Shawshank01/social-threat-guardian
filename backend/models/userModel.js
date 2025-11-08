@@ -234,3 +234,29 @@ export async function updateUserEmailModel(id, email) {
     throw err;
   }
 }
+
+// update user name by ID
+export async function updateUserNameModel(id, name) {
+  const trimmedName = typeof name === "string" ? name.trim() : "";
+  if (!id) {
+    throw new Error("userId is required");
+  }
+  if (!trimmedName) {
+    throw new Error("name is required");
+  }
+
+  const result = await withConnection(async (conn) => {
+    const r = await conn.execute(
+      `UPDATE USERS SET NAME = :name WHERE ID = :id`,
+      { id, name: trimmedName },
+      { autoCommit: true }
+    );
+    return r;
+  });
+
+  if (!result.rowsAffected) {
+    return null;
+  }
+
+  return { id, name: trimmedName };
+}
