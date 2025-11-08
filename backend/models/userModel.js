@@ -260,3 +260,28 @@ export async function updateUserNameModel(id, name) {
 
   return { id, name: trimmedName };
 }
+
+// update user password hash by ID
+export async function updateUserPasswordModel(id, passwordHash) {
+  if (!id) {
+    throw new Error("userId is required");
+  }
+  if (!passwordHash) {
+    throw new Error("passwordHash is required");
+  }
+
+  const result = await withConnection(async (conn) => {
+    const r = await conn.execute(
+      `UPDATE USERS SET PASSWORD_HASH = :passwordHash WHERE ID = :id`,
+      { id, passwordHash },
+      { autoCommit: true }
+    );
+    return r;
+  });
+
+  if (!result.rowsAffected) {
+    return null;
+  }
+
+  return { id };
+}
