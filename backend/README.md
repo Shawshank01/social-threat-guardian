@@ -467,3 +467,29 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     ]
   }
   ```
+### Add Bookmark
+- **Endpoint:** `POST /bookmark/add`
+- **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.
+- **Body:** JSON payload containing at least one of the following fields (all strings):
+  ```json
+  {
+    "post_id": "POST_IDENTIFIER"
+  }
+  ```
+  The backend also accepts `postId` or `processedId` for backward compatibility.
+- **Behaviour:** The middleware validates the JWT, extracts `user_id`, and stores/updates the `(user_id, post_id)` pair in the `BOOKMARKS` table. The entry’s `updated_at` timestamp is refreshed and `is_deleted` is reset to `0`, effectively restoring soft-deleted bookmarks.
+- **Response:** On success returns HTTP 201 with the persisted bookmark:
+  ```json
+  {
+    "ok": true,
+    "message": "Bookmark saved",
+    "bookmark": {
+      "BOOKMARK_ID": "...",
+      "USER_ID": "...",
+      "PROCESSED_ID": "...",
+      "SAVED_AT": "...",
+      "UPDATED_AT": "..."
+    }
+  }
+  ```
+  Failure cases return an error message and an appropriate HTTP status (400 for missing `post_id`, 401 for invalid JWT, 500 for server errors).
