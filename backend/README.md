@@ -282,6 +282,36 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -d '{"name":"New Display Name"}'
   ```
 
+### Update Password
+- `PUT /users/password`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <token>`
+- **Authentication:** `requireAuth.js` validates the JWT and injects `req.user.id`, so the body only needs the new plain-text password.
+- **Request Body:**
+  ```json
+  {
+    "password": "atLeast8Chars"
+  }
+  ```
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "message": "password updated"
+    }
+    ```
+  - `400 Bad Request` when the password is missing or shorter than 8 characters.
+  - `401 Unauthorized` when the JWT is missing/invalid.
+  - `404 Not Found` if the authenticated user no longer exists.
+  - `500 Internal Server Error` for unexpected issues.
+- **Example:**
+  ```bash
+  curl -X PUT http://localhost:3000/users/password \
+       -H "Content-Type: application/json" \
+       -H "Authorization: Bearer <token>" \
+       -d '{"password":"atLeast8Chars"}'
+  ```
+
 ### Save User Preferences
 - `POST /user-preferences`
 - **Headers:** `Authorization: Bearer <token>`, `Content-Type: application/json`

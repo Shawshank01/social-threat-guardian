@@ -1,5 +1,6 @@
 // /routes/user.js
 import express from "express";
+import bcrypt from "bcryptjs";
 import {
   createUserModel,
   getUserByIdModel,
@@ -7,6 +8,7 @@ import {
   deleteUserModel,
   updateUserEmailModel,
   updateUserNameModel,
+  updateUserPasswordModel,
 } from "../models/userModel.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 
@@ -144,6 +146,42 @@ router.put("/name", requireAuth, async (req, res) => {
     });
   } catch (err) {
     console.error("[PUT /users/name] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+/**
+ * PUT /users/password
+ * Protected: Require jwt token in head
+ * Body: { password }
+ */
+router.put("/password", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body?.user_id;
+    const { password } = req.body || {};
+
+    if (!userId) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+    if (!password) {
+      return res.status(400).json({ ok: false, error: "password is required" });
+    }
+    if (String(password).length < 8) {
+      return res.status(400).json({ ok: false, error: "password must be at least 8 characters" });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const updated = await updateUserPasswordModel(userId, passwordHash);
+    if (!updated) {
+      return res.status(404).json({ ok: false, error: "User not found" });
+    }
+
+    return res.json({
+      ok: true,
+      message: "password updated",
+    });
+  } catch (err) {
+    console.error("[PUT /users/password] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
   }
 });
