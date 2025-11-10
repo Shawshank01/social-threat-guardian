@@ -8,14 +8,14 @@ import { corsMiddleware } from "./middleware/cors.js";
 import userRouter from "./routes/user.js";
 import { ensureUsersTable } from "./models/userModel.js";
 import { ensureUserPreferencesTable } from "./models/userPreferenceModel.js";
-import { ensureFavoritesTable } from "./models/favoriteModel.js";
+import { ensureFavoritesTable } from "./models/bookmarkModel.js";
 import { ensureCommentsTable } from "./models/commentNoteModel.js";
 import indexRouter from "./routes/index.js";
 import pushRouter from "./routes/push.js";
 import authRouter from "./routes/auth.js";
 import commentsRouter from "./routes/comments.js";
 import userPreferencesRouter from "./routes/userPreferences.js";
-import favoritesRouter from "./routes/favorites.js";
+import favoritesRouter from "./routes/bookmark.js";
 
 dotenv.config({ override: true });
 
@@ -43,7 +43,7 @@ app.use("/auth", authRouter);
 app.use("/api", authRouter); // Mirror /auth endpoints for frontend expectations
 app.use("/comments", commentsRouter);
 app.use("/user-preferences", userPreferencesRouter);
-app.use("/favorites", favoritesRouter);
+app.use("/bookmark", favoritesRouter);
 
 app.use(errorHandler);
 

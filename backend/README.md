@@ -199,6 +199,86 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     "token": "jwt-token-string"
   }
   ```
+
+### Bookmarks
+- All bookmark endpoints require `Authorization: Bearer <jwt>` and parse `user_id` via `requireAuth`.
+
+#### Add Bookmark
+- `POST /bookmark/add`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <jwt>`
+- **Request Body:**
+  ```json
+  {
+    "post_id": "target-post-id"
+  }
+  ```
+- **Responses:**
+  - `201 Created`
+    ```json
+    {
+      "ok": true,
+      "bookmark": {
+        "BOOKMARK_ID": "generated-guid",
+        "USER_ID": "user-uuid",
+        "PROCESSED_ID": "target-post-id",
+        "SAVED_AT": "2024-01-01T12:34:56.000Z",
+        "UPDATED_AT": "2024-01-01T12:34:56.000Z"
+      }
+    }
+    ```
+  - `400 Bad Request` when `post_id` is missing.
+  - `409 Conflict` if the user already bookmarked the post.
+  - `500 Internal Server Error` for unexpected failures.
+
+#### Remove Bookmark
+- `DELETE /bookmark/remove`
+- **Headers:** `Content-Type: application/json`, `Authorization: Bearer <jwt>`
+- **Request Body:**
+  ```json
+  {
+    "post_id": "target-post-id"
+  }
+  ```
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "removed": 1
+    }
+    ```
+  - `400 Bad Request` when `post_id` is missing.
+  - `404 Not Found` if the bookmark does not exist.
+  - `500 Internal Server Error` for unexpected failures.
+- **Example:**
+  ```bash
+  curl -X DELETE http://localhost:3000/bookmark/remove \
+       -H "Content-Type: application/json" \
+       -H "Authorization: Bearer <jwt>" \
+       -d '{"post_id":"post-123"}'
+  ```
+
+#### List Bookmarks
+- `GET /bookmark`
+- **Headers:** `Authorization: Bearer <jwt>`
+- **Responses:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "count": 2,
+      "bookmarks": [
+        {
+          "BOOKMARK_ID": "guid-1",
+          "USER_ID": "user-uuid",
+          "PROCESSED_ID": "post-1",
+          "SAVED_AT": "2024-01-01T12:34:56.000Z",
+          "UPDATED_AT": "2024-01-01T12:34:56.000Z"
+        }
+      ]
+    }
+    ```
+  - `500 Internal Server Error` for unexpected failures.
 - **Responses:**
   - `200 OK`
     ```json
@@ -467,3 +547,29 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     ]
   }
   ```
+### Add Bookmark
+- **Endpoint:** `POST /bookmark/add`
+- **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.
+- **Body:** JSON payload containing at least one of the following fields (all strings):
+  ```json
+  {
+    "post_id": "POST_IDENTIFIER"
+  }
+  ```
+  The backend also accepts `postId` or `processedId` for backward compatibility.
+- **Behaviour:** The middleware validates the JWT, extracts `user_id`, and stores/updates the `(user_id, post_id)` pair in the `BOOKMARKS` table. The entry’s `updated_at` timestamp is refreshed and `is_deleted` is reset to `0`, effectively restoring soft-deleted bookmarks.
+- **Response:** On success returns HTTP 201 with the persisted bookmark:
+  ```json
+  {
+    "ok": true,
+    "message": "Bookmark saved",
+    "bookmark": {
+      "BOOKMARK_ID": "...",
+      "USER_ID": "...",
+      "PROCESSED_ID": "...",
+      "SAVED_AT": "...",
+      "UPDATED_AT": "..."
+    }
+  }
+  ```
+  Failure cases return an error message and an appropriate HTTP status (400 for missing `post_id`, 401 for invalid JWT, 500 for server errors).
