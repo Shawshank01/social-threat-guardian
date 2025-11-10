@@ -1,4 +1,4 @@
-# Social Threat Guardian. Mastodon Data Pipeline Guide
+# Social Threat Guardian Mastodon Data Pipeline Guide
 
 This guide documents the end-to-end setup. It goes from database preparation, to Kafka topic creation, to running the Mastodon producer and the Spark consumer that performs AI inference and writes results to Oracle.
 
