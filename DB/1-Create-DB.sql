@@ -1,7 +1,7 @@
 -- ===========================================================
 --  SCHEMA: ZEROCOOL
 --  PROJECT: Social Threat Guardian
---  VERSION: v3
+--  VERSION: v3.1
 -- ===========================================================
 
 ------------------------------------------------------------
@@ -77,7 +77,7 @@ CREATE TABLE RawPosts (
     created_at        TIMESTAMP,
     language          VARCHAR2(10),
     url               VARCHAR2(500),
-    visibility        CHAR(1) CHECK (visibility IN ('T','F')),
+    visibility        VARCHAR2(20),
     collected_at      TIMESTAMP,
     CONSTRAINT fk_raw_platform FOREIGN KEY (platform_id)
         REFERENCES Platforms(platform_id) ON DELETE CASCADE
