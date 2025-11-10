@@ -508,6 +508,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
             "postText": "text mentioning hate",
             "predIntent": "HARMFUL",
             "platform": "BLUSKY2",
+            "hateScore": ".9999",
             "postUrl": "https://blusky.example/posts/12345",
             "timeAgo": "12 mins ago"
           }
@@ -573,3 +574,24 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   }
   ```
   Failure cases return an error message and an appropriate HTTP status (400 for missing `post_id`, 401 for invalid JWT, 500 for server errors).
+
+### Real-time Hate Score Monitor
+- **Overview:** A background task (`hateScoreMonitor`) runs every 30 seconds, pulls the latest 100 rows from `BLUSKY_TEST`, filters valid `HATE_SCORE` values, and broadcasts the average score plus metadata to all connected WebSocket clients. This service starts automatically with `server.js`.
+- **Connection:** `ws://<host>:3000/ws`
+- **Message Types:**
+  - `CONNECTED`: sent once per client after the handshake (contains `connectedAt` ISO timestamp).
+  - `HATE_SCORE_UPDATE`: emitted after each poll with the following payload:
+    ```json
+    {
+      "type": "HATE_SCORE_UPDATE",
+      "data": {
+        "value": 0.8123,
+        "updatedAt": "2025-01-15T08:30:00.123Z",
+        "sampleSize": 97,
+        "tableName": "BLUSKY_TEST"
+      }
+    }
+    ```
+  - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
+- **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
+
