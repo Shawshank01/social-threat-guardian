@@ -476,15 +476,15 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -d '{}'
   ```
 ### Search Comments by Keyword
-- `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "NEUTRAL", "source": "BLUSKY" }`)  
-- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY`) and default to `PRED_INTENT = 'NEUTRAL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
+- `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "HARMFUL", "source": "BLUSKY_TEST" }`)  
+- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY_TEST`) and default to `PRED_INTENT = 'HARMFUL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
     "keywords": ["hate speech", "alert"],
     "limit": 4,
-    "predIntent": "NEUTRAL",
-    "source": "BLUSKY"
+    "predIntent": "HARMFUL",
+    "source": "BLUSKY_TEST"
   }
   ```
 - **Example (curl):**
@@ -506,7 +506,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
         "comments": [
           {
             "postText": "text mentioning hate",
-            "predIntent": "NEUTRAL",
+            "predIntent": "HARMFUL",
             "platform": "BLUSKY2",
             "postUrl": "https://blusky.example/posts/12345",
             "timeAgo": "12 mins ago"
@@ -522,8 +522,8 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   }
   ```
 ### Fetch Latest Comments
-- `GET /comments/latest` (optional `?limit=4&predIntent=NEUTRAL&source=BLUSKY`)  
-- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'NEUTRAL'`, but you can pass `predIntent` to override. Each comment includes a friendly `platform` label, a navigable `postUrl`, and a human-readable `timeAgo`.
+- `GET /comments/latest` (optional `?limit=4&predIntent=HARMFUL&source=BLUSKY_TEST`)  
+- **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY_TEST`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'HARMFUL'`, but you can pass `predIntent` to override. Each comment includes a friendly `platform` label, a navigable `postUrl`, and a human-readable `timeAgo`.
 - **Example (curl):**
   ```bash
   curl "http://localhost:3000/comments/latest?limit=4"
@@ -539,7 +539,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
     "comments": [
       {
         "postText": "text mentioning hate",
-        "predIntent": "NEUTRAL",
+        "predIntent": "HARMFUL",
         "platform": "BLUSKY2",
         "postUrl": "https://blusky.example/posts/12345",
         "timeAgo": "12 mins ago"

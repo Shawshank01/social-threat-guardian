@@ -7,11 +7,11 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
 
   let predIntent = filters.predIntent;
   if (predIntent === undefined || predIntent === null) {
-    predIntent = "NEUTRAL";
+    predIntent = "HARMFUL";
   } else {
     predIntent = String(predIntent).trim();
     if (!predIntent) {
-      predIntent = "NEUTRAL";
+      predIntent = "HARMFUL";
     }
   }
   predIntent = predIntent ? predIntent.toUpperCase() : null;
@@ -19,7 +19,7 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
   const tableName =
     filters.tableName !== undefined && filters.tableName !== null
       ? String(filters.tableName).trim().toUpperCase()
-      : "BLUSKY";
+      : "BLUSKY_TEST";
 
   if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
     throw new Error("Invalid table name");
