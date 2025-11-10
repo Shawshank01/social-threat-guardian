@@ -82,7 +82,7 @@ export async function ensureFavoritesTable() {
   });
 }
 
-export async function listFavoritesByUser(userId) {
+export async function getBookmarks(userId) {
   return withConnection(async (conn) => {
     const result = await conn.execute(
       `SELECT BOOKMARK_ID,
@@ -101,51 +101,58 @@ export async function listFavoritesByUser(userId) {
   });
 }
 
-export async function getFavoriteByUserAndProcessedId(userId, processedId) {
+export async function addBookmarks(userId, postId) {
   return withConnection(async (conn) => {
-    const result = await conn.execute(
+    const insertResult = await conn.execute(
+      `INSERT INTO BOOKMARKS (
+         BOOKMARK_ID,
+         USER_ID,
+         POST_ID,
+         CREATED_AT,
+         UPDATED_AT,
+         IS_DELETED
+       )
+       VALUES (
+         RAWTOHEX(SYS_GUID()),
+         :userId,
+         :postId,
+         SYSTIMESTAMP,
+         SYSTIMESTAMP,
+         0
+       )
+       RETURNING BOOKMARK_ID INTO :bookmarkId`,
+      {
+        userId,
+        postId,
+        bookmarkId: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 255 },
+      },
+      { autoCommit: true }
+    );
+
+    const bookmarkId =
+      insertResult.outBinds?.bookmarkId?.[0] ?? insertResult.outBinds?.bookmarkId;
+
+    if (!bookmarkId) {
+      throw new Error("Failed to create bookmark");
+    }
+
+    const rowResult = await conn.execute(
       `SELECT BOOKMARK_ID,
               USER_ID,
               POST_ID    AS PROCESSED_ID,
               CREATED_AT AS SAVED_AT,
               UPDATED_AT
          FROM BOOKMARKS
-        WHERE USER_ID = :userId
-          AND POST_ID = :processedId
-          AND NVL(IS_DELETED, 0) = 0`,
-      { userId, processedId },
+        WHERE BOOKMARK_ID = :bookmarkId`,
+      { bookmarkId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    return result.rows?.[0] || null;
+
+    return rowResult.rows?.[0] || null;
   });
 }
 
-export async function upsertFavoriteForUser(userId, favorite) {
-  const processedId = String(favorite.processedId ?? favorite.postId ?? "").trim();
-  if (!processedId) {
-    throw new Error("processedId is required");
-  }
-
-  await withConnection(async (conn) => {
-    await conn.execute(
-      `
-      MERGE INTO BOOKMARKS target
-      USING (SELECT :userId AS USER_ID, :processedId AS POST_ID FROM dual) incoming
-         ON (target.USER_ID = incoming.USER_ID AND target.POST_ID = incoming.POST_ID)
-       WHEN MATCHED THEN
-        UPDATE SET IS_DELETED = 0,
-                   UPDATED_AT = SYSTIMESTAMP
-       WHEN NOT MATCHED THEN
-        INSERT (BOOKMARK_ID, USER_ID, POST_ID, CREATED_AT, UPDATED_AT, IS_DELETED)
-        VALUES (RAWTOHEX(SYS_GUID()), :userId, :processedId, SYSTIMESTAMP, SYSTIMESTAMP, 0)
-      `,
-      { userId, processedId },
-      { autoCommit: true }
-    );
-  });
-}
-
-export async function deleteFavoriteForUser(userId, processedId) {
+export async function deleteBookmarks(userId, processedId) {
   return withConnection(async (conn) => {
     const result = await conn.execute(
       `UPDATE BOOKMARKS
