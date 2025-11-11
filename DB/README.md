@@ -6,11 +6,13 @@ This guide documents the end-to-end setup. It goes from database preparation, to
 
 ## 1. Architecture overview
 
-**Flow:** Mastodon API → Kafka topic `mastodon-raw-posts` → Spark Structured Streaming →  
+**Flow:** Mastodon API, then Kafka topic `mastodon-raw-posts`, then Spark Structured Streaming.  
 1) Upsert to `RAWPOSTS`  
-2) AI inference in Spark with ONNX model → write to `PROCESSEDPOSTS`
+2) AI inference in Spark with an ONNX model, then write results to `PROCESSEDPOSTS`.
 
 **Why two writes:** We first persist raw data to `RAWPOSTS` so foreign keys are satisfied, then we store AI results in `PROCESSEDPOSTS`.
+
+**Why retain RawPosts:** It is preferable to retain RawPosts entity rather than remove them or place them outside the database, because this preserves data lineage and traceability. Keeping the original raw data allows for auditability, debugging, and understanding the provenance of AI inferences. This approach supports transparency and accountability in data processing pipelines, ensuring that downstream analyses can be traced back to their original inputs. Maintaining raw data alongside processed results enhances the robustness and trustworthiness of the data pipeline by enabling comprehensive traceability from source to inference. For more details on the importance of data lineage, see [Seemore Data's blog on data lineage](https://seemoredata.io/blog/data-lineage-in-2025-examples-techniques-best-practices/).
 
 ---
 
