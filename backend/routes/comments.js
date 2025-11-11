@@ -7,13 +7,13 @@ const router = express.Router();
 
 // Extend this map when onboard new datasets to control the friendly label that appears in responses.
 const PLATFORM_LABELS = {
-  BLUSKY: "Blusky",
+  BLUSKY_TEST: "Blusky",
 };
 
 function sanitizeTableName(value) {
-  if (value === undefined || value === null) return "BLUSKY";
+  if (value === undefined || value === null) return "BLUSKY_TEST";
   const upper = String(value).trim().toUpperCase();
-  if (!upper) return "BLUSKY";
+  if (!upper) return "BLUSKY_TEST";
   if (!/^[A-Z0-9_]+$/.test(upper)) return null;
   return upper;
 }
@@ -66,6 +66,7 @@ router.get("/latest", async (req, res) => {
       predIntent: row.PRED_INTENT,
       predIntensity: row.PRED_INTENSITY,
       platform: platformLabel,
+      hateScore: row.HATE_SCORE,
       postUrl: row.POST_URL || null,
       timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
       collectedAt: row.POST_TIMESTAMP ?? null,
@@ -119,6 +120,7 @@ router.post("/search", async (req, res) => {
         predIntent: row.PRED_INTENT,
         predIntensity: row.PRED_INTENSITY,
         platform: platformLabel,
+        hateScore: row.HATE_SCORE,
         postUrl: row.POST_URL || null,
         timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
         collectedAt: row.POST_TIMESTAMP ?? null,

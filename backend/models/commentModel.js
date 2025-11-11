@@ -7,11 +7,11 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
 
   let predIntent = filters.predIntent;
   if (predIntent === undefined || predIntent === null) {
-    predIntent = "NEUTRAL";
+    predIntent = "HARMFUL";
   } else {
     predIntent = String(predIntent).trim();
     if (!predIntent) {
-      predIntent = "NEUTRAL";
+      predIntent = "HARMFUL";
     }
   }
   predIntent = predIntent ? predIntent.toUpperCase() : null;
@@ -19,7 +19,7 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
   const tableName =
     filters.tableName !== undefined && filters.tableName !== null
       ? String(filters.tableName).trim().toUpperCase()
-      : "BLUSKY";
+      : "BLUSKY_TEST";
 
   if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
     throw new Error("Invalid table name");
@@ -54,9 +54,9 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(" AND ")}` : "";
     
     const sql = `
-      SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL
+      SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL, HATE_SCORE
         FROM (
-          SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL
+          SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL, HATE_SCORE
             FROM ${tableName}
            ${whereSql}
            ORDER BY POST_TIMESTAMP DESC NULLS LAST
@@ -72,8 +72,44 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
         PRED_INTENT: { type: oracledb.STRING },
         PRED_INTENSITY: {type: oracledb.STRING},
         POST_URL: { type: oracledb.STRING },
+        HATE_SCORE: {type: oracledb.STRING}
       },
     });
+
+    return result.rows || [];
+  });
+}
+
+export async function fetchLatestHateScores(limit = 100, options = {}) {
+  const capped = Math.max(1, Math.min(Number(limit) || 100, 500));
+  const tableName =
+    options.tableName !== undefined && options.tableName !== null
+      ? String(options.tableName).trim().toUpperCase()
+      : "BLUSKY_TEST";
+
+  if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
+
+  return withConnection(async (conn) => {
+    const sql = `
+      SELECT HATE_SCORE, POST_TIMESTAMP
+        FROM (
+          SELECT HATE_SCORE, POST_TIMESTAMP
+            FROM ${tableName}
+           WHERE HATE_SCORE IS NOT NULL
+           ORDER BY POST_TIMESTAMP DESC NULLS LAST
+        )
+       WHERE ROWNUM <= :limit
+    `;
+
+    const result = await conn.execute(
+      sql,
+      { limit: capped },
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+      }
+    );
 
     return result.rows || [];
   });

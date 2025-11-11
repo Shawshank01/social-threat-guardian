@@ -1,6 +1,7 @@
 // server.js
 import express from "express";
 import dotenv from "dotenv";
+import http from "http";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -16,6 +17,8 @@ import authRouter from "./routes/auth.js";
 import commentsRouter from "./routes/comments.js";
 import userPreferencesRouter from "./routes/userPreferences.js";
 import favoritesRouter from "./routes/bookmark.js";
+import { startHateScoreMonitor } from "./services/hateScoreMonitor.js";
+import { initWebSocketServer } from "./websocket/index.js";
 
 dotenv.config({ override: true });
 
@@ -48,6 +51,11 @@ app.use("/bookmark", favoritesRouter);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+server.listen(PORT, () => {
   console.log(`🚀 Server is running at http://localhost:${PORT}`);
 });
+
+initWebSocketServer(server, { path: "/ws" });
+startHateScoreMonitor();
