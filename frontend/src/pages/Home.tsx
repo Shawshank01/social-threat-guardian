@@ -34,10 +34,10 @@ const buildApiUrl = (path: string) => {
 };
 
 const FEED_FRAMING: FeedFraming = {
-  sectionTitle: "Cross-platform Threat Speech",
+  sectionTitle: "Cross-platform High-Risk Content",
   sectionDescription:
-    "Recent posts surfaced by our classifiers across monitored communities. Prioritize review of critical items with on-ground security teams.",
-  cardHeading: "Threat Speech",
+    "Latest posts identified by our systems as containing hate, threats, or other forms of harmful speech across observed communities.",
+  cardHeading: "High-Risk Content",
 };
 
 const SEVERITY_PRESETS: Record<SeverityLevel, SeverityPreset> = {
