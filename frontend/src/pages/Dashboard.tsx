@@ -48,7 +48,7 @@ const buildApiUrl = (path: string) => {
 const SEARCH_RESULTS_LIMIT = 3;
 
 const PLATFORM_OPTIONS = [
-  { id: "BLUSKY", label: "Bluesky" },
+  { id: "BLUSKY_TEST", label: "Bluesky" },
   { id: "MASTODON", label: "Mastodon" },
   { id: "TELEGRAM", label: "Telegram" },
 ];

@@ -18,10 +18,24 @@ import Dashboard from "@/pages/Dashboard";
 import PostDetail from "@/pages/PostDetail";
 import Bookmarks from "@/pages/Bookmarks";
 
+const COMPACT_ROUTES = new Set([
+  "/",
+  "/harassment-networks",
+  "/personal-monitors",
+  "/dashboard",
+  "/settings",
+  "/bookmarks",
+]);
+
 const App = () => {
   const location = useLocation();
-  const isHomeRoute = location.pathname === "/";
-  const mainClasses = [isHomeRoute ? null : "flex-1", "pt-24", "pb-12", "lg:pb-16"]
+  const isCompactLayout = COMPACT_ROUTES.has(location.pathname);
+  const mainClasses = [
+    "pt-24",
+    isCompactLayout ? "pb-6" : "pb-12",
+    isCompactLayout ? "lg:pb-10" : "lg:pb-16",
+    isCompactLayout ? null : "flex-1 min-h-screen",
+  ]
     .filter(Boolean)
     .join(" ");
 
