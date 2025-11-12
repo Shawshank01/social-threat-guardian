@@ -22,7 +22,7 @@ const App = () => {
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900 transition-colors duration-200 dark:bg-stg-bg dark:text-white">
       <NavBar />
-      <main className="flex-1 pb-24 pt-24">
+      <main className="flex-1 pt-24 pb-1 lg:pb-16">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/harassment-networks" element={<HarassmentNetworks />} />
