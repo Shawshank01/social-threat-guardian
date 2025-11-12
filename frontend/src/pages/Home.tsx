@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Share2, Megaphone, ShieldAlert, type LucideIcon } from "lucide-react";
+import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, type LucideIcon } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
 
@@ -10,6 +10,7 @@ type CommentPost = {
   timeAgo?: string | null;
   platform?: string | null;
   postUrl?: string | null;
+  hateScore?: number | string | null;
 };
 
 type FeedFraming = {
@@ -109,6 +110,39 @@ const resolveSeverityPresentation = (intensity?: string | null, intent?: string 
   };
 };
 
+type PlatformIconFactory = () => JSX.Element;
+
+const createLucideIconFactory =
+  (Icon: LucideIcon): PlatformIconFactory =>
+  () =>
+    <Icon className="h-5 w-5" aria-hidden />;
+
+const BlueskyIcon: PlatformIconFactory = () => (
+  <img src="/Bluesky_Logo.svg" alt="" className="h-5 w-5 object-contain" aria-hidden />
+);
+
+const mastodonIcon = createLucideIconFactory(Network);
+const telegramIcon = createLucideIconFactory(Send);
+const shieldIcon = createLucideIconFactory(ShieldAlert);
+
+const PLATFORM_ICON_MAP: Record<string, PlatformIconFactory> = {
+  mastodon: mastodonIcon,
+  "platform 1": mastodonIcon,
+  bluesky: BlueskyIcon,
+  blusky: BlueskyIcon,
+  blusky_test: BlueskyIcon,
+  "platform 2": BlueskyIcon,
+  telegram: telegramIcon,
+  "platform 3": telegramIcon,
+};
+
+const resolvePlatformIcon = (platform?: string | null) => {
+  const normalized = platform?.trim().toLowerCase() ?? "";
+  const factory = normalized ? PLATFORM_ICON_MAP[normalized] : undefined;
+  const renderIcon = factory ?? shieldIcon;
+  return renderIcon();
+};
+
 const Home = () => {
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [isFeedRevealed, setIsFeedRevealed] = useState(false);
@@ -154,6 +188,13 @@ const Home = () => {
   const platformCards = useMemo<PlatformCardProps[]>(() => {
     return posts.map((post, index) => {
       const severity = resolveSeverityPresentation(post.predIntensity, post.predIntent);
+      const parsedHateScore =
+        typeof post.hateScore === "number"
+          ? post.hateScore
+          : typeof post.hateScore === "string"
+            ? Number.parseFloat(post.hateScore)
+            : null;
+      const harmfulScore = Number.isFinite(parsedHateScore) ? parsedHateScore : null;
       return {
         heading: FEED_FRAMING.cardHeading,
         platform: post.platform?.trim() || "Unattributed source",
@@ -163,7 +204,8 @@ const Home = () => {
           label: severity.label,
           badgeClass: severity.badgeClass,
         },
-        icon: severity.icon,
+        harmfulScore,
+        icon: resolvePlatformIcon(post.platform),
         linkUrl: post.postUrl ?? null,
       } satisfies PlatformCardProps;
     });

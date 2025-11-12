@@ -14,6 +14,7 @@ export type PlatformCardProps = {
     label: string;
     badgeClass: string;
   };
+  harmfulScore?: number | null;
   icon: ReactNode;
   linkUrl?: string | null;
 };
@@ -24,11 +25,17 @@ const PlatformCard: FC<PlatformCardProps> = ({
   summary,
   updated,
   severity,
+  harmfulScore,
   icon,
   linkUrl,
 }) => {
-  const label = severity.label || DEFAULT_SEVERITY.label;
   const badgeClass = severity.badgeClass || DEFAULT_SEVERITY.badgeClass;
+  const normalizedScore =
+    typeof harmfulScore === "number" && Number.isFinite(harmfulScore)
+      ? harmfulScore * 100
+      : null;
+  const formattedScore =
+    normalizedScore !== null ? Math.round(normalizedScore).toString() : null;
   const action = linkUrl ? (
     <a
       href={linkUrl}
@@ -59,7 +66,7 @@ const PlatformCard: FC<PlatformCardProps> = ({
           </div>
         </div>
         <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-widest ${badgeClass}`}>
-          {label}
+          score: {formattedScore ?? "N/A"}
         </span>
       </header>
 
