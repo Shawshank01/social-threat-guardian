@@ -330,6 +330,10 @@ const Dashboard = () => {
     });
   };
 
+  const resetPlatforms = () => {
+    setSelectedPlatforms(new Set(PLATFORM_OPTIONS.map((platform) => platform.id)));
+  };
+
   const toggleLanguage = (language: string) => {
     setSelectedLanguages((prev) => {
       const next = new Set(prev);
@@ -340,6 +344,10 @@ const Dashboard = () => {
       }
       return next;
     });
+  };
+
+  const resetLanguages = () => {
+    setSelectedLanguages(new Set(LANGUAGE_OPTIONS.map((language) => language.value)));
   };
 
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
@@ -521,6 +529,13 @@ const Dashboard = () => {
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={resetPlatforms}
+            className="text-xs font-semibold uppercase tracking-wide text-stg-accent transition hover:text-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40"
+          >
+            Reset
+          </button>
         </section>
 
         <section className="space-y-4">
@@ -550,6 +565,13 @@ const Dashboard = () => {
               );
             })}
           </div>
+          <button
+            type="button"
+            onClick={resetLanguages}
+            className="text-xs font-semibold uppercase tracking-wide text-stg-accent transition hover:text-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40"
+          >
+            Reset
+          </button>
         </section>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
