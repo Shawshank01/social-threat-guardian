@@ -19,6 +19,7 @@ import userPreferencesRouter from "./routes/userPreferences.js";
 import favoritesRouter from "./routes/bookmark.js";
 import { startHateScoreMonitor } from "./services/hateScoreMonitor.js";
 import { initWebSocketServer } from "./websocket/index.js";
+import harassmentNetworkRouter from "./routes/harassmentNetwork.js";
 
 dotenv.config({ override: true });
 
@@ -47,6 +48,7 @@ app.use("/api", authRouter); // Mirror /auth endpoints for frontend expectations
 app.use("/comments", commentsRouter);
 app.use("/user-preferences", userPreferencesRouter);
 app.use("/bookmark", favoritesRouter);
+app.use("/harassment-network", harassmentNetworkRouter);
 
 app.use(errorHandler);
 

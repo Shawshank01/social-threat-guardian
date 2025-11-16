@@ -595,3 +595,31 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
 - **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
 
+### Harassment Network Cliques
+- **Endpoint:** `GET /harassment-network/cliques`
+- **Description:** Executes an Oracle `GRAPH_TABLE` query against `DIWEN.HARASSMENT_NETWORK` to find 3-person harassment cycles (A→B, B→C, C→A). Useful for drawing network graphs on the frontend. Supports light parameterization so dashboards can control payload size.
+- **Query Parameters:**
+  - `limit` (optional, default `100`, max `500`): caps the number of cliques returned.
+  - `table` or `source` (optional, default `DIWEN.HARASSMENT_NETWORK`): override the graph view name. Value must be uppercase alphanumeric/underscore/dot (e.g., `SCHEMA.GRAPH_VIEW`).
+- **Successful Response (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "nodes": [{ "id": "did:user:a" }, { "id": "did:user:b" }],
+    "links": [
+      { "source": "did:user:a", "target": "did:user:b" },
+      { "source": "did:user:b", "target": "did:user:c" },
+      { "source": "did:user:c", "target": "did:user:a" }
+    ],
+    "cliques": [
+      { "USER_A": "did:user:a", "USER_B": "did:user:b", "USER_C": "did:user:c" }
+    ],
+    "limit": 100,
+    "tableName": "DIWEN.HARASSMENT_NETWORK"
+  }
+  ```
+- **Errors:** Returns `400` for invalid parameters (e.g., malformed table name) or `500` when Oracle queries fail.
+- **Example:**
+  ```bash
+  curl "http://localhost:3000/harassment-network/cliques?limit=75"
+  ```
