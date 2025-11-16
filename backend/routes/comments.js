@@ -1,5 +1,6 @@
 // /routes/comments.js
 import express from "express";
+import Fuse from "fuse.js";
 import { fetchLatestComments } from "../models/commentModel.js";
 import { createCommentForPost, listCommentsForPost } from "../models/commentNoteModel.js";
 
@@ -45,6 +46,20 @@ function formatTimeAgo(timestamp) {
   return `${days} day${days > 1 ? "s" : ""} ago`;
 }
 
+function mapCommentRow(row, platformLabel) {
+  return {
+    post_id: row.POST_ID,
+    postText: row.POST_TEXT,
+    predIntent: row.PRED_INTENT,
+    predIntensity: row.PRED_INTENSITY,
+    platform: platformLabel,
+    hateScore: row.HATE_SCORE,
+    postUrl: row.POST_URL || null,
+    timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
+    collectedAt: row.POST_TIMESTAMP ?? null,
+  };
+}
+
 router.get("/latest", async (req, res) => {
   const limit = Number(req.query.limit) || 4;
 
@@ -60,17 +75,7 @@ router.get("/latest", async (req, res) => {
     const rows = await fetchLatestComments(limit, { predIntent, tableName });
     const platformLabel = resolvePlatformLabel(tableName);
 
-    const comments = rows.map((row) => ({
-      post_id: row.POST_ID,
-      postText: row.POST_TEXT,
-      predIntent: row.PRED_INTENT,
-      predIntensity: row.PRED_INTENSITY,
-      platform: platformLabel,
-      hateScore: row.HATE_SCORE,
-      postUrl: row.POST_URL || null,
-      timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
-      collectedAt: row.POST_TIMESTAMP ?? null,
-    }));
+    const comments = rows.map((row) => mapCommentRow(row, platformLabel));
 
     return res.json({ ok: true, count: comments.length, comments, platform: platformLabel });
   } catch (err) {
@@ -105,33 +110,29 @@ router.post("/search", async (req, res) => {
   const platformLabel = resolvePlatformLabel(tableName);
 
   try {
-    const results = [];
+    const fuzzySearchSampleSize = Math.min(50, Math.max(parsedLimit * 3, parsedLimit));
+    const candidateRows = await fetchLatestComments(fuzzySearchSampleSize, {
+      predIntent,
+      tableName,
+    });
 
-    for (const keyword of cappedKeywords) {
-      const rows = await fetchLatestComments(parsedLimit, {
-        predIntent,
-        tableName,
-        keyword,
-      });
+    const fuse = new Fuse(candidateRows, {
+      keys: ["POST_TEXT"],
+      includeScore: true,
+      threshold: 0.35,
+      ignoreLocation: true,
+      minMatchCharLength: 1,
+    });
 
-      const comments = rows.map((row) => ({
-        post_id: row.POST_ID,
-        postText: row.POST_TEXT,
-        predIntent: row.PRED_INTENT,
-        predIntensity: row.PRED_INTENSITY,
-        platform: platformLabel,
-        hateScore: row.HATE_SCORE,
-        postUrl: row.POST_URL || null,
-        timeAgo: formatTimeAgo(row.POST_TIMESTAMP),
-        collectedAt: row.POST_TIMESTAMP ?? null,
-      }));
-
-      results.push({
+    const results = cappedKeywords.map((keyword) => {
+      const matches = fuse.search(keyword).slice(0, parsedLimit);
+      const comments = matches.map(({ item }) => mapCommentRow(item, platformLabel));
+      return {
         keyword,
         count: comments.length,
         comments,
-      });
-    }
+      };
+    });
 
     return res.json({
       ok: true,
