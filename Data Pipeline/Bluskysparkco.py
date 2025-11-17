@@ -1,104 +1,89 @@
 #!/usr/bin/env python3
 
-
 import logging
 import os
 import sys
-import re
 
-# --- ML & Data ---
+#imports for our model distilbert.
 import numpy as np
 import pandas as pd
 from scipy.special import softmax
 import onnxruntime
 from transformers import AutoTokenizer
 
-# --- Spark ---
+# Spark
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import (
     col, from_json, to_timestamp, lit, concat,
-    regexp_extract, size, split, when, lower, expr, pandas_udf,
-    coalesce, current_timestamp
+    regexp_extract, size, split, when, coalesce, current_timestamp,
+    pandas_udf
 )
 from pyspark.sql.types import (
     StructType, StructField, StringType,
     DoubleType, TimestampType
 )
 
-# Language Detection 
+# For language detection i was thinking of just passing the initial language used in the post text but then i decided to utilize langdetect.
 try:
     from langdetect import detect, LangDetectException
     from langdetect import DetectorFactory
     DetectorFactory.seed = 0
 except ImportError:
-    logging.error("langdetect not found. Please run: pip install langdetect")
+    logging.error("langdetect not installed. Run: pip install langdetect")
     sys.exit(1)
 
+#logging 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s"
+)
+log = logging.getLogger("bluesky_hate_classifier")
 
-# Logging
-
-logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
-log = logging.getLogger("Bluskysparkco")
 
 
-# Config — All settings externalized for maintainability
+# Oracle 26ai database configurations, well dsn was the easiest to implement.
+ORACLE_USER = os.environ["DB_USER"]
+ORACLE_PASS = os.environ["DB_PASSWORD"]
+TNS_ADMIN_PATH = "/home/ubuntu/kafka_thesis/thesis__wallet"
+ORACLE_DSN = "(description=(retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.uk-london-1.oraclecloud.com))(connect_data=(service_name=g4c3ed8fbcfe40b_tud26ai_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"
+ORACLE_JDBC_URL = f"jdbc:oracle:thin:@{ORACLE_DSN}?TNS_ADMIN={TNS_ADMIN_PATH}"
+ORACLE_TABLE = "DIWEN.BLUSKY_TEST"
+ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver"
 
-try:
-    ORACLE_USER = os.environ["DB_USER"]
-    ORACLE_PASS = os.environ["DB_PASSWORD"]
-except KeyError:
-    log.error("DB_USER and DB_PASSWORD environment variables not set.")
-    sys.exit(1)
-
-# Kafka
+# Kafka configs and the topic to read from.
 KAFKA_BOOTSTRAP = "10.0.0.10:9092"
 KAFKA_TOPIC = "tweets"
 CONSUMER_GROUP = "bluesky-hate-consumer"
 
-# Data Sinks
-# Sink 1: Oracle (Processed Data)
-TNS_ADMIN_PATH = "/home/ubuntu/kafka_thesis/thesis__wallet"
-ORACLE_DSN = "(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.uk-london-1.oraclecloud.com))(connect_data=(service_name=g4c3ed8fbcfe40b_tud26ai_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"
-ORACLE_JDBC_URL = f"jdbc:oracle:thin:@{ORACLE_DSN}?TNS_ADMIN={TNS_ADMIN_PATH}"
-ORACLE_TABLE = "DIWEN.BLUSKY_TEST"
-ORACLE_DRIVER = "oracle.jdbc.driver.OracleDriver"
-ORACLE_BATCH_SIZE = "1000"
-
-# JDBC properties for the Spark-native read/write
-oracle_jdbc_properties = {
-    "user": ORACLE_USER,
-    "password": ORACLE_PASS,
-    "driver": ORACLE_DRIVER
-}
-
-# Sink 2: Delta Lake bucket (Raw Data)
+# Bucket Delta lake instances
 OCI_NAMESPACE = "lrbyxpimannd"
 OCI_BUCKET_NAME = "DistilBERT"
 OCI_LAKE_PATH = f"oci://{OCI_BUCKET_NAME}@{OCI_NAMESPACE}/data_lake/bluesky_raw_delta"
 
-# Model & Paths
+# Model folder after it is downloaded from OCI bucket.
 BASE_DIR = "/home/ubuntu"
 MODEL_PATH = os.path.join(BASE_DIR, "model_cache/classifier/model.onnx")
 TOKENIZER_PATH = os.path.join(BASE_DIR, "model_cache/classifier")
 
-# Checkpoint
+# Checkpoint folder 
 CHECKPOINT_DIR = "/home/ubuntu/spark_checkpoints/bluesky_pipeline"
 
-# Spark & Pipeline Tuning
-MAX_OFFSETS_PER_TRIGGER = 5000
-ARROW_MAX_RECORDS_PER_BATCH = 500
+
+MAX_OFFSETS_PER_TRIGGER = 500
 PROCESSING_TIME_TRIGGER = "30 seconds"
 MODEL_MAX_LENGTH = 128
+ARROW_MAX_RECORDS_PER_BATCH = 5000
 
 
-# Spark session
+# I initialize a spark session
 os.environ["TNS_ADMIN"] = TNS_ADMIN_PATH
 
 spark = (
     SparkSession.builder
-    .appName("BluskySparkPipeline-v8.1")
+    .appName("BlueskyHateClassifier")
     .config("spark.sql.streaming.checkpointLocation", CHECKPOINT_DIR)
-    .config("spark.sql.execution.arrow.maxRecordsPerBatch", ARROW_MAX_RECORDS_PER_BATCH)
+    .config("spark.sql.execution.arrow.maxRecordsPerBatch", str(ARROW_MAX_RECORDS_PER_BATCH))
+    .config("spark.sql.execution.pandas.convertToArrowArraySafely", "true")
     .config("spark.sql.adaptive.enabled", "true")
     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
@@ -107,71 +92,103 @@ spark = (
     .getOrCreate()
 )
 
-log.info("Spark session initialized with Delta Lake support.")
+log.info("Spark session initialized.")
 
 
-# UDF 1 — Language Detection (Vectorized)
+# A pandas udf for language detection.
+
 @pandas_udf("string")
-def detect_language_vectorized(texts: pd.Series) -> pd.Series:
-    """Detects language using vectorized .apply()."""
-    def _safe_detect(text: str) -> str:
+def detect_language(texts: pd.Series) -> pd.Series:
+    def safe_detect(text: str) -> str:
         if not text or not isinstance(text, str) or len(text.strip()) < 10:
-            return 'und'
+            return "und"
         try:
             return detect(text)
         except LangDetectException:
-            return 'und'
-    return texts.apply(_safe_detect)
+            return "und"
+    return texts.apply(safe_detect)
 
 
-# UDF 2 — Hate Speech Classification (Vectorized)
+# A pandas udf for hate speech classification
 
-@pandas_udf(
-    "struct<hate_score:double,pred_intent:string,pred_intensity:string>"
-)
-def classify_text_vectorized(texts: pd.Series) -> pd.DataFrame:
-    """Runs inference on text using fully vectorized Pandas/Numpy ops."""
-    if not hasattr(classify_text_vectorized, "session"):
-        log.info(f"Loading ONNX model in worker from: {MODEL_PATH}")
-        classify_text_vectorized.session = onnxruntime.InferenceSession(MODEL_PATH, providers=["CPUExecutionProvider"])
-        classify_text_vectorized.tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
-        log.info("Model loaded in worker")
-    session = classify_text_vectorized.session
-    tokenizer = classify_text_vectorized.tokenizer
+@pandas_udf("struct<hate_score:double,pred_intent:string,pred_intensity:string>")
+def classify_hate_speech(texts: pd.Series) -> pd.DataFrame:
+    # I load model once per executor
+    if not hasattr(classify_hate_speech, "session"):
+        try:
+            log.info(f"Loading ONNX model from {MODEL_PATH}")
+            classify_hate_speech.session = onnxruntime.InferenceSession(
+                MODEL_PATH, providers=["CPUExecutionProvider"]
+            )
+            classify_hate_speech.tokenizer = AutoTokenizer.from_pretrained(TOKENIZER_PATH)
+        except Exception as e:
+            log.error(f"Failed to load model in worker: {e}")
+            raise
+
+    session = classify_hate_speech.session
+    tokenizer = classify_hate_speech.tokenizer
+
+    # Incase it fails this should be the fallback result handler.
+    n = len(texts)
+    fallback = pd.DataFrame({
+        "hate_score": [0.0] * n,
+        "pred_intent": ["HARMLESS"] * n,
+        "pred_intensity": ["VERY CHILL"] * n
+    })
+
     try:
+        valid = texts.fillna("").astype(str)
+        valid = valid[valid.str.strip().str.len() > 5]
+        if len(valid) == 0:
+            return fallback
+
         inputs = tokenizer(
-            texts.tolist(),
+            valid.tolist(),
             padding="max_length",
             truncation=True,
             max_length=MODEL_MAX_LENGTH,
             return_tensors="np"
         )
-        logits = session.run(None, {"input_ids": inputs["input_ids"], "attention_mask": inputs["attention_mask"]})[0]
+        logits = session.run(None, {
+            "input_ids": inputs["input_ids"],
+            "attention_mask": inputs["attention_mask"]
+        })[0]
         probs = softmax(logits, axis=1)
         scores = probs[:, 1].astype(float)
+
         intent = np.where(scores > 0.5, "HARMFUL", "HARMLESS")
-        conditions = [(scores > 0.9), (scores > 0.7), (scores > 0.5)]
-        choices = ["VERY RADICAL", "RADICAL", "CHILL"]
-        intensity = np.select(conditions, choices, default="VERY CHILL")
-        return pd.DataFrame({
+        intensity = np.select(
+            [scores > 0.9, scores > 0.7, scores > 0.5],
+            ["VERY RADICAL", "RADICAL", "CHILL"],
+            default="VERY CHILL"
+        )
+
+        result = pd.DataFrame({
             "hate_score": scores,
             "pred_intent": intent,
             "pred_intensity": intensity
         })
+        # Align with original input size
+        result = result.reindex(range(n)).fillna({
+            "hate_score": 0.0,
+            "pred_intent": "HARMLESS",
+            "pred_intensity": "VERY CHILL"
+        })
+        return result
+
     except Exception as e:
-        log.error(f"Pandas UDF (classify) failed to process batch: {e}", exc_info=True)
-        raise e
+        log.error(f"Hate speech UDF failed on batch of {n} rows: {e}", exc_info=True)
+        return fallback
 
 
-# Kafka schema
-
+# The Kafka Schema
 
 kafka_schema = StructType([
     StructField("id", StringType(), True),
     StructField("author_did", StringType(), True),
     StructField("author_handle", StringType(), True),
     StructField("text", StringType(), True),
-    StructField("createdAt", StringType(), True),  # <-- THE FIX
+    StructField("createdAt", StringType(), True),
     StructField("source", StringType(), True),
     StructField("mentions", StringType(), True),
     StructField("reply_to_uri", StringType(), True),
@@ -179,97 +196,73 @@ kafka_schema = StructType([
 ])
 
 
-# Read from Kafka
-
-raw_kafka_stream = (
+# Stream Source
+raw_stream = (
     spark.readStream
     .format("kafka")
     .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP)
     .option("subscribe", KAFKA_TOPIC)
     .option("kafka.group.id", CONSUMER_GROUP)
-    .option("startingOffsets", "earliest")
+    .option("startingOffsets", "latest")
     .option("maxOffsetsPerTrigger", str(MAX_OFFSETS_PER_TRIGGER))
     .load()
 )
 
 parsed_stream = (
-    raw_kafka_stream
+    raw_stream
     .select(from_json(col("value").cast("string"), kafka_schema).alias("data"))
     .select("data.*")
-    .filter(col("text").isNotNull() & (col("id").isNotNull()))
+    .filter(col("text").isNotNull() & col("id").isNotNull())
 )
 
 
-# Write to Sinks — Raw (Delta) + Enriched (Oracle)
+# Micro-batch processing for the data coming from the topic
+def process_batch(df: DataFrame, batch_id: int):
+    log.info(f"Processing batch {batch_id}")
 
-
-def write_batch(raw_df: DataFrame, batch_id: int):
-    """
-    Implements the "Raw + Enriched" architecture with an
-    idempotent Oracle sink using a Spark-native read-before-write.
-    """
-    log.info(f"--- Processing Batch {batch_id} ---")
-    
-    if raw_df.isEmpty():
-        log.info(f"No new data in batch {batch_id}")
+    if df.rdd.isEmpty():
+        log.info("Empty batch — skipping.")
         return
 
-    raw_df.cache()
-    
-    # 1. Data SINK 1: Save RAW Data to Delta Lake
+    # Cache for dual sink
+    df.cache()
+    input_count = df.count()
+    log.info(f"Input records: {input_count}")
+
+    # Raw data writes to Delta lake bucket
     try:
-        log.info(f"Writing raw data for batch {batch_id} to Delta Lake at {OCI_LAKE_PATH}...")
-        (raw_df.write
+        log.info("Writing raw data to Delta Lake.")
+        (df.write
             .format("delta")
             .mode("append")
             .option("mergeSchema", "true")
             .save(OCI_LAKE_PATH))
-        log.info(f"Delta Lake write SUCCESS for batch {batch_id}")
+        log.info("Delta Lake write complete.")
     except Exception as e:
-        log.error(f"DELTA LAKE WRITE FAILED for batch {batch_id}: {e}", exc_info=True)
-        raw_df.unpersist()
-        raise e
-    
-    # 2. Data SINK 2: Save ENRICHED Data to Oracle DB
-    enriched_df = None
-    final_df = None
-    existing_keys = None
+        log.error(f"Delta Lake write failed: {e}", exc_info=True)
+        df.unpersist()
+        raise
+
+    # Data is enriched and written to Oracle database
     try:
-        log.info(f"Enriching data for batch {batch_id}...")
-        
-        enriched_df = (
-            raw_df
-            .withColumn("pred", classify_text_vectorized(col("text")))
-            .withColumn("POST_LANGUAGE", detect_language_vectorized(col("text")))
+        enriched = (
+            df
+            .withColumn("pred", classify_hate_speech(col("text")))
+            .withColumn("lang", detect_language(col("text")))
             .withColumn("did", regexp_extract(col("id"), r"did:([^/]+)", 1))
             .withColumn("rkey", regexp_extract(col("id"), r"/([^/]+)$", 1))
-            .withColumn("profile_id_for_link", coalesce(
-                col("author_did"),
-                col("author_handle"),
-                col("did")
-            ))
+            .withColumn("author", coalesce(col("author_did"), col("author_handle"), col("did")))
             .select(
                 col("id").alias("POST_ID"),
-                col("profile_id_for_link").alias("AUTHOR_HANDLE"),
-                concat(
-                    lit("https://bsky.app/profile/"), col("profile_id_for_link"),
-                    lit("/post/"), col("rkey")
-                ).alias("POST_URL"),
-                
-                
-            
-                when(
-                    col("createdAt").isNotNull(),
-                    to_timestamp(col("createdAt")) # <-- THE FIX
-                ).otherwise(
-                    current_timestamp()
-                ).alias("POST_TIMESTAMP"),
-                
+                col("author").alias("AUTHOR_HANDLE"),
+                concat(lit("https://bsky.app/profile/"), col("author"), lit("/post/"), col("rkey")).alias("POST_URL"),
+                when(col("createdAt").isNotNull(), to_timestamp(col("createdAt")))
+                .otherwise(current_timestamp()).alias("POST_TIMESTAMP"),
                 col("text").alias("POST_TEXT"),
                 col("pred.pred_intensity").alias("PRED_INTENSITY"),
                 col("pred.pred_intent").alias("PRED_INTENT"),
                 lit("UNKNOWN").alias("PRED_TARGET"),
-                col("POST_LANGUAGE"),
+                col("lang").alias("POST_LANGUAGE"),
                 lit(None).cast(StringType()).alias("PRED_ERROR"),
                 col("pred.hate_score").cast(DoubleType()).alias("HATE_SCORE"),
                 lit(0).alias("IS_CREDIBLE_THREAT"),
@@ -279,81 +272,54 @@ def write_batch(raw_df: DataFrame, batch_id: int):
                 coalesce(size(split(col("mentions"), ",")), lit(0)).alias("MENTION_COUNT")
             )
         )
-        
-        final_df = enriched_df.filter(
+
+        final = enriched.filter(
             col("POST_ID").isNotNull() &
             col("AUTHOR_HANDLE").isNotNull() &
             col("POST_URL").isNotNull() &
             col("POST_TIMESTAMP").isNotNull()
         )
-        
-        final_df.persist()
-        
-        if final_df.isEmpty():
-            log.info(f"No valid data to write to Oracle for batch {batch_id}")
-            return
-        
-        log.info(f"Writing enriched data for batch {batch_id} to Oracle...")
 
-        
-        
-        batch_keys = final_df.select("POST_ID").distinct()
-        
-        log.info(f"Step 1/3: Checking for existing keys in {ORACLE_TABLE}...")
-        existing_keys = (spark.read
-            .jdbc(url=ORACLE_JDBC_URL,
-                  table=f"(SELECT POST_ID FROM {ORACLE_TABLE})", 
-                  properties=oracle_jdbc_properties)
-            .join(batch_keys, "POST_ID", "inner")
-            .select("POST_ID")
-            .cache()
-        )
-        
-        existing_count = existing_keys.count()
-        log.info(f"Step 2/3: Found {existing_count} existing keys (duplicates).")
-        
-        new_rows_df = final_df.join(existing_keys, "POST_ID", "left_anti")
-        
-        new_row_count = new_rows_df.count()
-        log.info(f"Step 3/3: Appending {new_row_count} new rows to {ORACLE_TABLE}...")
-        
-        if new_row_count > 0:
-            (new_rows_df.write
-                .format("jdbc")
-                .option("url", ORACLE_JDBC_URL)
-                .option("dbtable", ORACLE_TABLE)
-                .option("user", ORACLE_USER)
-                .option("password", ORACLE_PASS)
-                .option("driver", ORACLE_DRIVER)
-                .option("batchsize", ORACLE_BATCH_SIZE)
-                .mode("append")
-                .save())
-        
-        log.info(f"Oracle write SUCCESS for batch {batch_id}. Duplicates prevented.")
+        final.persist()
+        log.info("Writing enriched data to Oracle (PK deduplication enforced).")
+
+        (final.write
+            .format("jdbc")
+            .option("url", ORACLE_JDBC_URL)
+            .option("dbtable", ORACLE_TABLE)
+            .option("user", ORACLE_USER)
+            .option("password", ORACLE_PASS)
+            .option("driver", ORACLE_DRIVER)
+            .option("batchsize", "5000")
+            .option("rewriteBatchedStatements", "true")
+            .mode("append")
+            .save())
+
+        log.info(f"Oracle write complete for batch {batch_id}.")
+        final.unpersist()
 
     except Exception as e:
-        log.error(f"ORACLE WRITE FAILED for batch {batch_id}: {e}", exc_info=True)
-        raise e
-    
+        if "ORA-00001" in str(e):
+            log.info("Duplicate POST_ID(s) skipped (PK_BLUESKY).")
+        else:
+            log.error(f"Oracle enrichment/write failed: {e}", exc_info=True)
+            raise
     finally:
-        raw_df.unpersist()
-        if final_df is not None:
-            final_df.unpersist()
-        if existing_keys is not None:
-            existing_keys.unpersist()
+        df.unpersist()
 
 
-# Start
+# Streaming begins
 
 query = (
     parsed_stream.writeStream
-    .foreachBatch(write_batch)
+    .foreachBatch(process_batch)
     .trigger(processingTime=PROCESSING_TIME_TRIGGER)
     .start()
 )
 
-log.info(f"Streaming query started — Bluskysparkco (v8.1 - Schema Fix)")
-log.info(f"RAW data sink -> Delta Lake at {OCI_LAKE_PATH}")
-log.info(f"PROCESSED data sink -> Oracle at {ORACLE_TABLE}")
-log.info(f"CHECKPOINT location -> {CHECKPOINT_DIR}")
+log.info("Streaming pipeline started.")
+log.info(f"Raw sink → {OCI_LAKE_PATH}")
+log.info(f"Enriched sink → {ORACLE_TABLE}")
+log.info(f"Checkpoint → {CHECKPOINT_DIR}")
+
 query.awaitTermination()
