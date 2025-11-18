@@ -31,7 +31,7 @@ const App = () => {
   const location = useLocation();
   const isCompactLayout = COMPACT_ROUTES.has(location.pathname);
   const mainClasses = [
-    "pt-24",
+    "pt-28 sm:pt-24",
     isCompactLayout ? "pb-6" : "pb-12",
     isCompactLayout ? "lg:pb-10" : "lg:pb-16",
     isCompactLayout ? null : "flex-1 min-h-screen",

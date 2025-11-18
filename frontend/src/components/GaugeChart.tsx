@@ -58,7 +58,17 @@ const GaugeChart = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [gaugeDimensions, setGaugeDimensions] = useState({ width: 320, height: 340 });
+  // Initialize with mobile-friendly dimensions that will be updated immediately
+  const [gaugeDimensions, setGaugeDimensions] = useState(() => {
+    // Use a mobile-friendly default that will be updated on first render
+    if (typeof window !== "undefined") {
+      const viewportWidth = window.innerWidth;
+      const width = Math.min(viewportWidth - 32, 512); // Account for padding, max-w-xl
+      const height = Math.max(200, Math.min(340, width * 0.68));
+      return { width, height };
+    }
+    return { width: 320, height: 340 };
+  });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -129,12 +139,19 @@ const GaugeChart = ({
     if (!element) return;
 
     const updateDimensions = () => {
-      const width = element.getBoundingClientRect().width || 320;
+      // Force a reflow to ensure accurate measurements
+      void element.offsetWidth;
+      const rect = element.getBoundingClientRect();
+      const width = rect.width || 320;
       const height = Math.max(200, Math.min(340, width * 0.68));
       setGaugeDimensions({ width, height });
     };
 
+    // Update immediately
     updateDimensions();
+
+    // Also update after a microtask to catch any layout changes
+    queueMicrotask(updateDimensions);
 
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => updateDimensions()) : null;
     observer?.observe(element);
@@ -278,12 +295,22 @@ const GaugeChart = ({
       </header>
 
       <div className="flex flex-col items-center justify-center">
-        <div ref={containerRef} className="relative w-full max-w-xl" style={{ height: `${gaugeDimensions.height}px` }}>
+        <div 
+          ref={containerRef} 
+          className="relative w-full max-w-xl" 
+          style={{ 
+            height: `${gaugeDimensions.height}px`,
+            minHeight: '200px',
+            maxHeight: '340px'
+          }}
+        >
           <Chart
+            key={`gauge-${gaugeDimensions.width}-${gaugeDimensions.height}`}
             options={chartOptions}
             series={[displayValue]}
             type="radialBar"
             height={Math.round(gaugeDimensions.height)}
+            width={Math.round(gaugeDimensions.width)}
           />
           <div className="pointer-events-none absolute inset-0">
             {arcLabels.map((entry) => (
