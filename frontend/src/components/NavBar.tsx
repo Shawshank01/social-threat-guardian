@@ -9,13 +9,34 @@ const NavBar = () => {
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const hideMenuTimeoutRef = useRef<number | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const menuOpenTimeRef = useRef<number>(0);
+  const lastToggleTimeRef = useRef<number>(0);
 
-  const handleToggleSettingsMenu = useCallback(() => {
+  const handleToggleSettingsMenu = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
+    // Prevent double-firing from both click and touch events
+    const now = Date.now();
+    if (now - lastToggleTimeRef.current < 300) {
+      return;
+    }
+    lastToggleTimeRef.current = now;
+    
     if (hideMenuTimeoutRef.current) {
       window.clearTimeout(hideMenuTimeoutRef.current);
       hideMenuTimeoutRef.current = null;
     }
-    setIsSettingsMenuOpen((prev) => !prev);
+    setIsSettingsMenuOpen((prev) => {
+      const newValue = !prev;
+      if (newValue) {
+        // Record when menu opens to prevent immediate closure
+        menuOpenTimeRef.current = Date.now();
+      }
+      return newValue;
+    });
   }, []);
 
   const handleCloseSettingsMenu = useCallback(() => {
@@ -54,24 +75,42 @@ const NavBar = () => {
 
   // Handle click outside to close settings menu
   useEffect(() => {
+    if (!isSettingsMenuOpen) return;
+
     const handleClickOutside = (event: Event) => {
+      const target = event.target as Node;
+      
+      // Don't close if clicking on the button or inside the menu
       if (
-        settingsMenuRef.current &&
-        !settingsMenuRef.current.contains(event.target as Node) &&
-        isSettingsMenuOpen
+        settingsMenuRef.current?.contains(target) ||
+        settingsButtonRef.current?.contains(target)
       ) {
-        handleCloseSettingsMenu();
+        return;
       }
+
+      // Prevent immediate closure after opening (especially important on mobile)
+      const timeSinceOpen = Date.now() - menuOpenTimeRef.current;
+      const isMobile = window.innerWidth < 640;
+      if (timeSinceOpen < (isMobile ? 300 : 100)) {
+        return;
+      }
+
+      handleCloseSettingsMenu();
     };
 
-    if (isSettingsMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("touchstart", handleClickOutside);
-    }
+    // Add delay on mobile to prevent the opening touch from closing the menu
+    const isMobile = window.innerWidth < 640;
+    const delay = isMobile ? 200 : 0;
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside, true);
+      document.addEventListener("touchstart", handleClickOutside, true);
+    }, delay);
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
+      clearTimeout(timeoutId);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
     };
   }, [isSettingsMenuOpen, handleCloseSettingsMenu]);
 
@@ -159,10 +198,17 @@ const NavBar = () => {
                 }}
               >
                 <button
+                  ref={settingsButtonRef}
                   type="button"
                   aria-haspopup="menu"
                   aria-expanded={isSettingsMenuOpen}
                   onClick={handleToggleSettingsMenu}
+                  onTouchEnd={(e) => {
+                    // Prevent the touch event from bubbling and triggering click-outside
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleSettingsMenu(e);
+                  }}
                   className="flex rounded-full border border-slate-200/70 bg-white/70 p-1.5 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:hover:text-white sm:p-2"
                 >
                   <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
