@@ -1,6 +1,6 @@
 // /routes/comments.js
 import express from "express";
-import Fuse from "fuse.js";
+// import Fuse from "fuse.js";
 import { fetchLatestComments } from "../models/commentModel.js";
 import { createCommentForPost, listCommentsForPost } from "../models/commentNoteModel.js";
 
@@ -110,29 +110,45 @@ router.post("/search", async (req, res) => {
   const platformLabel = resolvePlatformLabel(tableName);
 
   try {
-    const fuzzySearchSampleSize = Math.min(50, Math.max(parsedLimit * 3, parsedLimit));
-    const candidateRows = await fetchLatestComments(fuzzySearchSampleSize, {
-      predIntent,
-      tableName,
-    });
+    // const fuzzySearchSampleSize = Math.min(50, Math.max(parsedLimit * 3, parsedLimit));
+    // const candidateRows = await fetchLatestComments(fuzzySearchSampleSize, {
+    //   predIntent,
+    //   tableName,
+    // });
 
-    const fuse = new Fuse(candidateRows, {
-      keys: ["POST_TEXT"],
-      includeScore: true,
-      threshold: 0.35,
-      ignoreLocation: true,
-      minMatchCharLength: 1,
-    });
+    // const fuse = new Fuse(candidateRows, {
+    //   keys: ["POST_TEXT"],
+    //   includeScore: true,
+    //   threshold: 0.35,
+    //   ignoreLocation: true,
+    //   minMatchCharLength: 1,
+    // });
 
-    const results = cappedKeywords.map((keyword) => {
-      const matches = fuse.search(keyword).slice(0, parsedLimit);
-      const comments = matches.map(({ item }) => mapCommentRow(item, platformLabel));
-      return {
+    // const results = cappedKeywords.map((keyword) => {
+    //   const matches = fuse.search(keyword).slice(0, parsedLimit);
+    //   const comments = matches.map(({ item }) => mapCommentRow(item, platformLabel));
+    //   return {
+    //     keyword,
+    //     count: comments.length,
+    //     comments,
+    //   };
+    // });
+
+    const results = [];
+    for (const keyword of cappedKeywords) {
+      const rows = await fetchLatestComments(parsedLimit, {
+        predIntent,
+        tableName,
+        keyword,
+      });
+
+      const comments = rows.map((row) => mapCommentRow(row, platformLabel));
+      results.push({
         keyword,
         count: comments.length,
         comments,
-      };
-    });
+      });
+    }
 
     return res.json({
       ok: true,

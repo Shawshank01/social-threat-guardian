@@ -520,7 +520,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "HARMFUL", "source": "BLUSKY_TEST" }`)  
-- **Description:** For each keyword provided, runs a Fuse.js fuzzy search against the latest comments (same `source` / `predIntent`) and returns up to `limit` best matches per keyword. Matching no longer requires exact substring containment—the closer the `POST_TEXT` is to the keyword, the higher it ranks. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
+- **Description:** For each keyword provided, queries the database for comments whose `POST_TEXT` contains that keyword (case-insensitive) and returns up to `limit` matches per keyword. Results come from the chosen table (`source`, default `BLUSKY_TEST`) and default to `PRED_INTENT = 'HARMFUL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
