@@ -13,6 +13,7 @@ const ThemeToggle = () => {
   const [pinned, setPinned] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleToggle = useCallback(() => {
     setPinned((prev) => {
@@ -74,10 +75,41 @@ const ThemeToggle = () => {
     };
   }, []);
 
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node) &&
+        pinned
+      ) {
+        setPinned(false);
+        setIsHovering(false);
+      }
+    };
+
+    if (pinned) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [pinned]);
+
+  const handleThemeSelect = useCallback((value: "light" | "dark" | "system") => {
+    setTheme(value);
+    setPinned(false);
+    setIsHovering(false);
+  }, [setTheme]);
+
   const ActiveIcon = resolvedTheme === "dark" ? MoonStar : SunMedium;
 
   return (
     <div
+      ref={containerRef}
       className="group fixed bottom-6 right-6 z-40"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -109,7 +141,7 @@ const ThemeToggle = () => {
               <button
                 key={value}
                 type="button"
-                onClick={() => setTheme(value)}
+                onClick={() => handleThemeSelect(value)}
                 className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${
                   isActive
                     ? "border-stg-accent bg-stg-accent/10 text-stg-accent"
