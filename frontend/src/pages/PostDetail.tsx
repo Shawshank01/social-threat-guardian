@@ -59,22 +59,20 @@ const PostDetail = () => {
 
   useEffect(() => {
     const userId = user?.id;
-    if (!decodedPostId || !userId) return;
+    if (!decodedPostId || !userId || !token) return;
     const controller = new AbortController();
 
     const loadFavorite = async () => {
       try {
-        const response = await fetch(
-          buildApiUrl(`favorites/${encodeURIComponent(decodedPostId)}?userId=${encodeURIComponent(userId)}`),
-          {
-            method: "GET",
-            headers: {
-              Accept: "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            signal: controller.signal,
+        // GET /bookmark to list all bookmarks, then check if this post is bookmarked
+        const response = await fetch(buildApiUrl("favorites"), {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
           },
-        );
+          signal: controller.signal,
+        });
 
         if (response.status === 404) {
           setIsFavorite(false);
@@ -84,18 +82,13 @@ const PostDetail = () => {
 
         const payload = (await response.json().catch(() => ({}))) as {
           ok?: boolean;
-          favorite?: {
-            userId: string;
-            processedId: string;
-            platform: string | null;
-            sourceTable: string | null;
-            keyword: string | null;
-            postText: string | null;
-            predIntent: string | null;
-            timeAgo: string | null;
-            collectedAt: string | null;
-            savedAt?: string | null;
-          } | null;
+          bookmarks?: Array<{
+            BOOKMARK_ID?: string;
+            USER_ID?: string;
+            PROCESSED_ID?: string;
+            SAVED_AT?: string;
+            UPDATED_AT?: string;
+          }>;
           error?: string;
         };
 
@@ -103,22 +96,12 @@ const PostDetail = () => {
           throw new Error(payload.error ?? "Unable to load bookmark status.");
         }
 
-        setIsFavorite(true);
-        if (!post && payload.favorite) {
-          setPost({
-            id: decodedPostId,
-            platform: payload.favorite.platform ?? "Unknown platform",
-            sourceTable: payload.favorite.sourceTable ?? "UNKNOWN",
-            keyword: payload.favorite.keyword ?? null,
-            postText: payload.favorite.postText ?? "No content provided.",
-            predIntent: payload.favorite.predIntent ?? null,
-            timeAgo: payload.favorite.timeAgo ?? null,
-            collectedAt:
-              payload.favorite.collectedAt ??
-              payload.favorite.savedAt ??
-              new Date().toISOString(),
-          });
-        }
+        // Check if this post is in the bookmarks list
+        const isBookmarked = payload.bookmarks?.some(
+          (bookmark) => bookmark.PROCESSED_ID === decodedPostId
+        ) ?? false;
+
+        setIsFavorite(isBookmarked);
         setFavoriteError(null);
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
@@ -129,7 +112,7 @@ const PostDetail = () => {
     void loadFavorite();
 
     return () => controller.abort();
-  }, [decodedPostId, user?.id, token, post]);
+  }, [decodedPostId, user?.id, token]);
 
   useEffect(() => {
     if (!decodedPostId) return;
@@ -212,8 +195,7 @@ const PostDetail = () => {
   }
 
   const handleToggleFavorite = async () => {
-    const userId = user?.id;
-    if (!userId) {
+    if (!token) {
       setFavoriteError("You need an authenticated session to manage bookmarks.");
       return;
     }
@@ -223,13 +205,16 @@ const PostDetail = () => {
 
     try {
       if (isFavorite) {
+        // DELETE /bookmark/remove
         const response = await fetch(
-          buildApiUrl(`favorites/${encodeURIComponent(post.id)}?userId=${encodeURIComponent(userId)}`),
+          buildApiUrl(`favorites/${encodeURIComponent(post.id)}`),
           {
             method: "DELETE",
             headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
             },
+            body: JSON.stringify({ post_id: post.id }),
           },
         );
 
@@ -241,22 +226,15 @@ const PostDetail = () => {
 
         setIsFavorite(false);
       } else {
+        // POST /bookmark/add
         const response = await fetch(buildApiUrl("favorites"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            userId,
-            processedId: post.id,
-            platform: post.platform,
-            sourceTable: post.sourceTable,
-            keyword: post.keyword,
-            postText: post.postText,
-            predIntent: post.predIntent,
-            timeAgo: post.timeAgo,
-            collectedAt: post.collectedAt,
+            post_id: post.id,
           }),
         });
 

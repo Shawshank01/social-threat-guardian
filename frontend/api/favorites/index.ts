@@ -49,9 +49,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const targetUrl = new URL(`/favorites${req.url ?? ""}`.replace(/\/+$/, ""), BACKEND_URL).toString();
-
+  // Proxy to backend bookmark endpoints
   if (req.method === "GET") {
+    // GET /bookmark, list all bookmarks
+    const targetUrl = new URL("/bookmark", BACKEND_URL).toString();
     const response = await fetch(targetUrl, {
       method: "GET",
       headers: {
@@ -70,13 +71,22 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (req.method === "POST") {
+    // POST /bookmark/add, add a bookmark
+    const targetUrl = new URL("/bookmark/add", BACKEND_URL).toString();
+    const body = req.body as { post_id?: string; postId?: string; processedId?: string; [key: string]: unknown };
+    
+    // Transform request body to match backend API
+    const backendBody = {
+      post_id: body.post_id || body.postId || body.processedId,
+    };
+
     const response = await fetch(targetUrl, {
       method: "POST",
       headers: {
-        "Content-Type": normalizeHeader(req.headers["content-type"]) ?? "application/json",
+        "Content-Type": "application/json",
         ...(normalizeHeader(req.headers.authorization) ? { Authorization: normalizeHeader(req.headers.authorization)! } : {}),
       },
-      body: serializeBody(req.body),
+      body: JSON.stringify(backendBody),
     });
 
     const text = await response.text();
