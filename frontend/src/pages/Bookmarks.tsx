@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Bookmark, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost } from "@/types/monitors";
+import { loadPostsFromStorage } from "@/utils/monitoringStorage";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
@@ -53,20 +54,24 @@ const Bookmarks = () => {
     setError(null);
 
     try {
-      const response = await fetch(
-        buildApiUrl(`favorites?userId=${encodeURIComponent(userId)}`),
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
+      const response = await fetch(buildApiUrl("favorites"), {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-      );
+      });
 
       const payload = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
-        favorites?: FavoriteRow[];
+        bookmarks?: Array<{
+          BOOKMARK_ID?: string;
+          USER_ID?: string;
+          PROCESSED_ID?: string;
+          SAVED_AT?: string;
+          UPDATED_AT?: string;
+        }>;
+        favorites?: FavoriteRow[]; // Legacy support
         error?: string;
       };
 
@@ -74,8 +79,47 @@ const Bookmarks = () => {
         throw new Error(payload.error ?? "Unable to load bookmarks.");
       }
 
-      const rows = Array.isArray(payload.favorites) ? payload.favorites : [];
-      setBookmarks(rows.map(mapFavoriteToPost));
+      // Backend returns bookmarks array with PROCESSED_ID only
+      const bookmarkList = payload.bookmarks || payload.favorites || [];
+      
+      // Try to load post details from local storage first
+      const storedPosts = loadPostsFromStorage(userId);
+      
+      // Map bookmarks to posts, using stored post data if available
+      const mappedPosts: MonitoredPost[] = bookmarkList
+        .map((bookmark) => {
+          // Handle both new backend format (with PROCESSED_ID) and legacy format (with processedId)
+          const processedId =
+            "PROCESSED_ID" in bookmark
+              ? bookmark.PROCESSED_ID
+              : (bookmark as FavoriteRow).processedId;
+          if (!processedId) return null;
+
+          // Try to find the post in stored posts
+          const storedPost = storedPosts.find((p: MonitoredPost) => p.id === processedId);
+
+          if (storedPost) {
+            // Use stored post data
+            return storedPost;
+          }
+
+          // Fallback: create minimal post data from bookmark
+          // The user can click to view details which will load from storage or fetch
+          const savedAt = "SAVED_AT" in bookmark ? bookmark.SAVED_AT : (bookmark as FavoriteRow).savedAt;
+          return {
+            id: processedId,
+            platform: (bookmark as FavoriteRow).platform ?? "Unknown platform",
+            sourceTable: (bookmark as FavoriteRow).sourceTable ?? "UNKNOWN",
+            keyword: (bookmark as FavoriteRow).keyword ?? null,
+            postText: (bookmark as FavoriteRow).postText ?? "Post content not available. Click to view details.",
+            predIntent: (bookmark as FavoriteRow).predIntent ?? null,
+            timeAgo: (bookmark as FavoriteRow).timeAgo ?? null,
+            collectedAt: (bookmark as FavoriteRow).collectedAt ?? savedAt ?? new Date().toISOString(),
+          };
+        })
+        .filter((post): post is MonitoredPost => post !== null);
+      
+      setBookmarks(mappedPosts);
     } catch (err) {
       setError((err as Error).message || "Unable to load bookmarks right now.");
       setBookmarks([]);
@@ -91,16 +135,17 @@ const Bookmarks = () => {
   const total = useMemo(() => bookmarks.length, [bookmarks]);
 
   const handleRemove = async (processedId: string) => {
-    const userId = user?.id;
-    if (!userId) return;
+    if (!token) return;
     try {
       const response = await fetch(
-        buildApiUrl(`favorites/${encodeURIComponent(processedId)}?userId=${encodeURIComponent(userId)}`),
+        buildApiUrl(`favorites/${encodeURIComponent(processedId)}`),
         {
           method: "DELETE",
           headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
+          body: JSON.stringify({ post_id: processedId }),
         },
       );
 

@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import Chart from "react-apexcharts";
 import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
@@ -289,7 +290,13 @@ const GaugeChart = ({
             </span>
           )}
           <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
-            Aggregated measure of online toxicity and harmful discourse across {platform === "all" ? "major social platforms" : platform}.
+            Aggregated measure of online toxicity and harmful discourse across {platform === "all" ? "major social platforms" : platform}.{" "}
+            <Link
+              to="/about"
+              className="font-medium text-stg-accent underline-offset-2 hover:underline dark:text-stg-accent"
+            >
+              Learn more
+            </Link>
           </p>
         </div>
       </header>
