@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bell, Globe, Settings } from "lucide-react";
+import { Bell, Settings } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -90,13 +90,6 @@ const NavBar = () => {
         </ul>
 
         <div className="flex items-center gap-2 text-slate-500 dark:text-slate-300 sm:gap-3">
-          <button
-            type="button"
-            aria-label="Change language"
-            className="rounded-full border border-slate-200/70 bg-white/70 p-2 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:hover:text-white"
-          >
-            <Globe className="h-4 w-4" aria-hidden />
-          </button>
           {token ? (
             <>
               <button
