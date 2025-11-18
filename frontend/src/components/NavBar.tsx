@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bell, Settings } from "lucide-react";
+import { Bell, Menu, Settings, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -7,11 +7,14 @@ const NavBar = () => {
   const navigate = useNavigate();
   const { token, user, logout } = useAuth();
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const hideMenuTimeoutRef = useRef<number | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const menuOpenTimeRef = useRef<number>(0);
   const lastToggleTimeRef = useRef<number>(0);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleToggleSettingsMenu = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
     if (e) {
@@ -72,6 +75,32 @@ const NavBar = () => {
       }
     };
   }, []);
+
+  // Handle click outside to close mobile menu
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      const target = event.target as Node;
+      if (
+        mobileMenuRef.current?.contains(target) ||
+        mobileMenuButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      if (isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    if (isMobileMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isMobileMenuOpen]);
 
   // Handle click outside to close settings menu
   useEffect(() => {
@@ -136,29 +165,75 @@ const NavBar = () => {
   return (
     <header className="fixed inset-x-0 top-0 z-50 min-h-[4rem] border-b border-slate-200/70 bg-white/80 backdrop-blur transition-colors duration-200 dark:border-white/10 dark:bg-slate-950/70 sm:h-16">
       <nav className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-2 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-0">
-        {/* Logo and Title */}
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white sm:text-base md:text-lg"
-        >
-          <img
-            src="/icon.svg"
-            alt="Social Threat Guardian logo"
-            className="h-5 w-5 rounded-md shadow-sm sm:h-6 sm:w-6"
-            loading="lazy"
-            decoding="async"
-          />
-          <span className="truncate">Social Threat Guardian</span>
-        </Link>
+        {/* Mobile Menu Button and Logo Row */}
+        <div className="flex items-center justify-between gap-2 sm:justify-start">
+          {/* Mobile Menu Button, only visible on mobile */}
+          <button
+            ref={mobileMenuButtonRef}
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="flex items-center justify-center rounded-lg border border-slate-200/70 bg-white/70 p-2 text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white sm:hidden"
+            aria-label="Toggle navigation menu"
+            aria-expanded={isMobileMenuOpen}
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-5 w-5" aria-hidden />
+            ) : (
+              <Menu className="h-5 w-5" aria-hidden />
+            )}
+          </button>
 
-        {/* Navigation Items - Mobile: Horizontal Scroll, Desktop: Centered */}
-        <ul className="flex flex-1 items-center gap-3 overflow-x-auto text-[10px] font-medium sm:justify-center sm:gap-6 sm:text-xs md:gap-8 md:text-sm [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+          {/* Logo and Title */}
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-sm font-bold tracking-wide text-slate-900 transition-transform duration-150 hover:scale-105 hover:text-stg-accent dark:text-white sm:text-base md:text-lg"
+          >
+            <img
+              src="/icon.svg"
+              alt="Social Threat Guardian logo"
+              className="h-5 w-5 rounded-md shadow-sm sm:h-6 sm:w-6"
+              loading="lazy"
+              decoding="async"
+            />
+            <span className="truncate">Social Threat Guardian</span>
+          </Link>
+        </div>
+
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div
+            ref={mobileMenuRef}
+            className="absolute left-0 top-full z-40 w-full border-b border-slate-200/70 bg-white/95 backdrop-blur shadow-lg dark:border-white/10 dark:bg-slate-950/95 sm:hidden"
+          >
+            <ul className="flex flex-col gap-0 px-4 py-2">
+              {navItems.map((item) => (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `block rounded-lg px-4 py-3 text-sm font-medium transition-colors duration-150 ${isActive
+                        ? "bg-stg-accent/10 text-stg-accent"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* Navigation Items - Desktop: Centered, Mobile: Hidden */}
+        <ul className="hidden flex-1 items-center justify-center gap-6 text-xs font-medium sm:flex md:gap-8 md:text-sm">
           {navItems.map((item) => (
-            <li key={item.to} className="flex-shrink-0">
+            <li key={item.to}>
               <NavLink
                 to={item.to}
                 className={({ isActive }) =>
-                  `relative whitespace-nowrap pb-1 transition-colors duration-150 ${isActive
+                  `relative pb-1 transition-colors duration-150 ${isActive
                     ? "text-slate-900 after:absolute after:-bottom-0.5 after:left-0 after:h-[2px] after:w-full after:bg-stg-accent dark:text-white"
                     : "text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
                   }`
