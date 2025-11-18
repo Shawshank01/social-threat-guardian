@@ -294,6 +294,49 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -H "Authorization: Bearer <token>"
   ```
 
+### Notifications
+- All endpoints require `Authorization: Bearer <jwt>`; `requireAuth` uses that token to populate `req.user.id`.
+
+#### List notifications
+- `GET /notifications`
+- **Query:** `limit` (default 20, max 100), `offset` (default 0), `unreadOnly=true|false`
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "NOTI123",
+        "userId": "42",
+        "type": "SYSTEM",
+        "message": "Hate score breached threshold",
+        "createdAt": "2024-03-12T08:00:00.000Z",
+        "readStatus": false
+      }
+    ]
+  }
+  ```
+
+#### Unread count
+- `GET /notifications/unread-count`
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "data": { "count": 3 }
+  }
+  ```
+
+#### Mark a single notification as read
+- `POST /notifications/:id/read`
+- **Response:** `{ "ok": true, "data": { "updated": true } }`
+
+#### Mark all notifications as read
+- `POST /notifications/read-all`
+- **Response:** `{ "ok": true, "data": { "updatedCount": 5 } }`
+
+After login, the frontend can poll `unread-count` to display the badge, fetch the list when the notification drawer opens, and then call `read`/`read-all` once the user views the items.
+
 ### Update Email
 - `PUT /users/email`
 - **Headers:** `Content-Type: application/json`, `Authorization: Bearer <token>`
