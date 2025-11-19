@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Filter, Loader2, MessageSquare, Star, RefreshCcw } from "lucide-react";
+import { Filter, Loader2, MessageSquare, RefreshCcw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost, type SavedPreferences } from "@/types/monitors";
 import {
@@ -46,7 +46,7 @@ type SearchResponse = {
 
 const PersonalMonitors = () => {
   const navigate = useNavigate();
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const [preferences, setPreferences] = useState<SavedPreferences | null>(null);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
@@ -99,6 +99,18 @@ const PersonalMonitors = () => {
           preferences?: SavedPreferences;
         };
 
+        // Check for 401 Unauthorized token expired
+        if (response.status === 401) {
+          logout();
+          navigate("/login", { 
+            state: { 
+              from: { pathname: "/personal-monitors" },
+              message: "Your session has expired. Please log in again."
+            } 
+          });
+          return;
+        }
+
         if (!response.ok || payload.ok === false) {
           throw new Error(payload.error ?? "Unable to load your saved settings right now.");
         }
@@ -133,6 +145,11 @@ const PersonalMonitors = () => {
           return;
         }
 
+        const errorMessage = (error as Error).message || "";
+        if (errorMessage.includes("expired") || errorMessage.includes("Unauthorized")) {
+          return;
+        }
+
         const fallback = loadPreferencesFromStorage();
         if (fallback) {
           setPreferences(fallback);
@@ -156,7 +173,7 @@ const PersonalMonitors = () => {
     void loadPreferences();
 
     return () => controller.abort();
-  }, [token, user?.id]);
+  }, [token, user?.id, logout, navigate]);
 
   const fetchPosts = useCallback(async () => {
     if (!preferences) {
@@ -204,6 +221,24 @@ const PersonalMonitors = () => {
           });
 
           const payload = (await response.json().catch(() => ({}))) as SearchResponse;
+
+          // Check for 401 Unauthorized
+          if (response.status === 401) {
+            logout();
+            navigate("/login", { 
+              state: { 
+                from: { pathname: "/personal-monitors" },
+                message: "Your session has expired. Please log in again."
+              } 
+            });
+            // Return empty result to prevent Promise.all from breaking
+            return {
+              platformId,
+              platformLabel: platformMeta.label,
+              sourceTable: platformId,
+              keywordResults: [],
+            };
+          }
 
           if (!response.ok || payload.ok === false) {
             throw new Error(payload.error ?? `Unable to load posts from ${platformMeta.label}.`);
@@ -276,7 +311,7 @@ const PersonalMonitors = () => {
     } finally {
       setIsLoadingPosts(false);
     }
-  }, [preferences, token, user?.id]);
+  }, [preferences, token, user?.id, logout, navigate]);
 
   useEffect(() => {
     if (!preferences) return;
@@ -431,10 +466,6 @@ const PersonalMonitors = () => {
                 </p>
                 <footer className="flex items-center justify-between text-xs text-slate-500 transition group-hover:text-slate-600 dark:text-slate-300 dark:group-hover:text-slate-200">
                   <span>Source table: {post.sourceTable}</span>
-                  <span className="inline-flex items-center gap-1">
-                    View details
-                    <Star className="h-3.5 w-3.5 text-stg-accent" aria-hidden />
-                  </span>
                 </footer>
               </Link>
             </article>
