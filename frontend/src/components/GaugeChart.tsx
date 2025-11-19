@@ -4,6 +4,32 @@ import Chart from "react-apexcharts";
 import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
 
+// Get WebSocket URL from environment variables
+// Supports VITE_BACKEND_URL (preferred) or VITE_API_BASE_URL
+const getWebSocketUrl = () => {
+  // Check for explicit backend URL (VITE_BACKEND_URL takes precedence)
+  const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL;
+  
+  // If a full backend URL is provided, derive WebSocket URL from it
+  if (backendUrl && (backendUrl.startsWith("http://") || backendUrl.startsWith("https://"))) {
+    const wsProtocol = backendUrl.startsWith("https://") ? "wss://" : "ws://";
+    try {
+      const url = new URL(backendUrl);
+      // Preserve port if specified, otherwise use default
+      const port = url.port ? `:${url.port}` : "";
+      const wsUrl = `${wsProtocol}${url.hostname}${port}/ws`;
+      return wsUrl;
+    } catch (err) {
+      console.warn("[GaugeChart] Failed to parse backend URL:", err);
+    }
+  }
+  
+  // If no valid backend URL is configured, throw an error
+  throw new Error(
+    "VITE_BACKEND_URL or VITE_API_BASE_URL must be set to a full URL (e.g., http://your-backend:3000)"
+  );
+};
+
 const ZONES = [
   { label: "Harmony", max: 20, colors: ["#3ee6b0", "#19ce86"] },
   { label: "Uneasy", max: 40, colors: ["#5fd4d0", "#3ab3ba"] },
@@ -18,11 +44,24 @@ const readZone = (value: number) => ZONES.find((zone) => value <= zone.max) ?? Z
 
 const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-type ApiResponse = {
-  value?: number;
-  percentage?: number;
-  score?: number;
+type HateScoreUpdate = {
+  type: "HATE_SCORE_UPDATE";
+  data: {
+    value: number | null;
+    updatedAt: string | null;
+    sampleSize: number;
+    tableName: string | null;
+  };
 };
+
+type ConnectedMessage = {
+  type: "CONNECTED";
+  data: {
+    connectedAt: string;
+  };
+};
+
+type WebSocketMessage = HateScoreUpdate | ConnectedMessage;
 
 type GaugeChartProps = {
   platform: string;
@@ -54,12 +93,17 @@ const GaugeChart = ({
   onPlatformChange,
   availablePlatforms = defaultPlatforms,
 }: GaugeChartProps) => {
-  const [targetValue, setTargetValue] = useState(() => Math.floor(Math.random() * 101));
-  const [displayValue, setDisplayValue] = useState(() => clamp(targetValue));
+  const [targetValue, setTargetValue] = useState<number | null>(null);
+  const [displayValue, setDisplayValue] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [sampleSize, setSampleSize] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // Initialize with mobile-friendly dimensions that will be updated immediately
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const isBluesky = platform === "bluesky";
+  // Initialise with mobile-friendly dimensions that will be updated immediately
   const [gaugeDimensions, setGaugeDimensions] = useState(() => {
     // Use a mobile-friendly default that will be updated on first render
     if (typeof window !== "undefined") {
@@ -71,68 +115,128 @@ const GaugeChart = ({
     return { width: 320, height: 340 };
   });
 
+  // Reset values immediately when switching away from Bluesky
   useEffect(() => {
-    const controller = new AbortController();
+    if (!isBluesky) {
+      // Close any existing WebSocket connection immediately
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      // Reset all values immediately (no animation delay)
+      setTargetValue(null);
+      setDisplayValue(0);
+      setIsLoading(false);
+      setError("Real-time monitoring is currently only available for Bluesky.");
+      setLastUpdatedAt(null);
+      setSampleSize(0);
+    }
+  }, [isBluesky]);
 
-    const loadGaugeValue = async () => {
+  // WebSocket connection for Bluesky platform
+  useEffect(() => {
+    if (!isBluesky) {
+      // Don't establish WebSocket connection for non-Bluesky platforms
+      return;
+    }
+
+    const connectWebSocket = () => {
       try {
-        setIsLoading(true);
-        const response = await fetch(`/index?platform=${encodeURIComponent(platform)}`, { signal: controller.signal });
+        const wsUrl = getWebSocketUrl();
+        console.log("[GaugeChart] Connecting to WebSocket:", wsUrl);
+        const ws = new WebSocket(wsUrl);
+        wsRef.current = ws;
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const payload = (await response.json()) as ApiResponse;
-        const next = clamp(
-          typeof payload.value === "number"
-            ? payload.value
-            : typeof payload.percentage === "number"
-              ? payload.percentage
-              : typeof payload.score === "number"
-                ? payload.score
-                : Number.parseFloat(String(payload.value ?? payload.percentage ?? payload.score))
-        );
-
-        if (Number.isFinite(next)) {
-          setTargetValue(next);
+        ws.onopen = () => {
+          console.log("[GaugeChart] WebSocket connected");
+          setIsLoading(false);
           setError(null);
-        } else {
-          throw new Error("Received non-numeric gauge value");
-        }
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const message: WebSocketMessage = JSON.parse(event.data);
+
+            if (message.type === "CONNECTED") {
+              console.log("[GaugeChart] WebSocket handshake complete", message.data);
+            } else if (message.type === "HATE_SCORE_UPDATE") {
+              // Only process updates from BLUSKY_TEST table
+              if (message.data.tableName === "BLUSKY_TEST" && message.data.value !== null) {
+                // Convert from 0-1 range to 0-100 range
+                const scorePercent = clamp(message.data.value * 100);
+                setTargetValue(scorePercent);
+                setLastUpdatedAt(message.data.updatedAt);
+                setSampleSize(message.data.sampleSize);
+                setError(null);
+              }
+            }
+          } catch (err) {
+            console.warn("[GaugeChart] Failed to parse WebSocket message", err);
+          }
+        };
+
+        ws.onerror = (event) => {
+          console.error("[GaugeChart] WebSocket error", event);
+          setError("Connection error. Attempting to reconnect...");
+          setIsLoading(true);
+        };
+
+        ws.onclose = () => {
+          console.log("[GaugeChart] WebSocket closed");
+          wsRef.current = null;
+          setIsLoading(true);
+          setError("Connection lost. Reconnecting...");
+
+          // Attempt to reconnect after 3 seconds
+          reconnectTimeoutRef.current = window.setTimeout(() => {
+            connectWebSocket();
+          }, 3000);
+        };
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        console.warn("Gauge fetch failed", err);
-        setError("Live data unavailable — using demo signal.");
-      } finally {
+        console.error("[GaugeChart] Failed to create WebSocket", err);
+        setError("Failed to connect to monitoring service.");
         setIsLoading(false);
       }
     };
 
-    loadGaugeValue();
+    connectWebSocket();
 
-    return () => controller.abort();
-  }, [platform]);
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        window.clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [isBluesky]);
 
+  // Smooth animation from current display value to target value
   useEffect(() => {
-    let timeoutId: number;
+    if (targetValue === null) {
+      // If targetValue is null (non-Bluesky platform), ensure displayValue is 0
+      setDisplayValue(0);
+      return;
+    }
 
-    const scheduleNext = () => {
-      timeoutId = window.setTimeout(() => {
-        const next = clamp(Math.floor(Math.random() * 101));
-        setTargetValue(next);
-        setDisplayValue(next);
-        scheduleNext();
-      }, 3200 + Math.random() * 1600);
+    const animate = () => {
+      setDisplayValue((prev) => {
+        const diff = targetValue - prev;
+        if (Math.abs(diff) < 0.1) {
+          return targetValue;
+        }
+        // Smooth interpolation
+        return clamp(prev + diff * 0.1);
+      });
     };
 
-    scheduleNext();
-
-    return () => window.clearTimeout(timeoutId);
-  }, [targetValue]);
-
-  useEffect(() => {
-    setDisplayValue((prev) => clamp((prev + targetValue) / 2));
+    const intervalId = window.setInterval(animate, 50);
+    return () => window.clearInterval(intervalId);
   }, [targetValue]);
 
   useIsomorphicLayoutEffect(() => {
@@ -355,7 +459,13 @@ const GaugeChart = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {isLoading ? "Syncing with monitoring API…" : error ?? "Signal calibrated against the last 3 hours of traffic."}
+              {isLoading
+                ? "Connecting to monitoring service…"
+                : error
+                  ? error
+                  : lastUpdatedAt
+                    ? `Updated ${new Date(lastUpdatedAt).toLocaleTimeString()} • ${sampleSize} samples`
+                    : "Waiting for data…"}
             </p>
           </div>
         </div>

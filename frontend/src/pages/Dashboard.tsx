@@ -1,5 +1,6 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Download, Upload } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type SavedPreferences } from "@/types/monitors";
 import {
@@ -69,6 +70,7 @@ const LANGUAGE_OPTIONS = [
 const Dashboard = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [keywordInput, setKeywordInput] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(
@@ -461,6 +463,55 @@ const Dashboard = () => {
     setShowNavigationPrompt(false);
   };
 
+  const handleExportKeywords = () => {
+    if (!keywordInput.trim()) {
+      setSearchError("No keywords to export. Enter some keywords first.");
+      return;
+    }
+
+    const blob = new Blob([keywordInput], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "keywords.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportKeywords = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "text/plain" && !file.name.endsWith(".txt")) {
+      setSearchError("Please select a .txt file.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      if (content) {
+        setKeywordInput(content);
+        setSearchError(null);
+      }
+    };
+    reader.onerror = () => {
+      setSearchError("Failed to read the file. Please try again.");
+    };
+    reader.readAsText(file);
+
+    // Reset the input so the same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <section className="mx-auto max-w-5xl space-y-10 px-4 py-12">
       <header className="space-y-2">
@@ -489,18 +540,51 @@ const Dashboard = () => {
         className="space-y-8 rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition-colors dark:border-white/10 dark:bg-slate-900/70"
       >
         <section className="space-y-4">
-          <header>
+          <header className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Keyword search</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Enter the keywords you want to monitor. Separate multiple entries with commas or new lines.
-            </p>
+            <Link
+              to="/about"
+              className="text-xs font-medium text-stg-accent underline-offset-2 hover:underline dark:text-stg-accent"
+            >
+              Learn more
+            </Link>
           </header>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
+            Enter the keywords you want to monitor. Separate multiple entries with commas or new lines.
+          </p>
           <textarea
             value={keywordInput}
             onChange={(event) => setKeywordInput(event.target.value)}
             className="h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/30 dark:border-white/10 dark:bg-slate-900 dark:text-white"
-            placeholder="e.g., targeted harassment, credible threat, extremist rally"
+            placeholder="e.g., name, location, event, activity, ID number, behaviour"
           />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleExportKeywords}
+              disabled={!keywordInput.trim()}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-stg-accent hover:text-stg-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-white"
+            >
+              <Download className="h-3.5 w-3.5" aria-hidden />
+              Export as TXT
+            </button>
+            <button
+              type="button"
+              onClick={handleImportKeywords}
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:border-stg-accent hover:text-stg-accent dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:text-white"
+            >
+              <Upload className="h-3.5 w-3.5" aria-hidden />
+              Import from TXT
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,text/plain"
+              onChange={handleFileChange}
+              className="hidden"
+              aria-label="Import keywords from file"
+            />
+          </div>
         </section>
 
         <section className="space-y-4">
@@ -634,7 +718,7 @@ const Dashboard = () => {
                     {platformResult.platform}
                   </h3>
                   <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-300">
-                    Source table: {platformResult.sourceTable}
+                    Source: {platformResult.sourceTable}
                   </p>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-300">
