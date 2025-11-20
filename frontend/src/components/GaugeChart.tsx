@@ -174,8 +174,8 @@ const GaugeChart = ({
             } else if (message.type === "HATE_SCORE_UPDATE") {
               // Only process updates from BLUSKY_TEST table
               if (message.data.tableName === "BLUSKY_TEST" && message.data.value !== null) {
-                // Convert from 0-1 range to 0-100 range
-                const scorePercent = clamp(message.data.value * 100);
+                // Backend sends values in 0-100 range
+                const scorePercent = clamp(message.data.value);
                 setTargetValue(scorePercent);
                 setLastUpdatedAt(message.data.updatedAt);
                 setSampleSize(message.data.sampleSize);
