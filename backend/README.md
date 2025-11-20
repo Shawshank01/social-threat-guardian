@@ -11,6 +11,12 @@ ORACLE_USER=ADMIN
 ORACLE_PASSWORD=!Zmdsnd06200
 ORACLE_CONNECT_STRING=tud26ai_tp
 
+# HTTPS/TLS
+SSL_KEY_PATH=/path/to/your/key.pem
+SSL_CERT_PATH=/path/to/your/cert.pem
+# SSL_CA_PATH=/path/to/ca.pem      # optional
+# TRUST_PROXY=true                 # set if behind a reverse proxy
+
 # Optional connection pool settings
 DB_POOL_MIN=0
 DB_POOL_MAX=4
@@ -30,13 +36,12 @@ DEBUG=true
 #jsonwebtoken
 #run command in term: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 JWT_SECRET=yf3ccd7d15701282dd88a43b50ffa072372e8430b65c4cbb0fec3df9ad03915c8f49ce7a0e223edd74f13701c484dd7244ab77577b269c9d2a7d2fcf83035ae2d
-JWT_EXPIRES_IN=24node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 #JWT expires in
 JWT_EXPIRES_IN=24h
 
 # Cors
-CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.app
+CORS_ALLOW_ORIGINS=https://localhost:5173,https://social-threat-detection.vercel.app
 
 
 1. **download wallet**
@@ -49,14 +54,14 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
    npm install
 
 
-5. **Enable CORS** (required for requests from `https://*.vercel.app` to `http://localhost:3000`). Add  and middleware:
+5. **Enable CORS** (for `https://*.vercel.app` / `https://localhost:3000` and `wss://` upgrades). Add middleware:
 
    // server.js
    import cors from "cors";
 
    const allowedOrigins = [
-     "http://localhost:5173",
-     "http://127.0.0.1:5173",
+     "https://localhost:5173",
+     "https://127.0.0.1:5173",
      "https://vercel.domain",
    ];
 
@@ -74,15 +79,21 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
 
 7. **Login/Register test endpoints**  
 
-   curl http://localhost:3000/health
-   curl http://localhost:3000/auth/register --data '{"email":"test@example.com","password":"secret123"}' \
+   (use `-k` with self-signed certs)
+   curl -k https://localhost:3000/health
+   curl -k https://localhost:3000/auth/register --data '{"email":"test@example.com","password":"secret123"}' \
         -H "Content-Type: application/json"
+
+8. **WebSocket**  
+   - URL: `wss://localhost:3000/ws`  
+   - Auth: `?token=<JWT>` or `Authorization: Bearer <JWT>`  
+   - Self-signed: `wscat -n -H "Authorization: Bearer <JWT>" -c wss://localhost:3000/ws`
 
 ## 2. Frontend Configuration
 
 1. **Expose the backend URL**  
 
-   Commit a `.env.example` with `VITE_API_BASE_URL=http://localhost:3000` so the team has a template.
+   Commit a `.env.example` with `VITE_API_BASE_URL=https://localhost:3000` so the team has a template.
 
 2. **Use the base URL in fetch calls**  
 3. 
@@ -110,8 +121,9 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
      port: 5173,
      proxy: {
        "/api": {
-         target: "http://localhost:3000",
+         target: "https://localhost:3000",
          changeOrigin: true,
+         secure: false, // if using a self-signed cert locally
          rewrite: (path) => path.replace(/^\/api/, ""),
        },
      },
@@ -150,7 +162,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X POST http://localhost:3000/auth/register \
+  curl -X POST https://localhost:3000/auth/register \
        -H "Content-Type: application/json" \
        -d '{"email":"user@example.com","password":"secret123","name":"User"}'
   ```
@@ -185,7 +197,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - The response user id is same as user table id, for tracking user preference 
 - **Example:**
   ```bash
-  curl -X POST http://localhost:3000/auth/login \
+  curl -X POST https://localhost:3000/auth/login \
       -H "Content-Type: application/json" \
        -d '{"email":"user@example.com","password":"secret123"}'
   ```
@@ -252,7 +264,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `500 Internal Server Error` for unexpected failures.
 - **Example:**
   ```bash
-  curl -X DELETE http://localhost:3000/bookmark/remove \
+  curl -X DELETE https://localhost:3000/bookmark/remove \
        -H "Content-Type: application/json" \
        -H "Authorization: Bearer <jwt>" \
        -d '{"post_id":"post-123"}'
@@ -290,7 +302,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X POST http://localhost:3000/auth/logout \
+  curl -X POST https://localhost:3000/auth/logout \
        -H "Authorization: Bearer <token>"
   ```
 
@@ -366,7 +378,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X PUT http://localhost:3000/users/email \
+  curl -X PUT https://localhost:3000/users/email \
        -H "Content-Type: application/json" \
        -H "Authorization: Bearer <token>" \
        -d '{"email":"new-email@example.com"}'
@@ -399,7 +411,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X PUT http://localhost:3000/users/name \
+  curl -X PUT https://localhost:3000/users/name \
        -H "Content-Type: application/json" \
        -H "Authorization: Bearer <token>" \
        -d '{"name":"New Display Name"}'
@@ -429,7 +441,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X PUT http://localhost:3000/users/password \
+  curl -X PUT https://localhost:3000/users/password \
        -H "Content-Type: application/json" \
        -H "Authorization: Bearer <token>" \
        -d '{"password":"atLeast8Chars"}'
@@ -467,7 +479,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X POST http://localhost:3000/user-preferences \
+  curl -X POST https://localhost:3000/user-preferences \
        -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
        -d '{"language":"en","keywords":["trump"]}'
@@ -492,7 +504,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl http://localhost:3000/user-preferences \
+  curl https://localhost:3000/user-preferences \
        -H "Authorization: Bearer <token>"
   ```
 ### Fetch User Preferences (body-based)
@@ -513,7 +525,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `500 Internal Server Error` for unexpected issues.
 - **Example:**
   ```bash
-  curl -X POST http://localhost:3000/user-preferences/get \
+  curl -X POST https://localhost:3000/user-preferences/get \
        -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
        -d '{}'
@@ -532,7 +544,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```
 - **Example (curl):**
   ```bash
-  curl -X POST http://localhost:3000/comments/search \
+  curl -X POST https://localhost:3000/comments/search \
        -H "Content-Type: application/json" \
        -d '{"keywords":["hate","alert"],"limit":4,"source":"BLUSKY2"}'
   ```
@@ -570,9 +582,9 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
 - **Description:** Returns the newest comments from the requested table (`source`, defaults to `BLUSKY_TEST`), ordered by `POST_TIMESTAMP` descending. Defaults to `PRED_INTENT = 'HARMFUL'`, but you can pass `predIntent` to override. Each comment includes a friendly `platform` label, a navigable `postUrl`, and a human-readable `timeAgo`.
 - **Example (curl):**
   ```bash
-  curl "http://localhost:3000/comments/latest?limit=4"
-  curl "http://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
-  curl "http://localhost:3000/comments/latest?limit=4&source=BLUSKY2"
+  curl "https://localhost:3000/comments/latest?limit=4"
+  curl "https://localhost:3000/comments/latest?limit=4&predIntent=HATE_SPEECH"
+  curl "https://localhost:3000/comments/latest?limit=4&source=BLUSKY2"
   ```
 - **Response:**
   ```json
@@ -664,5 +676,5 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
 - **Errors:** Returns `400` for invalid parameters (e.g., malformed table name) or `500` when Oracle queries fail.
 - **Example:**
   ```bash
-  curl "http://localhost:3000/harassment-network/cliques?limit=75"
+  curl "https://localhost:3000/harassment-network/cliques?limit=75"
   ```
