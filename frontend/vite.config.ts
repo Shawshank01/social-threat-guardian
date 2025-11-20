@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: backendTarget,
           changeOrigin: true,
+          secure: false, // Allow self-signed certificates (for development)
           rewrite: rewritePath,
           configure: (proxy, _options) => {
             // Handle /api/favorites routes with method-based routing to backend bookmark endpoints
