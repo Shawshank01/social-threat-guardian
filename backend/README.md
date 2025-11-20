@@ -294,6 +294,49 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
        -H "Authorization: Bearer <token>"
   ```
 
+### Notifications
+- All endpoints require `Authorization: Bearer <jwt>`; `requireAuth` uses that token to populate `req.user.id`.
+
+#### List notifications
+- `GET /notifications`
+- **Query:** `limit` (default 20, max 100), `offset` (default 0), `unreadOnly=true|false`
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "data": [
+      {
+        "id": "NOTI123",
+        "userId": "42",
+        "type": "SYSTEM",
+        "message": "Hate score breached threshold",
+        "createdAt": "2024-03-12T08:00:00.000Z",
+        "readStatus": false
+      }
+    ]
+  }
+  ```
+
+#### Unread count
+- `GET /notifications/unread-count`
+- **Response:**
+  ```json
+  {
+    "ok": true,
+    "data": { "count": 3 }
+  }
+  ```
+
+#### Mark a single notification as read
+- `POST /notifications/:id/read`
+- **Response:** `{ "ok": true, "data": { "updated": true } }`
+
+#### Mark all notifications as read
+- `POST /notifications/read-all`
+- **Response:** `{ "ok": true, "data": { "updatedCount": 5 } }`
+
+After login, the frontend can poll `unread-count` to display the badge, fetch the list when the notification drawer opens, and then call `read`/`read-all` once the user views the items.
+
 ### Update Email
 - `PUT /users/email`
 - **Headers:** `Content-Type: application/json`, `Authorization: Bearer <token>`
@@ -477,7 +520,7 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "HARMFUL", "source": "BLUSKY_TEST" }`)  
-- **Description:** For each keyword provided, returns up to `limit` matching comments whose `POST_TEXT` contains that keyword. Results come from the chosen table (`source`, default `BLUSKY_TEST`) and default to `PRED_INTENT = 'HARMFUL'` unless overridden. Each comment includes a user-friendly `platform` label, a `postUrl` that links back to the original post, and a human-readable `timeAgo`.
+- **Description:** For each keyword provided, the backend first runs an exact database search (`POST_TEXT` contains the keyword, case-insensitive). If the exact result count meets the requested `limit` **and** the best Fuse.js similarity score is high enough, the response is composed entirely of the exact hits to enforce precision. If both checks fail, the system falls back to pure Fuse-based fuzzy matches so misspelled keywords still yield results. When only one of the conditions passes, the exact results are returned first and then topped up with fuzzy matches until the requested `limit` is reached. All comments still include the friendly `platform` label, `postUrl`, and human-readable `timeAgo`, and you can override `predIntent` or `source` as needed.
 - **Request Body:**
   ```json
   {
@@ -595,3 +638,31 @@ CORS_ALLOW_ORIGINS=http://localhost:5173,https://social-threat-detection.vercel.
   - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
 - **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
 
+### Harassment Network Cliques
+- **Endpoint:** `GET /harassment-network/cliques`
+- **Description:** Executes an Oracle `GRAPH_TABLE` query against `DIWEN.HARASSMENT_NETWORK` to find 3-person harassment cycles (A→B, B→C, C→A). Useful for drawing network graphs on the frontend. Supports light parameterization so dashboards can control payload size.
+- **Query Parameters:**
+  - `limit` (optional, default `100`, max `500`): caps the number of cliques returned.
+  - `table` or `source` (optional, default `DIWEN.HARASSMENT_NETWORK`): override the graph view name. Value must be uppercase alphanumeric/underscore/dot (e.g., `SCHEMA.GRAPH_VIEW`).
+- **Successful Response (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "nodes": [{ "id": "did:user:a" }, { "id": "did:user:b" }],
+    "links": [
+      { "source": "did:user:a", "target": "did:user:b" },
+      { "source": "did:user:b", "target": "did:user:c" },
+      { "source": "did:user:c", "target": "did:user:a" }
+    ],
+    "cliques": [
+      { "USER_A": "did:user:a", "USER_B": "did:user:b", "USER_C": "did:user:c" }
+    ],
+    "limit": 100,
+    "tableName": "DIWEN.HARASSMENT_NETWORK"
+  }
+  ```
+- **Errors:** Returns `400` for invalid parameters (e.g., malformed table name) or `500` when Oracle queries fail.
+- **Example:**
+  ```bash
+  curl "http://localhost:3000/harassment-network/cliques?limit=75"
+  ```
