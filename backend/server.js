@@ -2,6 +2,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import http from "http";
+import https from "https";
+import fs from "fs";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -55,10 +57,40 @@ app.use("/notifications", notificationsRouter);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
-const server = http.createServer(app);
+const keyPath = process.env.SSL_KEY_PATH;
+const certPath = process.env.SSL_CERT_PATH;
+const caPath = process.env.SSL_CA_PATH;
+const hasTLSFiles =
+  keyPath && certPath && fs.existsSync(keyPath) && fs.existsSync(certPath);
+
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", 1);
+}
+
+let serverProtocol = "http";
+let server = null;
+
+if (hasTLSFiles) {
+  try {
+    const tlsOptions = {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+    if (caPath && fs.existsSync(caPath)) {
+      tlsOptions.ca = fs.readFileSync(caPath);
+    }
+    server = https.createServer(tlsOptions, app);
+    serverProtocol = "https";
+  } catch (err) {
+    console.error("[Startup] Failed to load TLS certs:", err);
+    process.exit(1);
+  }
+} else {
+  server = http.createServer(app);
+}
 
 server.listen(PORT, () => {
-  console.log(`🚀 Server is running at http://localhost:${PORT}`);
+  console.log(`🚀 Server is running at ${serverProtocol}://localhost:${PORT}`);
 });
 
 initWebSocketServer(server, { path: "/ws" });
