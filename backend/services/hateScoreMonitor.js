@@ -70,9 +70,10 @@ async function pollOnce() {
     const sampleSize = scores.length;
     const average =
       sampleSize > 0 ? scores.reduce((sum, value) => sum + value, 0) / sampleSize : null;
+    const scaledAverage = average === null ? null : Number((average * 100).toFixed(1));
 
     const snapshot = {
-      value: average,
+      value: scaledAverage,
       updatedAt: new Date().toISOString(),
       sampleSize,
       tableName: activeOptions.tableName,
