@@ -12,9 +12,17 @@ const getWebSocketUrl = () => {
   
   // If a full backend URL is provided, derive WebSocket URL from it
   if (backendUrl && (backendUrl.startsWith("http://") || backendUrl.startsWith("https://"))) {
-    const wsProtocol = backendUrl.startsWith("https://") ? "wss://" : "ws://";
     try {
       const url = new URL(backendUrl);
+      
+      // Determine WebSocket protocol:
+      // - If backend URL is https://, use wss://
+      // - If backend URL is http:// but page is HTTPS, use wss:// (for mixed content)
+      // - Otherwise use ws://
+      const isPageHttps = typeof window !== "undefined" && window.location.protocol === "https:";
+      const isBackendHttps = backendUrl.startsWith("https://");
+      const wsProtocol = isBackendHttps || isPageHttps ? "wss://" : "ws://";
+      
       // Preserve port if specified, otherwise use default
       const port = url.port ? `:${url.port}` : "";
       const wsUrl = `${wsProtocol}${url.hostname}${port}/ws`;
