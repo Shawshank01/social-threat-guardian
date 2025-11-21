@@ -110,6 +110,7 @@ const GaugeChart = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
+  const shouldConnectRef = useRef<boolean>(false);
   const isBluesky = platform === "bluesky";
   // Initialise with mobile-friendly dimensions that will be updated immediately
   const [gaugeDimensions, setGaugeDimensions] = useState(() => {
@@ -126,6 +127,9 @@ const GaugeChart = ({
   // Reset values immediately when switching away from Bluesky
   useEffect(() => {
     if (!isBluesky) {
+      // Mark that we should not be connected
+      shouldConnectRef.current = false;
+      
       // Close any existing WebSocket connection immediately
       if (wsRef.current) {
         wsRef.current.close();
@@ -152,7 +156,15 @@ const GaugeChart = ({
       return;
     }
 
+    // Mark that we should be connected
+    shouldConnectRef.current = true;
+
     const connectWebSocket = () => {
+      // Check if we should still be connected before attempting connection
+      if (!shouldConnectRef.current) {
+        return;
+      }
+
       try {
         const wsUrl = getWebSocketUrl();
         console.log("[GaugeChart] Connecting to WebSocket:", wsUrl);
@@ -160,12 +172,22 @@ const GaugeChart = ({
         wsRef.current = ws;
 
         ws.onopen = () => {
+          // Double-check we should still be connected
+          if (!shouldConnectRef.current) {
+            ws.close();
+            return;
+          }
           console.log("[GaugeChart] WebSocket connected");
           setIsLoading(false);
           setError(null);
         };
 
         ws.onmessage = (event) => {
+          // Only process messages if we should still be connected
+          if (!shouldConnectRef.current) {
+            return;
+          }
+
           try {
             const message: WebSocketMessage = JSON.parse(event.data);
 
@@ -174,8 +196,8 @@ const GaugeChart = ({
             } else if (message.type === "HATE_SCORE_UPDATE") {
               // Only process updates from BLUSKY_TEST table
               if (message.data.tableName === "BLUSKY_TEST" && message.data.value !== null) {
-                // Convert from 0-1 range to 0-100 range
-                const scorePercent = clamp(message.data.value * 100);
+                // Backend sends values in 0-100 range
+                const scorePercent = clamp(message.data.value);
                 setTargetValue(scorePercent);
                 setLastUpdatedAt(message.data.updatedAt);
                 setSampleSize(message.data.sampleSize);
@@ -188,6 +210,9 @@ const GaugeChart = ({
         };
 
         ws.onerror = (event) => {
+          if (!shouldConnectRef.current) {
+            return;
+          }
           console.error("[GaugeChart] WebSocket error", event);
           setError("Connection error. Attempting to reconnect...");
           setIsLoading(true);
@@ -196,26 +221,38 @@ const GaugeChart = ({
         ws.onclose = () => {
           console.log("[GaugeChart] WebSocket closed");
           wsRef.current = null;
-          setIsLoading(true);
-          setError("Connection lost. Reconnecting...");
 
-          // Attempt to reconnect after 3 seconds
-          reconnectTimeoutRef.current = window.setTimeout(() => {
-            connectWebSocket();
-          }, 3000);
+          // Only attempt to reconnect if we should still be connected
+          if (shouldConnectRef.current) {
+            setIsLoading(true);
+            setError("Connection lost. Reconnecting...");
+
+            // Attempt to reconnect after 3 seconds, but check again before reconnecting
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              if (shouldConnectRef.current) {
+                connectWebSocket();
+              }
+            }, 3000);
+          }
         };
       } catch (err) {
         console.error("[GaugeChart] Failed to create WebSocket", err);
-        setError("Failed to connect to monitoring service.");
-        setIsLoading(false);
+        if (shouldConnectRef.current) {
+          setError("Failed to connect to monitoring service.");
+          setIsLoading(false);
+        }
       }
     };
 
     connectWebSocket();
 
     return () => {
+      // Set flag to prevent reconnection
+      shouldConnectRef.current = false;
+
       if (reconnectTimeoutRef.current) {
         window.clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
       if (wsRef.current) {
         wsRef.current.close();
