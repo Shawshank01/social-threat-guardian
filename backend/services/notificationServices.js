@@ -4,7 +4,7 @@ import { withConnection } from "../config/db.js";
 
 const TABLE_NAME = "USER_NOTIFICATIONS";
 const DEFAULT_LIMIT = 20;
-const HATE_SCORE_ALERT_TYPE = "HATE_SCORE_ALERT";
+export const HATE_SCORE_ALERT_TYPE = "HATE_SCORE_ALERT";
 const HATE_SCORE_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 function generateId() {

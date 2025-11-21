@@ -1,9 +1,13 @@
 // /services/hateScoreMonitor.js
+import oracledb from "oracledb";
 import { fetchLatestHateScores } from "../models/commentModel.js";
+import { createNotificationsForUsers, HATE_SCORE_ALERT_TYPE } from "./notificationServices.js";
+import { withConnection } from "../config/db.js";
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_LIMIT = 100;
 const DEFAULT_TABLE = "BLUSKY_TEST";
+const HATE_SCORE_ALERT_THRESHOLD = 20;
 
 let monitorTimer = null;
 let isPolling = false;
@@ -21,6 +25,44 @@ let latestSnapshot = {
   sampleSize: 0,
   tableName: DEFAULT_TABLE,
 };
+
+async function fetchAllUserIds() {
+  return withConnection(async (conn) => {
+    const { rows } = await conn.execute(
+      "SELECT ID FROM USERS",
+      {},
+      { outFormat: oracledb.OUT_FORMAT_OBJECT },
+    );
+    return (rows || [])
+      .map((row) => row.ID || row.id || row.Id)
+      .filter(Boolean)
+      .map((id) => String(id));
+  });
+}
+
+async function maybeSendHateScoreAlert(snapshot) {
+  if (!snapshot || snapshot.value === null || snapshot.value < HATE_SCORE_ALERT_THRESHOLD) {
+    return;
+  }
+
+  const userIds = await fetchAllUserIds();
+  if (userIds.length === 0) {
+    return;
+  }
+
+  await createNotificationsForUsers(userIds, {
+    type: HATE_SCORE_ALERT_TYPE,
+    title: "Hate score alert",
+    message: `Latest average hate score is ${snapshot.value} (threshold ${HATE_SCORE_ALERT_THRESHOLD})`,
+    payload: {
+      value: snapshot.value,
+      threshold: HATE_SCORE_ALERT_THRESHOLD,
+      sampleSize: snapshot.sampleSize,
+      updatedAt: snapshot.updatedAt,
+      tableName: snapshot.tableName,
+    },
+  });
+}
 
 function sanitizeOptions(input = {}) {
   const merged = { ...activeOptions, ...input };
@@ -81,6 +123,9 @@ async function pollOnce() {
 
     latestSnapshot = snapshot;
     notifyListeners(snapshot);
+    maybeSendHateScoreAlert(snapshot).catch((err) => {
+      console.error("[hateScoreMonitor] failed to create hate-score alert:", err);
+    });
     return snapshot;
   } catch (err) {
     console.error("[hateScoreMonitor] poll error:", err);

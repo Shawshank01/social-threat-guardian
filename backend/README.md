@@ -308,7 +308,7 @@ CORS_ALLOW_ORIGINS=https://localhost:5173,https://social-threat-detection.vercel
 
 ### Notifications
 - All endpoints require `Authorization: Bearer <jwt>`; `requireAuth` uses that token to populate `req.user.id`.
-- Hate-score alerts are throttled: when the background poll detects `HATE_SCORE_ALERT` (e.g., hate score > 50), one notification is emitted and further alerts are suppressed for 6 hours.
+ - Hate-score alerts are throttled: when the background poll detects `HATE_SCORE_ALERT` (e.g., hate score > 20), one notification is emitted and further alerts are suppressed for 6 hours.
 
 #### List notifications
 - `GET /notifications`
