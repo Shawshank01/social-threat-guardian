@@ -4,6 +4,8 @@ import { withConnection } from "../config/db.js";
 
 const TABLE_NAME = "USER_NOTIFICATIONS";
 const DEFAULT_LIMIT = 20;
+export const HATE_SCORE_ALERT_TYPE = "HATE_SCORE_ALERT";
+const HATE_SCORE_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 function generateId() {
   return globalThis.crypto?.randomUUID
@@ -17,6 +19,10 @@ function normalizeUserId(userId) {
     throw new Error("userId is required");
   }
   return trimmed;
+}
+
+function normalizeType(type, fallback = "SYSTEM") {
+  return type ? String(type).trim().toUpperCase().slice(0, 64) : fallback;
 }
 
 function serializePayload(payload) {
@@ -63,6 +69,29 @@ function mapRow(row) {
       row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : row.CREATED_AT ?? null,
     readAt: row.READ_AT instanceof Date ? row.READ_AT.toISOString() : row.READ_AT ?? null,
   };
+}
+
+async function isWithinHateScoreCooldown(conn) {
+  const { rows } = await conn.execute(
+    `SELECT CREATED_AT
+       FROM ${TABLE_NAME}
+      WHERE TYPE = :type
+   ORDER BY CREATED_AT DESC
+   FETCH FIRST 1 ROWS ONLY`,
+    { type: HATE_SCORE_ALERT_TYPE },
+    { outFormat: oracledb.OUT_FORMAT_OBJECT },
+  );
+
+  const createdAt = rows?.[0]?.CREATED_AT ?? rows?.[0]?.created_at ?? null;
+  const lastCreated =
+    createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : null;
+
+  if (!lastCreated || Number.isNaN(lastCreated.getTime())) {
+    return false;
+  }
+
+  const elapsedMs = Date.now() - lastCreated.getTime();
+  return elapsedMs < HATE_SCORE_ALERT_COOLDOWN_MS;
 }
 
 export async function ensureNotificationsTable() {
@@ -113,15 +142,21 @@ export async function createNotification({
   title = null,
   message = null,
   payload = null,
+  skipCooldownCheck = false,
 } = {}) {
   const normalizedUserId = normalizeUserId(userId);
   const id = generateId();
-  const trimmedType = type ? String(type).trim().toUpperCase().slice(0, 64) : "SYSTEM";
+  const trimmedType = normalizeType(type);
   const trimmedTitle = title ? String(title).trim() : null;
   const trimmedMessage = message ? String(message).trim() : null;
   const serializedPayload = serializePayload(payload);
+  const shouldCheckCooldown = !skipCooldownCheck && trimmedType === HATE_SCORE_ALERT_TYPE;
 
   return withConnection(async (conn) => {
+    if (shouldCheckCooldown && (await isWithinHateScoreCooldown(conn))) {
+      return null;
+    }
+
     const result = await conn.execute(
       `INSERT INTO ${TABLE_NAME} (ID, USER_ID, TYPE, TITLE, MESSAGE, PAYLOAD, CREATED_AT)
        VALUES (:id, :userId, :type, :title, :message, :payload, SYSTIMESTAMP)
@@ -178,9 +213,26 @@ export async function createNotification({
 
 export async function createNotificationsForUsers(userIds = [], payload = {}) {
   const results = [];
-  for (const id of new Set(userIds.map((value) => normalizeUserId(value)))) {
-    const created = await createNotification({ ...payload, userId: id });
-    results.push(created);
+  const targetType = normalizeType(payload.type);
+  const normalizedIds = new Set(userIds.map((value) => normalizeUserId(value)));
+
+  if (targetType === HATE_SCORE_ALERT_TYPE) {
+    const suppressed = await withConnection((conn) => isWithinHateScoreCooldown(conn));
+    if (suppressed) {
+      return results;
+    }
+  }
+
+  for (const id of normalizedIds) {
+    const created = await createNotification({
+      ...payload,
+      type: targetType,
+      userId: id,
+      skipCooldownCheck: targetType === HATE_SCORE_ALERT_TYPE,
+    });
+    if (created) {
+      results.push(created);
+    }
   }
   return results;
 }

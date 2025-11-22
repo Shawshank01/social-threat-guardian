@@ -2,6 +2,55 @@
 import oracledb from "oracledb";
 import { withConnection } from "../config/db.js";
 
+export async function fetchPostsByIds(postIds = [], options = {}) {
+  const ids = Array.isArray(postIds)
+    ? postIds
+        .map((id) => (id === undefined || id === null ? "" : String(id).trim()))
+        .filter(Boolean)
+    : [];
+
+  if (ids.length === 0) return [];
+
+  const tableName =
+    options.tableName !== undefined && options.tableName !== null
+      ? String(options.tableName).trim().toUpperCase()
+      : "BLUSKY_TEST";
+
+  if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
+
+  // Deduplicate to keep the bind list small, we will reapply sorting later.
+  const uniqueIds = Array.from(new Set(ids));
+  const binds = {};
+  const placeholders = uniqueIds
+    .map((id, idx) => {
+      const key = `id${idx}`;
+      binds[key] = id;
+      return `:${key}`;
+    })
+    .join(", ");
+
+  return withConnection(async (conn) => {
+    const sql = `
+      SELECT POST_ID, POST_URL, POST_TEXT, POST_TIMESTAMP
+        FROM ${tableName}
+       WHERE POST_ID IN (${placeholders})
+    `;
+
+    const result = await conn.execute(sql, binds, {
+      outFormat: oracledb.OUT_FORMAT_OBJECT,
+      fetchInfo: {
+        POST_ID: { type: oracledb.STRING },
+        POST_URL: { type: oracledb.STRING },
+        POST_TEXT: { type: oracledb.STRING },
+      },
+    });
+
+    return result.rows || [];
+  });
+}
+
 export async function fetchLatestComments(limit = 4, filters = {}) {
   const capped = Math.max(1, Math.min(Number(limit) || 4, 50));
 

@@ -291,6 +291,36 @@ CORS_ALLOW_ORIGINS=https://localhost:5173,https://social-threat-detection.vercel
     }
     ```
   - `500 Internal Server Error` for unexpected failures.
+
+#### List Bookmark Content
+- `GET /bookmark/content`
+- **Headers:** `Authorization: Bearer <jwt>`
+- **Query Params (optional):**
+  - `source`: source table name; defaults to `BLUSKY_TEST`. Must be alphanumeric/underscores.
+- **Behavior:** Uses the authenticated user’s bookmarks to fetch post details (URL, text, timestamp) from the specified source table, preserving bookmark order.
+- **Response:**
+  - `200 OK`
+    ```json
+    {
+      "ok": true,
+      "count": 2,
+      "source": "BLUSKY_TEST",
+      "posts": [
+        {
+          "postId": "post-1",
+          "postUrl": "https://example.com/1",
+          "postText": "example text",
+          "postTimestamp": "2024-01-01T12:00:00.000Z",
+          "savedAt": "2024-01-02T12:34:56.000Z",
+          "bookmarkId": "guid-1"
+        }
+      ]
+    }
+    ```
+  - `400 Bad Request` when `source` is invalid.
+  - `500 Internal Server Error` for unexpected failures.
+  - Returns an empty list if the user has no bookmarks.
+
 - **Responses:**
   - `200 OK`
     ```json
@@ -308,6 +338,7 @@ CORS_ALLOW_ORIGINS=https://localhost:5173,https://social-threat-detection.vercel
 
 ### Notifications
 - All endpoints require `Authorization: Bearer <jwt>`; `requireAuth` uses that token to populate `req.user.id`.
+ - Hate-score alerts are throttled: when the background poll detects `HATE_SCORE_ALERT` (e.g., hate score > 20), one notification is emitted and further alerts are suppressed for 6 hours.
 
 #### List notifications
 - `GET /notifications`
