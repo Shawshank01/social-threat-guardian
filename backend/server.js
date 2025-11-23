@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import http from "http";
 import https from "https";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import dbTestRouter from "./routes/dbtest.js";
 import { initOraclePool } from "./config/db.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -24,7 +26,8 @@ import { initWebSocketServer } from "./websocket/index.js";
 import harassmentNetworkRouter from "./routes/harassmentNetwork.js";
 import notificationsRouter from "./routes/notifications.js";
 
-dotenv.config({ override: true });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, ".env"), override: true });
 
 const app = express();
 
@@ -57,6 +60,7 @@ app.use("/notifications", notificationsRouter);
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || "0.0.0.0";
 const keyPath = process.env.SSL_KEY_PATH;
 const certPath = process.env.SSL_CERT_PATH;
 const caPath = process.env.SSL_CA_PATH;
@@ -86,11 +90,15 @@ if (hasTLSFiles) {
     process.exit(1);
   }
 } else {
+  console.warn(
+    "[Startup] TLS files missing/unreadable, falling back to HTTP. Checked:",
+    { keyPath, certPath }
+  );
   server = http.createServer(app);
 }
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server is running at ${serverProtocol}://localhost:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server is running at ${serverProtocol}://${HOST}:${PORT}`);
 });
 
 initWebSocketServer(server, { path: "/ws" });
