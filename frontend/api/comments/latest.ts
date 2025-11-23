@@ -16,7 +16,7 @@ type ApiResponse = ServerResponse & {
 
 const BACKEND_URL = process.env.BACKEND_URL;
 
-// Helper function to make HTTP/HTTPS requests that accept self-signed certificates
+// Helper function to make HTTP/HTTPS requests to the backend
 function makeRequest(url: string, options: { method?: string; headers?: Record<string, string> } = {}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -29,8 +29,6 @@ function makeRequest(url: string, options: { method?: string; headers?: Record<s
       path: urlObj.pathname + urlObj.search,
       method: options.method || "GET",
       headers: options.headers || {},
-      // Accept self-signed certificates (WARNING: not secure, but needed for "teamwork")
-      ...(isHttps ? { rejectUnauthorized: false } : {}),
     };
 
     const req = client.request(requestOptions, (res) => {

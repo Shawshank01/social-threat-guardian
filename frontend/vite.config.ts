@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => {
   const backendTarget = env.BACKEND_URL ?? DEFAULT_BACKEND;
 
   const rewritePath = (path: string) => {
-    // Don't rewrite /api/favorites here - let configure handle it
+    // Don't rewrite /api/favorites here, let configure handle it
     if (path.startsWith("/api/favorites")) {
       return path; // Keep original path for configure function to handle
     }
@@ -35,26 +35,22 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: backendTarget,
           changeOrigin: true,
-          secure: false, // Allow self-signed certificates (for development)
+          secure: true, // Valid Let's Encrypt certificate
           rewrite: rewritePath,
           configure: (proxy, _options) => {
-            // Handle /api/favorites routes with method-based routing to backend bookmark endpoints
             proxy.on("proxyReq", (proxyReq, req, _res) => {
               const url = req.url || "";
-              
+
               if (url.startsWith("/api/favorites")) {
                 const method = req.method || "GET";
                 const favoritesMatch = url.match(/^\/api\/favorites(?:\/([^/?]+))?/);
                 const postId = favoritesMatch?.[1];
-                
+
                 if (method === "GET") {
-                  // GET /api/favorites or /api/favorites/:id -> GET /bookmark
                   proxyReq.path = "/bookmark";
                 } else if (method === "POST") {
-                  // POST /api/favorites -> POST /bookmark/add
                   proxyReq.path = "/bookmark/add";
                 } else if (method === "DELETE" && postId) {
-                  // DELETE /api/favorites/:id -> DELETE /bookmark/remove
                   proxyReq.path = "/bookmark/remove";
                 }
               }
