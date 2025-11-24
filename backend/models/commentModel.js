@@ -183,7 +183,7 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
   }
 
   return withConnection(async (conn) => {
-    const binds = { limit: capped };
+    const binds = {};
     const whereClauses = [];
 
     if (predIntent) {
@@ -200,13 +200,10 @@ export async function fetchLatestComments(limit = 4, filters = {}) {
     
     const sql = `
       SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL, HATE_SCORE
-        FROM (
-          SELECT POST_ID, POST_TEXT, PRED_INTENT, PRED_INTENSITY, POST_TIMESTAMP, POST_URL, HATE_SCORE
-            FROM ${tableName}
-           ${whereSql}
-           ORDER BY POST_TIMESTAMP DESC NULLS LAST
-        )
-       WHERE ROWNUM <= :limit
+        FROM ${tableName}
+       ${whereSql}
+       ORDER BY POST_TIMESTAMP DESC NULLS LAST
+       FETCH FIRST ${capped} ROWS ONLY
     `;
 
     const result = await conn.execute(sql, binds, {
