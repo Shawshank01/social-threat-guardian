@@ -2,6 +2,29 @@
 import oracledb from "oracledb";
 import { withConnection } from "../config/db.js";
 
+function normalizeContainsTerms(keywords = []) {
+  return (Array.isArray(keywords) ? keywords : [])
+    .map((kw) => (kw === undefined || kw === null ? "" : String(kw)))
+    .flatMap((kw) =>
+      kw
+        .replace(/['"()]/g, " ")
+        .split(/\s+/)
+        .map((token) => token.trim())
+    )
+    .filter((token) => token.length > 0)
+    .slice(0, 10); // cap to keep CONTAINS query small
+}
+
+function buildContainsQuery(keywords = []) {
+  const tokens = normalizeContainsTerms(keywords);
+  if (tokens.length === 0) return null;
+
+  const clauses = tokens.map(
+    (token) => `("${token}" OR FUZZY(${token}, 80, 5000))`
+  );
+  return clauses.join(" AND ");
+}
+
 export async function fetchPostsByIds(postIds = [], options = {}) {
   const ids = Array.isArray(postIds)
     ? postIds
@@ -46,6 +69,79 @@ export async function fetchPostsByIds(postIds = [], options = {}) {
         POST_TEXT: { type: oracledb.STRING },
       },
     });
+
+    return result.rows || [];
+  });
+}
+
+export async function searchCommentsByText(keywords = [], options = {}) {
+  const containsQuery = buildContainsQuery(keywords);
+  if (!containsQuery) return [];
+
+  const limit = Math.max(1, Math.min(Number(options.limit) || 10, 200));
+
+  let predIntent = options.predIntent;
+  if (predIntent !== undefined && predIntent !== null) {
+    predIntent = String(predIntent).trim();
+    if (!predIntent) {
+      predIntent = null;
+    } else {
+      predIntent = predIntent.toUpperCase();
+    }
+  } else {
+    predIntent = null;
+  }
+
+  const tableName =
+    options.tableName !== undefined && options.tableName !== null
+      ? String(options.tableName).trim().toUpperCase()
+      : "BLUSKY_TEST";
+
+  if (!tableName || !/^[A-Z0-9_]+$/.test(tableName)) {
+    throw new Error("Invalid table name");
+  }
+
+  return withConnection(async (conn) => {
+    const binds = {
+      limit,
+      containsQuery: String(containsQuery),
+    };
+
+    const where = ["CONTAINS(POST_TEXT, :containsQuery, 1) > 0"];
+    if (predIntent) {
+      binds.predIntent = predIntent;
+      where.push("PRED_INTENT = :predIntent");
+    }
+    const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+    const sql = `
+      SELECT * FROM (
+        SELECT POST_ID,
+               POST_TEXT,
+               PRED_INTENT,
+               PRED_INTENSITY,
+               POST_TIMESTAMP,
+               POST_URL,
+               HATE_SCORE,
+               SCORE(1) AS SEARCH_SCORE
+          FROM ${tableName}
+         ${whereSql}
+         ORDER BY SCORE(1) DESC, POST_TIMESTAMP DESC NULLS LAST
+      )
+     WHERE ROWNUM <= :limit
+    `;
+
+    const result = await conn.execute(
+      sql,
+      binds,
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        fetchInfo: {
+          POST_ID: { type: oracledb.STRING },
+          POST_TEXT: { type: oracledb.STRING },
+        },
+      }
+    );
 
     return result.rows || [];
   });
