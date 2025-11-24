@@ -1,7 +1,11 @@
 // /websocket/index.js
 import WebSocket, { WebSocketServer } from "ws";
 import jwt from "jsonwebtoken";
-import { onHateScoreUpdate } from "../services/hateScoreMonitor.js";
+import {
+  getLatestHateScoreSnapshot,
+  onHateScoreUpdate,
+  refreshHateScoreNow,
+} from "../services/hateScoreMonitor.js";
 
 const DEFAULT_PATH = "/ws";
 
@@ -172,6 +176,15 @@ export function initWebSocketServer(httpServer, options = {}) {
         },
       })
     );
+
+    const latestSnapshot = getLatestHateScoreSnapshot();
+    if (latestSnapshot?.updatedAt) {
+      safeSend(socket, serializeMessage({ type: "HATE_SCORE_UPDATE", data: latestSnapshot }));
+    }
+
+    refreshHateScoreNow().catch((err) => {
+      console.error("[websocket] failed to refresh hate score on connect:", err);
+    });
 
     socket.on("message", (msg) => {
       if (!msg) return;
