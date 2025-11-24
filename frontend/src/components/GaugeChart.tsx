@@ -9,12 +9,12 @@ import type { ApexOptions } from "apexcharts";
 const getWebSocketUrl = () => {
   // Check for explicit backend URL (VITE_BACKEND_URL takes precedence)
   const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL;
-  
+
   // If a full backend URL is provided, derive WebSocket URL from it
   if (backendUrl && (backendUrl.startsWith("http://") || backendUrl.startsWith("https://"))) {
     try {
       const url = new URL(backendUrl);
-      
+
       // Determine WebSocket protocol:
       // - If backend URL is https://, use wss://
       // - If backend URL is http:// but page is HTTPS, use wss:// (for mixed content)
@@ -22,7 +22,7 @@ const getWebSocketUrl = () => {
       const isPageHttps = typeof window !== "undefined" && window.location.protocol === "https:";
       const isBackendHttps = backendUrl.startsWith("https://");
       const wsProtocol = isBackendHttps || isPageHttps ? "wss://" : "ws://";
-      
+
       // Preserve port if specified, otherwise use default
       const port = url.port ? `:${url.port}` : "";
       const wsUrl = `${wsProtocol}${url.hostname}${port}/ws`;
@@ -31,7 +31,7 @@ const getWebSocketUrl = () => {
       console.warn("[GaugeChart] Failed to parse backend URL:", err);
     }
   }
-  
+
   // If no valid backend URL is configured, throw an error
   throw new Error(
     "VITE_BACKEND_URL or VITE_API_BASE_URL must be set to a full URL (e.g., http://your-backend:3000)"
@@ -129,7 +129,7 @@ const GaugeChart = ({
     if (!isBluesky) {
       // Mark that we should not be connected
       shouldConnectRef.current = false;
-      
+
       // Close any existing WebSocket connection immediately
       if (wsRef.current) {
         wsRef.current.close();
@@ -430,7 +430,7 @@ const GaugeChart = ({
     >
       <header className="mb-6 flex flex-col items-center gap-2 text-center">
         <h2 id="threat-index-heading" className="text-xl font-semibold tracking-wide text-slate-900 dark:text-white">
-          Social Discourse Risk Index
+          Threat Index
         </h2>
         <div className="flex flex-col items-center gap-1">
           {platform !== "all" && (
@@ -451,10 +451,10 @@ const GaugeChart = ({
       </header>
 
       <div className="flex flex-col items-center justify-center">
-        <div 
-          ref={containerRef} 
-          className="relative w-full max-w-xl" 
-          style={{ 
+        <div
+          ref={containerRef}
+          className="relative w-full max-w-xl"
+          style={{
             height: `${gaugeDimensions.height}px`,
             minHeight: '200px',
             maxHeight: '340px'
