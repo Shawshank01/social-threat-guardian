@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bell, Menu, Settings, X } from "lucide-react";
+import { Bell, Menu, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -20,14 +20,14 @@ const NavBar = () => {
     if (e) {
       e.stopPropagation();
     }
-    
+
     // Prevent double-firing from both click and touch events
     const now = Date.now();
     if (now - lastToggleTimeRef.current < 300) {
       return;
     }
     lastToggleTimeRef.current = now;
-    
+
     if (hideMenuTimeoutRef.current) {
       window.clearTimeout(hideMenuTimeoutRef.current);
       hideMenuTimeoutRef.current = null;
@@ -108,7 +108,7 @@ const NavBar = () => {
 
     const handleClickOutside = (event: Event) => {
       const target = event.target as Node;
-      
+
       // Don't close if clicking on the button or inside the menu
       if (
         settingsMenuRef.current?.contains(target) ||
@@ -152,6 +152,7 @@ const NavBar = () => {
 
     if (token) {
       items.push({ label: "Dashboard", to: "/dashboard" });
+      items.push({ label: "Bookmarks", to: "/bookmarks" });
     }
 
     return items;
@@ -284,9 +285,11 @@ const NavBar = () => {
                     e.stopPropagation();
                     handleToggleSettingsMenu(e);
                   }}
-                  className="flex rounded-full border border-slate-200/70 bg-white/70 p-1.5 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:hover:text-white sm:p-2"
+                  className="flex items-center gap-1.5 rounded-full border border-slate-200/70 bg-white/70 px-2 py-1.5 text-[10px] font-semibold text-slate-700 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:text-white sm:px-3 sm:py-1.5 sm:text-xs md:text-sm"
                 >
-                  <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
+                  <span className="max-w-[60px] truncate sm:max-w-none">
+                    {user?.name ?? "Analyst"}
+                  </span>
                 </button>
                 {isSettingsMenuOpen && (
                   <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-2xl border border-slate-200/80 bg-white/95 p-2 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:w-48" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
@@ -299,28 +302,19 @@ const NavBar = () => {
                     >
                       Account Settings
                     </NavLink>
-                    <NavLink
-                      to="/bookmarks"
-                      onClick={handleCloseSettingsMenu}
-                      className={({ isActive }) =>
-                        `block rounded-xl px-3 py-2 text-xs transition sm:text-sm ${isActive ? "bg-stg-accent/10 text-stg-accent" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"}`
-                      }
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleCloseSettingsMenu();
+                        handleLogout();
+                      }}
+                      className="w-full rounded-xl px-3 py-2 text-left text-xs transition sm:text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"
                     >
-                      Bookmarks
-                    </NavLink>
+                      Logout
+                    </button>
                   </div>
                 )}
               </div>
-              <span className="hidden max-w-[60px] truncate text-[10px] font-semibold text-slate-700 dark:text-slate-200 sm:inline-flex sm:max-w-none sm:text-xs md:text-sm">
-                {user?.name ?? "Analyst"}
-              </span>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex-shrink-0 rounded-full border border-slate-200/80 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-slate-700 transition hover:border-stg-accent hover:text-stg-accent dark:border-white/10 dark:text-slate-200 dark:hover:text-white sm:px-3 sm:py-1.5 sm:text-xs md:px-4 md:text-sm"
-              >
-                Logout
-              </button>
             </>
           ) : (
             <>

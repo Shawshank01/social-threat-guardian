@@ -1,6 +1,6 @@
 import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type SavedPreferences } from "@/types/monitors";
 import {
@@ -83,6 +83,7 @@ const Dashboard = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchResults, setSearchResults] = useState<PlatformResult[]>([]);
   const [showNavigationPrompt, setShowNavigationPrompt] = useState(false);
+  const [showSearchComplete, setShowSearchComplete] = useState(false);
   const [lastSavedSettings, setLastSavedSettings] = useState<{
     keywords: string[];
     platforms: string[];
@@ -90,6 +91,7 @@ const Dashboard = () => {
   } | null>(null);
   const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const searchResultsRef = useRef<HTMLElement | null>(null);
 
   const applySavedPreferences = useCallback(
     (preferences: SavedPreferences) => {
@@ -352,6 +354,40 @@ const Dashboard = () => {
     setSelectedLanguages(new Set(LANGUAGE_OPTIONS.map((language) => language.value)));
   };
 
+  // Function to highlight keywords in text
+  const highlightKeywords = (text: string, keywords: string[]): React.ReactNode => {
+    if (!text || keywords.length === 0) {
+      return text;
+    }
+
+    // Create a regex pattern that matches any keyword (case-insensitive)
+    const keywordPattern = keywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .map((keyword) => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // Escape special regex characters
+      .join("|");
+
+    if (!keywordPattern) {
+      return text;
+    }
+
+    const regex = new RegExp(`(${keywordPattern})`, "gi");
+    const parts = text.split(regex);
+
+    return parts.map((part, index) => {
+      const isKeyword = keywords.some(
+        (keyword) => part.toLowerCase() === keyword.trim().toLowerCase(),
+      );
+      return isKeyword ? (
+        <strong key={index} className="font-bold text-stg-accent dark:text-stg-accent">
+          {part}
+        </strong>
+      ) : (
+        <span key={index}>{part}</span>
+      );
+    });
+  };
+
   const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -379,6 +415,7 @@ const Dashboard = () => {
     setIsSearching(true);
     setSearchError(null);
     setShowNavigationPrompt(false);
+    setShowSearchComplete(false);
 
     try {
       const platformResponses = await Promise.all(
@@ -445,10 +482,17 @@ const Dashboard = () => {
         platforms: savedPlatforms,
         languages: savedLanguages,
       });
+      setShowSearchComplete(true);
       setShowNavigationPrompt(true);
+
+      // Scroll to search results section after a brief delay to ensure DOM is updated
+      setTimeout(() => {
+        searchResultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (error) {
       setSearchError((error as Error).message || "Search failed. Try again.");
       setSearchResults([]);
+      setShowSearchComplete(false);
     } finally {
       setIsSearching(false);
     }
@@ -683,9 +727,23 @@ const Dashboard = () => {
             {searchError}
           </p>
         )}
+
+        {isSearching && (
+          <div className="flex items-center gap-3 rounded-2xl border border-blue-500/60 bg-blue-500/15 px-4 py-3 text-sm font-semibold text-blue-700 dark:border-blue-500/40 dark:bg-blue-500/20 dark:text-blue-100">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            <span>Searching across your keywords, selected languages and selected platforms and saving your preferences...</span>
+          </div>
+        )}
+
+        {showSearchComplete && !isSearching && (
+          <div className="flex items-center gap-3 rounded-2xl border border-green-500/60 bg-green-500/15 px-4 py-3 text-sm font-semibold text-green-700 dark:border-green-500/40 dark:bg-green-500/20 dark:text-green-100">
+            <CheckCircle2 className="h-4 w-4" aria-hidden />
+            <span>Search and save completed! 3 Sample results are displayed below.</span>
+          </div>
+        )}
       </form>
 
-      <section className="space-y-6">
+      <section ref={searchResultsRef} className="space-y-6" id="search-results">
         <header className="space-y-1">
           <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Search results</h2>
           <p className="text-sm text-slate-600 dark:text-slate-300">
@@ -753,7 +811,11 @@ const Dashboard = () => {
                               key={`${keywordResult.keyword}-${index}`}
                               className="space-y-2 rounded-2xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-200"
                             >
-                              <p>{comment.postText?.trim() || "No content provided."}</p>
+                              <p>
+                                {comment.postText?.trim()
+                                  ? highlightKeywords(comment.postText.trim(), normalizedKeywords)
+                                  : "No content provided."}
+                              </p>
                               <div className="flex flex-wrap gap-4 text-xs text-slate-500 dark:text-slate-300">
                                 <span>Intent: {comment.predIntent ?? "Unknown"}</span>
                                 <span>Posted: {comment.timeAgo ?? "Unspecified"}</span>

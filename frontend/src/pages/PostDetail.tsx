@@ -364,7 +364,10 @@ const PostDetail = () => {
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Post review</h1>
           <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-300">
             <span>Intent: {post.predIntent ?? "Unknown"}</span>
-            <span>Posted: {post.timeAgo ?? "Unspecified"}</span>
+            <span className="inline-flex items-center gap-1">
+              <span className="block h-2 w-2 rounded-full bg-stg-accent" aria-hidden />
+              Updated {post.timeAgo ?? "Unspecified"}
+            </span>
             {post.keyword && <span>Matched keyword: {post.keyword}</span>}
             {post.collectedAt && <span>Collected: {formatTimestamp(post.collectedAt)}</span>}
           </div>
@@ -372,7 +375,23 @@ const PostDetail = () => {
       </header>
 
       <article className="rounded-3xl border border-slate-200/80 bg-white/95 p-6 text-sm leading-relaxed text-slate-800 shadow-soft dark:border-white/10 dark:bg-slate-900/70 dark:text-slate-100">
-        {post.postText}
+        <p className="mb-4">{post.postText}</p>
+        <footer className="flex items-center justify-end border-t border-slate-200/80 pt-4 text-xs text-slate-500 dark:border-white/10 dark:text-slate-400">
+          {post.postUrl ? (
+            <a
+              href={post.postUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
+            >
+              Original link
+            </a>
+          ) : (
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Original link unavailable
+            </span>
+          )}
+        </footer>
       </article>
 
       <section className="space-y-4 rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft dark:border-white/10 dark:bg-slate-900/70">
@@ -427,7 +446,7 @@ const PostDetail = () => {
         </form>
       </section>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-300">
+      <footer className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
         <Link
           to="/personal-monitors"
           className="inline-flex items-center gap-2 rounded-full border border-slate-200/70 px-4 py-2 transition hover:border-stg-accent hover:text-stg-accent dark:border-white/10 dark:text-slate-200 dark:hover:text-white"

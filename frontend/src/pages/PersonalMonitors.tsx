@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Filter, Loader2, MessageSquare, RefreshCcw } from "lucide-react";
+import { Filter, Loader2, RefreshCcw, ShieldAlert, Send, Network, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost, type SavedPreferences } from "@/types/monitors";
 import {
@@ -38,10 +38,45 @@ type SearchResponse = {
       timeAgo?: string | null;
       processedId?: string | null;
       collectedAt?: string | null;
+      hateScore?: number | string | null;
+      postUrl?: string | null;
     }>;
   }>;
   sourceTable?: string;
   platform?: string;
+};
+
+type PlatformIconFactory = () => JSX.Element;
+
+const createLucideIconFactory =
+  (Icon: LucideIcon): PlatformIconFactory =>
+    () =>
+      <Icon className="h-5 w-5" aria-hidden />;
+
+const BlueskyIcon: PlatformIconFactory = () => (
+  <img src="/Bluesky_Logo.svg" alt="" className="h-5 w-5 object-contain" aria-hidden />
+);
+
+const mastodonIcon = createLucideIconFactory(Network);
+const telegramIcon = createLucideIconFactory(Send);
+const shieldIcon = createLucideIconFactory(ShieldAlert);
+
+const PLATFORM_ICON_MAP: Record<string, PlatformIconFactory> = {
+  mastodon: mastodonIcon,
+  "platform 1": mastodonIcon,
+  bluesky: BlueskyIcon,
+  blusky: BlueskyIcon,
+  blusky_test: BlueskyIcon,
+  "platform 2": BlueskyIcon,
+  telegram: telegramIcon,
+  "platform 3": telegramIcon,
+};
+
+const resolvePlatformIcon = (platform?: string | null) => {
+  const normalized = platform?.trim().toLowerCase() ?? "";
+  const factory = normalized ? PLATFORM_ICON_MAP[normalized] : undefined;
+  const renderIcon = factory ?? shieldIcon;
+  return renderIcon();
 };
 
 const PersonalMonitors = () => {
@@ -102,11 +137,11 @@ const PersonalMonitors = () => {
         // Check for 401 Unauthorized token expired
         if (response.status === 401) {
           logout();
-          navigate("/login", { 
-            state: { 
+          navigate("/login", {
+            state: {
               from: { pathname: "/personal-monitors" },
               message: "Your session has expired. Please log in again."
-            } 
+            }
           });
           return;
         }
@@ -162,7 +197,7 @@ const PersonalMonitors = () => {
           setPreferences(null);
           setPreferencesError(
             (error as Error).message ??
-              "We could not load your monitoring preferences. Configure them from the dashboard.",
+            "We could not load your monitoring preferences. Configure them from the dashboard.",
           );
         }
       } finally {
@@ -225,11 +260,11 @@ const PersonalMonitors = () => {
           // Check for 401 Unauthorized
           if (response.status === 401) {
             logout();
-            navigate("/login", { 
-              state: { 
+            navigate("/login", {
+              state: {
                 from: { pathname: "/personal-monitors" },
                 message: "Your session has expired. Please log in again."
-              } 
+              }
             });
             // Return empty result to prevent Promise.all from breaking
             return {
@@ -272,7 +307,14 @@ const PersonalMonitors = () => {
               processedId && processedId.length > 0
                 ? processedId
                 : `${sourceTable}-${keywordValue ?? "ALL"}-${counter}`;
-            aggregated.push({
+            const parsedHateScore =
+              typeof comment.hateScore === "number"
+                ? comment.hateScore
+                : typeof comment.hateScore === "string"
+                  ? Number.parseFloat(comment.hateScore)
+                  : null;
+            const hateScore = Number.isFinite(parsedHateScore) ? parsedHateScore : null;
+            const newPost: MonitoredPost = {
               id: postId,
               platform: platformLabel,
               sourceTable,
@@ -283,7 +325,10 @@ const PersonalMonitors = () => {
               collectedAt:
                 (comment as { collectedAt?: string | null }).collectedAt ??
                 null,
-            });
+              hateScore,
+              postUrl: comment.postUrl ?? null,
+            };
+            aggregated.push(newPost);
             counter += 1;
           }
         }
@@ -330,10 +375,20 @@ const PersonalMonitors = () => {
 
   const handleNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   };
 
   const handlePreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+  };
+
+  const handlePageSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedPage = Number.parseInt(event.target.value, 10);
+    if (selectedPage >= 1 && selectedPage <= totalPages) {
+      setCurrentPage(selectedPage);
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+    }
   };
 
   const handleRefresh = () => {
@@ -440,36 +495,74 @@ const PersonalMonitors = () => {
         )}
 
         <div className="grid gap-5">
-          {paginatedPosts.map((post) => (
-            <article
-              key={post.id}
-              className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition hover:border-stg-accent hover:shadow-lg dark:border-white/10 dark:bg-slate-900/70"
-            >
-              <Link
-                to={`/posts/${encodeURIComponent(post.id)}`}
-                state={{ post }}
-                className="flex flex-col gap-4"
+          {paginatedPosts.map((post) => {
+            const normalizedScore =
+              typeof post.hateScore === "number" && Number.isFinite(post.hateScore)
+                ? post.hateScore * 100
+                : null;
+            const formattedScore =
+              normalizedScore !== null ? Math.round(normalizedScore).toString() : null;
+            const platformIcon = resolvePlatformIcon(post.platform);
+
+            return (
+              <article
+                key={post.id}
+                className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-soft transition hover:border-stg-accent hover:shadow-lg dark:border-white/10 dark:bg-slate-900/70"
               >
-                <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-200">
-                    <MessageSquare className="h-4 w-4 text-stg-accent" aria-hidden />
-                    <span>{post.platform}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-300">
-                    <span>Intent: {post.predIntent ?? "Unknown"}</span>
-                    <span>Posted: {post.timeAgo ?? "Unspecified"}</span>
-                    <span>Keyword: {post.keyword ?? "N/A"}</span>
-                  </div>
-                </header>
-                <p className="line-clamp-5 text-sm text-slate-700 transition group-hover:text-slate-900 dark:text-slate-200 dark:group-hover:text-white">
-                  {post.postText}
-                </p>
-                <footer className="flex items-center justify-between text-xs text-slate-500 transition group-hover:text-slate-600 dark:text-slate-300 dark:group-hover:text-slate-200">
-                  <span>Source table: {post.sourceTable}</span>
-                </footer>
-              </Link>
-            </article>
-          ))}
+                <Link
+                  to={`/posts/${encodeURIComponent(post.id)}`}
+                  state={{ post }}
+                  className="flex flex-col gap-4"
+                >
+                  <header className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200/70 bg-white text-stg-accent dark:border-white/10 dark:bg-white/5">
+                        {platformIcon}
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-800 dark:text-white">
+                          {post.platform}
+                        </h3>
+                        <div className="flex flex-wrap gap-3 text-xs text-slate-500 dark:text-slate-300">
+                          <span>Intent: {post.predIntent ?? "Unknown"}</span>
+                          <span>Keyword: {post.keyword ?? "N/A"}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {formattedScore !== null && (
+                      <span className="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-widest bg-red-500/10 text-red-600 dark:text-red-300">
+                        score: {formattedScore}
+                      </span>
+                    )}
+                  </header>
+                  <p className="line-clamp-5 text-sm text-slate-700 transition group-hover:text-slate-900 dark:text-slate-200 dark:group-hover:text-white">
+                    {post.postText}
+                  </p>
+                  <footer className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="block h-2 w-2 rounded-full bg-stg-accent" aria-hidden />
+                      Updated {post.timeAgo ?? "Unspecified"}
+                    </span>
+                    {post.postUrl ? (
+                      <a
+                        href={post.postUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
+                      >
+                        Original link
+                      </a>
+                    ) : (
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        Original link unavailable
+                      </span>
+                    )}
+                  </footer>
+                </Link>
+              </article>
+            );
+          })}
         </div>
 
         {posts.length > POSTS_PER_PAGE && (
@@ -486,6 +579,18 @@ const PersonalMonitors = () => {
               >
                 Previous page
               </button>
+              <select
+                value={currentPage}
+                onChange={handlePageSelect}
+                className="rounded-full border border-slate-200/80 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/30 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200"
+                aria-label="Select page"
+              >
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <option key={page} value={page}>
+                    {page}
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={handleNextPage}
