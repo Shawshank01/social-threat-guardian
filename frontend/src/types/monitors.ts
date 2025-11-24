@@ -14,6 +14,8 @@ export type MonitoredPost = {
   predIntent: string | null;
   timeAgo: string | null;
   collectedAt: string | null;
+  hateScore?: number | null;
+  postUrl?: string | null;
 };
 
 export type PostComment = {

@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 
@@ -9,8 +9,18 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const { register, isAuthenticating } = useAuth();
+  const { register, isAuthenticating, token, user } = useAuth();
   const navigate = useNavigate();
+
+  // Check if user is already logged in and redirect to Dashboard
+  useEffect(() => {
+    if (token && user) {
+      const timer = setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [token, user, navigate]);
 
   const isUsernameValid = useMemo(() => username.trim().length >= 3, [username]);
   const isEmailValid = useMemo(() => /.+@.+\..+/.test(email), [email]);
@@ -39,6 +49,23 @@ const Register = () => {
       setError((err as Error).message ?? "Unable to create account.");
     }
   };
+
+  // If user is already logged in, show message and redirect
+  if (token && user) {
+    return (
+      <section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
+        <div className="space-y-6 rounded-3xl border border-emerald-500/40 bg-emerald-500/10 p-8 text-center shadow-soft transition-colors dark:border-emerald-500/30 dark:bg-emerald-500/20">
+          <h1 className="text-2xl font-semibold text-emerald-700 dark:text-emerald-100">
+            You are already logged in
+          </h1>
+          <p className="text-sm text-emerald-600 dark:text-emerald-200">
+            You are currently logged in as <span className="font-semibold">{user.name ?? "Analyst"}</span>.
+            Redirecting you to the Dashboard...
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
