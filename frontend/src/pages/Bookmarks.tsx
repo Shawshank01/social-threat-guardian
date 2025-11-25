@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Bookmark, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost } from "@/types/monitors";
-import { loadPostsFromStorage } from "@/utils/monitoringStorage";
+import { extractMonitoredPostFromBookmark } from "@/utils/bookmarkData";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
@@ -13,8 +13,8 @@ const buildApiUrl = (path: string) => {
 };
 
 type FavoriteRow = {
-  userId: string;
-  processedId: string;
+  userId?: string;
+  processedId?: string;
   platform?: string | null;
   sourceTable?: string | null;
   keyword?: string | null;
@@ -23,17 +23,31 @@ type FavoriteRow = {
   timeAgo?: string | null;
   collectedAt?: string | null;
   savedAt?: string | null;
+  postUrl?: string | null;
+  hateScore?: number | null;
 };
 
-const mapFavoriteToPost = (favorite: FavoriteRow): MonitoredPost => ({
-  id: favorite.processedId,
-  platform: favorite.platform ?? "Unknown platform",
-  sourceTable: favorite.sourceTable ?? "UNKNOWN",
-  keyword: favorite.keyword ?? null,
-  postText: favorite.postText ?? "No content provided.",
-  predIntent: favorite.predIntent ?? null,
-  timeAgo: favorite.timeAgo ?? null,
-  collectedAt: favorite.collectedAt ?? favorite.savedAt ?? new Date().toISOString(),
+type BookmarkApiRow = FavoriteRow & {
+  BOOKMARK_ID?: string;
+  USER_ID?: string;
+  PROCESSED_ID?: string;
+  SAVED_AT?: string;
+  UPDATED_AT?: string;
+  POST_DATA?: unknown;
+  postData?: unknown;
+};
+
+const fallbackPostFromBookmark = (bookmark: BookmarkApiRow, processedId: string): MonitoredPost => ({
+  id: processedId,
+  platform: bookmark.platform ?? "Unknown platform",
+  sourceTable: bookmark.sourceTable ?? "UNKNOWN",
+  keyword: bookmark.keyword ?? null,
+  postText: bookmark.postText ?? "Post content not available. Click to view details.",
+  predIntent: bookmark.predIntent ?? null,
+  timeAgo: bookmark.timeAgo ?? null,
+  collectedAt: bookmark.collectedAt ?? bookmark.SAVED_AT ?? bookmark.savedAt ?? new Date().toISOString(),
+  postUrl: bookmark.postUrl ?? null,
+  hateScore: bookmark.hateScore ?? null,
 });
 
 const Bookmarks = () => {
@@ -54,7 +68,8 @@ const Bookmarks = () => {
     setError(null);
 
     try {
-      const response = await fetch(buildApiUrl("favorites"), {
+      // First, get the list of bookmarks to get the post IDs
+      const bookmarksResponse = await fetch(buildApiUrl("favorites"), {
         method: "GET",
         headers: {
           Accept: "application/json",
@@ -62,63 +77,328 @@ const Bookmarks = () => {
         },
       });
 
-      const payload = (await response.json().catch(() => ({}))) as {
+      const bookmarksPayload = (await bookmarksResponse.json().catch(() => ({}))) as {
         ok?: boolean;
-        bookmarks?: Array<{
-          BOOKMARK_ID?: string;
-          USER_ID?: string;
-          PROCESSED_ID?: string;
-          SAVED_AT?: string;
-          UPDATED_AT?: string;
-        }>;
-        favorites?: FavoriteRow[]; // Legacy support
+        bookmarks?: BookmarkApiRow[];
+        favorites?: BookmarkApiRow[]; // Legacy support
         error?: string;
       };
 
-      if (!response.ok || payload.ok === false) {
-        throw new Error(payload.error ?? "Unable to load bookmarks.");
+      if (!bookmarksResponse.ok || bookmarksPayload.ok === false) {
+        throw new Error(bookmarksPayload.error ?? "Unable to load bookmarks.");
       }
 
-      // Backend returns bookmarks array with PROCESSED_ID only
-      const bookmarkList = payload.bookmarks || payload.favorites || [];
-      
-      // Try to load post details from local storage first
-      const storedPosts = loadPostsFromStorage(userId);
-      
-      // Map bookmarks to posts, using stored post data if available
-      const mappedPosts: MonitoredPost[] = bookmarkList
-        .map((bookmark) => {
-          // Handle both new backend format (with PROCESSED_ID) and legacy format (with processedId)
-          const processedId =
-            "PROCESSED_ID" in bookmark
-              ? bookmark.PROCESSED_ID
-              : (bookmark as FavoriteRow).processedId;
-          if (!processedId) return null;
+      const bookmarkList = bookmarksPayload.bookmarks || bookmarksPayload.favorites || [];
+      if (bookmarkList.length === 0) {
+        setBookmarks([]);
+        return;
+      }
 
-          // Try to find the post in stored posts
-          const storedPost = storedPosts.find((p: MonitoredPost) => p.id === processedId);
+      // Try to fetch post data from /bookmark/content endpoint with common source tables
+      // Try BLUSKY_TEST first (default), then try other common tables
+      const sourceTables = ["BLUSKY_TEST", "BLUSKY", "BLUSKY2"];
+      let mappedPosts: MonitoredPost[] = [];
 
-          if (storedPost) {
-            // Use stored post data
-            return storedPost;
+      for (const sourceTable of sourceTables) {
+        try {
+          const contentResponse = await fetch(
+            buildApiUrl(`favorites/content?source=${encodeURIComponent(sourceTable)}`),
+            {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            },
+          );
+
+          const contentPayload = (await contentResponse.json().catch(() => ({}))) as {
+            ok?: boolean;
+            posts?: Array<{
+              postId?: string;
+              postUrl?: string | null;
+              postText?: string | null;
+              postTimestamp?: string | null;
+              savedAt?: string | null;
+              bookmarkId?: string;
+            }>;
+            source?: string;
+            error?: string;
+          };
+
+          if (contentResponse.ok && contentPayload.ok && contentPayload.posts) {
+            // Use flexible matching to handle different ID formats
+            const bookmarkMap = new Map(
+              bookmarkList.map((bm) => {
+                const id = bm.PROCESSED_ID || (bm as FavoriteRow).processedId || "";
+                return [id, bm];
+              }),
+            );
+
+            // Map posts from content endpoint to MonitoredPost format
+            mappedPosts = contentPayload.posts
+              .map((post) => {
+                if (!post.postId) return null;
+
+                // Try to find matching bookmark using flexible matching
+                let bookmark: BookmarkApiRow | FavoriteRow | undefined;
+                
+                // Try exact match first
+                bookmark = bookmarkMap.get(post.postId);
+                
+                // If not found, try case-insensitive match
+                if (!bookmark) {
+                  for (const [bookmarkId, bm] of bookmarkMap.entries()) {
+                    if (bookmarkId.toLowerCase() === post.postId.toLowerCase()) {
+                      bookmark = bm;
+                      break;
+                    }
+                  }
+                }
+                
+                // If still not found and post ID is an AT URI, try partial matching
+                if (!bookmark && post.postId.includes("/app.bsky.feed.post/")) {
+                  const postIdPart = post.postId.split("/app.bsky.feed.post/")[1];
+                  if (postIdPart) {
+                    for (const [bookmarkId, bm] of bookmarkMap.entries()) {
+                      if (bookmarkId.includes(postIdPart) || bookmarkId.includes("/app.bsky.feed.post/")) {
+                        const bookmarkIdPart = bookmarkId.split("/app.bsky.feed.post/")[1];
+                        if (bookmarkIdPart === postIdPart) {
+                          bookmark = bm;
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+                
+                // Also try matching by POST_URL if available
+                if (!bookmark && post.postUrl) {
+                  for (const [bookmarkId, bm] of bookmarkMap.entries()) {
+                    if (bookmarkId.includes("/app.bsky.feed.post/") && post.postUrl?.includes(bookmarkId)) {
+                      bookmark = bm;
+                      break;
+                    }
+                  }
+                }
+
+                if (!bookmark) return null;
+
+                const processedId = post.postId;
+                const platformLabel = sourceTable === "BLUSKY_TEST" || sourceTable === "BLUSKY" || sourceTable === "BLUSKY2"
+                  ? "Bluesky"
+                  : sourceTable;
+
+                return {
+                  id: processedId,
+                  platform: platformLabel,
+                  sourceTable: contentPayload.source || sourceTable,
+                  keyword: null,
+                  postText: post.postText || "Post content not available. Click to view details.",
+                  predIntent: null,
+                  timeAgo: post.postTimestamp
+                    ? formatTimeAgo(new Date(post.postTimestamp))
+                    : null,
+                  collectedAt: post.postTimestamp || null,
+                  postUrl: post.postUrl || null,
+                  hateScore: null,
+                } as MonitoredPost;
+              })
+              .filter((post): post is MonitoredPost => post !== null);
+
+            // If we found posts, break and use this result
+            if (mappedPosts.length > 0) {
+              break;
+            }
+          }
+        } catch {
+          // Continue to next source table
+          continue;
+        }
+      }
+
+      // If we didn't find posts from content endpoint, try searching the database
+      // using user preferences (same method as Personal Monitors)
+      if (mappedPosts.length === 0 && bookmarkList.length > 0) {
+        // Load user preferences to search the database
+        try {
+          const preferencesResponse = await fetch(buildApiUrl("user-preferences"), {
+            method: "GET",
+            headers: {
+              Accept: "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+
+          let keywords: string[] = [];
+          let platforms: string[] = ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
+          let languages: string[] = [];
+
+          if (preferencesResponse.ok) {
+            const preferencesPayload = (await preferencesResponse.json().catch(() => ({}))) as {
+              ok?: boolean;
+              preferences?: {
+                keywords?: string[];
+                platforms?: string[];
+                languages?: string[];
+              };
+            };
+
+            if (preferencesPayload.ok && preferencesPayload.preferences) {
+              keywords = preferencesPayload.preferences.keywords || [];
+              platforms = preferencesPayload.preferences.platforms && preferencesPayload.preferences.platforms.length > 0
+                ? preferencesPayload.preferences.platforms
+                : ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
+              languages = preferencesPayload.preferences.languages || [];
+            }
           }
 
-          // Fallback: create minimal post data from bookmark
-          // The user can click to view details which will load from storage or fetch
-          const savedAt = "SAVED_AT" in bookmark ? bookmark.SAVED_AT : (bookmark as FavoriteRow).savedAt;
-          return {
-            id: processedId,
-            platform: (bookmark as FavoriteRow).platform ?? "Unknown platform",
-            sourceTable: (bookmark as FavoriteRow).sourceTable ?? "UNKNOWN",
-            keyword: (bookmark as FavoriteRow).keyword ?? null,
-            postText: (bookmark as FavoriteRow).postText ?? "Post content not available. Click to view details.",
-            predIntent: (bookmark as FavoriteRow).predIntent ?? null,
-            timeAgo: (bookmark as FavoriteRow).timeAgo ?? null,
-            collectedAt: (bookmark as FavoriteRow).collectedAt ?? savedAt ?? new Date().toISOString(),
-          };
-        })
-        .filter((post): post is MonitoredPost => post !== null);
-      
+          // If we have keywords, search the database for all bookmarked post IDs
+          if (keywords.length > 0) {
+            const postIdsToFind = bookmarkList
+              .map((bm) => bm.PROCESSED_ID || (bm as FavoriteRow).processedId)
+              .filter((id): id is string => !!id && typeof id === "string");
+
+            // Search each platform for the bookmarked posts
+            const searchPromises = platforms.map(async (platformId) => {
+              try {
+                const response = await fetch(buildApiUrl("comments/search"), {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                  },
+                  body: JSON.stringify({
+                    keywords: keywords,
+                    source: platformId,
+                    limit: 200, // Search more posts to find all bookmarked ones
+                    languages: languages.length > 0 ? languages : undefined,
+                  }),
+                });
+
+                const payload = (await response.json().catch(() => ({}))) as {
+                  ok?: boolean;
+                  results?: Array<{
+                    keyword?: string;
+                    comments?: Array<{
+                      post_id?: string | null;
+                      postText?: string | null;
+                      predIntent?: string | null;
+                      timeAgo?: string | null;
+                      collectedAt?: string | null;
+                      hateScore?: number | string | null;
+                      postUrl?: string | null;
+                    }>;
+                  }>;
+                  sourceTable?: string;
+                  platform?: string;
+                };
+
+                if (!response.ok || payload.ok === false) {
+                  return [];
+                }
+
+                // Find all bookmarked posts in the search results
+                const foundPosts: MonitoredPost[] = [];
+                const results = payload.results || [];
+                
+                for (const result of results) {
+                  const comments = result.comments || [];
+                  for (const comment of comments) {
+                    const postId = comment.post_id?.toString().trim() || null;
+                    if (!postId) continue;
+
+                    // Check if this post is in our bookmarked list
+                    const isBookmarked = postIdsToFind.some((bookmarkedId) => {
+                      if (postId === bookmarkedId) return true;
+                      if (postId.toLowerCase() === bookmarkedId.toLowerCase()) return true;
+                      // For AT URIs, try partial matching
+                      if (bookmarkedId.includes("/app.bsky.feed.post/")) {
+                        const postIdPart = bookmarkedId.split("/app.bsky.feed.post/")[1];
+                        if (postIdPart && (postId.includes(postIdPart) || comment.postUrl?.includes(postIdPart))) {
+                          return true;
+                        }
+                        if (comment.postUrl?.includes(bookmarkedId) || bookmarkedId.includes(comment.postUrl || "")) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    });
+
+                    if (isBookmarked) {
+                      const platformLabel = platformId === "BLUSKY_TEST" || platformId === "BLUSKY" || platformId === "BLUSKY2"
+                        ? "Bluesky"
+                        : platformId;
+
+                      foundPosts.push({
+                        id: postId,
+                        platform: platformLabel,
+                        sourceTable: payload.sourceTable || platformId,
+                        keyword: result.keyword ?? null,
+                        postText: comment.postText || "Post content not available. Click to view details.",
+                        predIntent: comment.predIntent ?? null,
+                        timeAgo: comment.timeAgo || null,
+                        collectedAt: comment.collectedAt || null,
+                        postUrl: comment.postUrl || null,
+                        hateScore: typeof comment.hateScore === "number"
+                          ? comment.hateScore
+                          : typeof comment.hateScore === "string"
+                            ? Number.parseFloat(comment.hateScore)
+                            : null,
+                      });
+                    }
+                  }
+                }
+
+                return foundPosts;
+              } catch {
+                return [];
+              }
+            });
+
+            const searchResults = await Promise.all(searchPromises);
+            const allFoundPosts = searchResults.flat();
+
+            // Deduplicate by post ID
+            const postMap = new Map<string, MonitoredPost>();
+            for (const foundPost of allFoundPosts) {
+              if (!postMap.has(foundPost.id)) {
+                postMap.set(foundPost.id, foundPost);
+              }
+            }
+
+            mappedPosts = Array.from(postMap.values());
+          }
+        } catch (err) {
+          console.error("Failed to search database for bookmarked posts:", err);
+        }
+      }
+
+      // If still no posts found, fall back to bookmark metadata
+      if (mappedPosts.length === 0) {
+        mappedPosts = bookmarkList
+          .map((bookmark) => {
+            const processedId =
+              "PROCESSED_ID" in bookmark
+                ? bookmark.PROCESSED_ID
+                : (bookmark as FavoriteRow).processedId;
+            if (!processedId) return null;
+
+            const postData = extractMonitoredPostFromBookmark({
+              ...(bookmark as BookmarkApiRow),
+              PROCESSED_ID: processedId,
+            });
+
+            if (postData) {
+              return postData;
+            }
+
+            // Fallback: create minimal post data from bookmark metadata
+            return fallbackPostFromBookmark(bookmark as BookmarkApiRow, processedId);
+          })
+          .filter((post): post is MonitoredPost => post !== null);
+      }
+
       setBookmarks(mappedPosts);
     } catch (err) {
       setError((err as Error).message || "Unable to load bookmarks right now.");
@@ -127,6 +407,20 @@ const Bookmarks = () => {
       setIsLoading(false);
     }
   }, [token, user?.id]);
+
+  // Helper function to format time ago
+  const formatTimeAgo = (date: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "just now";
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  };
 
   useEffect(() => {
     void loadBookmarks();

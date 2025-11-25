@@ -5,9 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost, type SavedPreferences } from "@/types/monitors";
 import {
   loadPreferencesFromStorage,
-  loadPostsFromStorage,
   normalizePreferences,
-  savePostsToStorage,
   savePreferencesToStorage,
 } from "@/utils/monitoringStorage";
 
@@ -33,6 +31,7 @@ type SearchResponse = {
     keyword?: string;
     count?: number;
     comments?: Array<{
+      post_id?: string | null;
       postText?: string | null;
       predIntent?: string | null;
       timeAgo?: string | null;
@@ -96,13 +95,7 @@ const PersonalMonitors = () => {
   const languagesList = useMemo(() => preferences?.languages ?? [], [preferences]);
   const platformsList = useMemo(() => preferences?.platforms ?? [], [preferences]);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    const cachedPosts = loadPostsFromStorage(user.id);
-    if (cachedPosts.length) {
-      setPosts(cachedPosts);
-    }
-  }, [user?.id]);
+  // Posts are now always loaded from backend API, no localStorage cache
 
   useEffect(() => {
     if (!user?.id || !token) {
@@ -301,12 +294,19 @@ const PersonalMonitors = () => {
           const comments = Array.isArray(keywordResult.comments) ? keywordResult.comments : [];
 
           for (const comment of comments) {
-            const processedId =
-              (comment as { processedId?: string | null }).processedId?.toString().trim() ?? null;
+            // Use post_id from backend (actual database POST_ID) as the primary identifier
+            // Fallback to processedId for backward compatibility
             const postId =
-              processedId && processedId.length > 0
-                ? processedId
-                : `${sourceTable}-${keywordValue ?? "ALL"}-${counter}`;
+              (comment as { post_id?: string | null }).post_id?.toString().trim() ??
+              (comment as { processedId?: string | null }).processedId?.toString().trim() ??
+              null;
+            
+            // Skip posts without a valid post_id from backend
+            if (!postId || postId.length === 0) {
+              console.warn("Skipping post without post_id from backend:", comment);
+              continue;
+            }
+            
             const parsedHateScore =
               typeof comment.hateScore === "number"
                 ? comment.hateScore
@@ -338,9 +338,13 @@ const PersonalMonitors = () => {
       const seen = new Set<string>();
 
       for (const post of aggregated) {
-        const key = post.id || `${post.platform}|${post.postText}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        // Use post.id from backend
+        if (!post.id) {
+          console.warn("Skipping post without id during deduplication:", post);
+          continue;
+        }
+        if (seen.has(post.id)) continue;
+        seen.add(post.id);
         deduped.push(post);
       }
 
@@ -348,11 +352,9 @@ const PersonalMonitors = () => {
       setCurrentPage(1);
       setPostsError(deduped.length === 0 ? "No posts matched your current filters." : null);
       setLastUpdatedAt(new Date().toISOString());
-      savePostsToStorage(deduped, user?.id);
     } catch (error) {
       setPostsError((error as Error).message || "Unable to load posts right now.");
-      const cachedPosts = loadPostsFromStorage(user?.id);
-      setPosts(cachedPosts);
+      setPosts([]);
     } finally {
       setIsLoadingPosts(false);
     }
