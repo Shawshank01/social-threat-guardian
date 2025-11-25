@@ -3,11 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Download, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type SavedPreferences } from "@/types/monitors";
-import {
-  loadPreferencesFromStorage,
-  normalizePreferences,
-  savePreferencesToStorage,
-} from "@/utils/monitoringStorage";
+import { normalizePreferences } from "@/utils/preferences";
 
 type CommentMatch = {
   postText?: string | null;
@@ -176,17 +172,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user?.id || !token) {
-      const localPreferences = loadPreferencesFromStorage();
-      if (localPreferences) {
-        applySavedPreferences(localPreferences);
-        setPreferencesError(
-          user?.id
-            ? "Unable to authenticate with the server. Using this browser's saved configuration."
-            : "Sign in to sync preferences across devices. Using this browser's saved configuration.",
-        );
-      } else {
-        setPreferencesError(null);
-      }
+      setPreferencesError("You need to be signed in to load your monitoring preferences.");
       return;
     }
 
@@ -201,7 +187,7 @@ const Dashboard = () => {
           method: "GET",
           headers: {
             Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           signal: controller.signal,
         });
@@ -223,13 +209,11 @@ const Dashboard = () => {
             languages: [],
           };
 
-        const cachedPreferences = loadPreferencesFromStorage();
+        // Use default platforms if none are specified
         const resolvedPlatforms =
           normalized.platforms.length > 0
             ? normalized.platforms
-            : cachedPreferences?.platforms && cachedPreferences.platforms.length > 0
-              ? cachedPreferences.platforms
-              : PLATFORM_OPTIONS.map((platform) => platform.id);
+            : PLATFORM_OPTIONS.map((platform) => platform.id);
 
         const mergedPreferences: SavedPreferences = {
           ...normalized,
@@ -239,28 +223,14 @@ const Dashboard = () => {
         if (isCancelled) return;
 
         applySavedPreferences(mergedPreferences);
-        savePreferencesToStorage({
-          ...mergedPreferences,
-          updatedAt: new Date().toISOString(),
-        });
         setPreferencesError(null);
       } catch (error) {
         if (isCancelled || (error as Error).name === "AbortError") return;
 
-        const fallback = loadPreferencesFromStorage();
-        if (fallback) {
-          applySavedPreferences(fallback);
-          setPreferencesError(
-            (error as Error).message
-              ? `${(error as Error).message} Using this browser's saved configuration instead.`
-              : "Using this browser's saved configuration because the server is unavailable.",
-          );
-        } else {
-          setPreferencesError(
-            (error as Error).message ??
-            "Unable to load saved settings right now. Configure new preferences and save again.",
-          );
-        }
+        setPreferencesError(
+          (error as Error).message ??
+          "Unable to load saved settings right now. Configure new preferences and save again.",
+        );
       } finally {
         if (!isCancelled) {
           setIsSyncingPreferences(false);
@@ -468,7 +438,6 @@ const Dashboard = () => {
       };
 
       await persistPreferencesToBackend(preferencesToPersist);
-      savePreferencesToStorage(preferencesToPersist);
 
       const savedPlatforms = preferencesToPersist.platforms.map(
         (platformId) => PLATFORM_OPTIONS.find((platform) => platform.id === platformId)?.label ?? platformId,

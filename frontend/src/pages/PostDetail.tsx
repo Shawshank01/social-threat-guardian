@@ -65,8 +65,7 @@ const PostDetail = () => {
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
 
-  // Load post from database if not available from route state or has placeholder content
-  // Use the same method as Personal Monitors to ensure consistency
+  // Load post from bookmarks or database if not available from route state or has placeholder content
   useEffect(() => {
     // Check if we have a post with valid content (not placeholder text)
     const hasPostWithContent = post && 
@@ -79,9 +78,132 @@ const PostDetail = () => {
     
     const controller = new AbortController();
 
-    const loadPostFromDatabase = async () => {
+    const loadPost = async () => {
       try {
-        // Load user preferences to search the database the same way Personal Monitors does
+        // First, check if this post is bookmarked and try to load from /bookmark/content
+        const bookmarksResponse = await fetch(buildApiUrl("favorites"), {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        });
+
+        let isBookmarked = false;
+        if (bookmarksResponse.ok) {
+          const bookmarksPayload = (await bookmarksResponse.json().catch(() => ({}))) as {
+            ok?: boolean;
+            bookmarks?: Array<{
+              PROCESSED_ID?: string;
+            }>;
+          };
+
+          if (bookmarksPayload.ok && bookmarksPayload.bookmarks) {
+            isBookmarked = bookmarksPayload.bookmarks.some(
+              (bookmark) => bookmark.PROCESSED_ID === decodedPostId
+            );
+          }
+        }
+
+        // If bookmarked, try to load from /bookmark/content endpoint first
+        if (isBookmarked) {
+          const sourceTables = ["BLUSKY_TEST", "BLUSKY", "BLUSKY2"];
+          
+          for (const sourceTable of sourceTables) {
+            try {
+              const contentResponse = await fetch(
+                buildApiUrl(`favorites/content?source=${encodeURIComponent(sourceTable)}`),
+                {
+                  method: "GET",
+                  headers: {
+                    Accept: "application/json",
+                    Authorization: `Bearer ${token}`,
+                  },
+                  signal: controller.signal,
+                },
+              );
+
+              const contentPayload = (await contentResponse.json().catch(() => ({}))) as {
+                ok?: boolean;
+                posts?: Array<{
+                  postId?: string;
+                  postUrl?: string | null;
+                  postText?: string | null;
+                  postTimestamp?: string | null;
+                  savedAt?: string | null;
+                  bookmarkId?: string;
+                }>;
+                source?: string;
+                error?: string;
+              };
+
+              if (contentResponse.ok && contentPayload.ok && contentPayload.posts) {
+                // Try to find the post using flexible matching
+                let postData = contentPayload.posts.find((p) => p.postId === decodedPostId);
+                
+                if (!postData) {
+                  postData = contentPayload.posts.find(
+                    (p) => p.postId?.toLowerCase() === decodedPostId.toLowerCase()
+                  );
+                }
+                
+                if (!postData && decodedPostId.includes("/app.bsky.feed.post/")) {
+                  const postIdPart = decodedPostId.split("/app.bsky.feed.post/")[1];
+                  if (postIdPart) {
+                    postData = contentPayload.posts.find((p) => 
+                      p.postId?.includes(postIdPart) || 
+                      p.postId?.endsWith(postIdPart) ||
+                      p.postUrl?.includes(postIdPart)
+                    );
+                  }
+                }
+                
+                if (postData) {
+                  const platformLabel = sourceTable === "BLUSKY_TEST" || sourceTable === "BLUSKY" || sourceTable === "BLUSKY2"
+                    ? "Bluesky"
+                    : sourceTable;
+
+                  const formatTimeAgoHelper = (date: Date): string => {
+                    const now = new Date();
+                    const diffMs = now.getTime() - date.getTime();
+                    const diffMins = Math.floor(diffMs / 60000);
+                    const diffHours = Math.floor(diffMs / 3600000);
+                    const diffDays = Math.floor(diffMs / 86400000);
+
+                    if (diffMins < 1) return "just now";
+                    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+                    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+                    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+                  };
+
+                  const hydratedPost: MonitoredPost = {
+                    id: decodedPostId,
+                    platform: platformLabel,
+                    sourceTable: contentPayload.source || sourceTable,
+                    keyword: null,
+                    postText: postData.postText || "Post content not available. Click to view details.",
+                    predIntent: null,
+                    timeAgo: postData.postTimestamp
+                      ? formatTimeAgoHelper(new Date(postData.postTimestamp))
+                      : null,
+                    collectedAt: postData.postTimestamp || null,
+                    postUrl: postData.postUrl || null,
+                    hateScore: null,
+                  };
+                  setPost(hydratedPost);
+                  return;
+                }
+              }
+            } catch {
+              // Continue to next source table
+              continue;
+            }
+          }
+        }
+
+        // If not found in bookmarks, try searching the database using user preferences
+        // Only if we have keywords configured
         const preferencesResponse = await fetch(buildApiUrl("user-preferences"), {
           method: "GET",
           headers: {
@@ -114,132 +236,129 @@ const PostDetail = () => {
           }
         }
 
-        // Search all platforms to find the post
-        // If no keywords, we'll still try to search (the backend might handle empty keywords)
-        const searchPromises = platforms.map(async (platformId) => {
-          try {
-            // Use keywords if available, otherwise try with empty array (backend might return recent posts)
-            const searchKeywords = keywords.length > 0 ? keywords : [];
-            
-            // Skip search if no keywords (can't search without keywords)
-            if (searchKeywords.length === 0) {
-              return null;
-            }
-            
-            const response = await fetch(buildApiUrl("comments/search"), {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                keywords: searchKeywords,
-                source: platformId,
-                limit: 100, // Search more posts to increase chance of finding the one we need
-                languages: languages.length > 0 ? languages : undefined,
-              }),
-              signal: controller.signal,
-            });
+        // Only search if we have keywords
+        if (keywords.length > 0) {
+          const searchPromises = platforms.map(async (platformId) => {
+            try {
+              const response = await fetch(buildApiUrl("comments/search"), {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  keywords: keywords,
+                  source: platformId,
+                  limit: 100,
+                  languages: languages.length > 0 ? languages : undefined,
+                }),
+                signal: controller.signal,
+              });
 
-            const payload = (await response.json().catch(() => ({}))) as {
-              ok?: boolean;
-              results?: Array<{
-                keyword?: string;
-                comments?: Array<{
-                  post_id?: string | null;
-                  postText?: string | null;
-                  predIntent?: string | null;
-                  timeAgo?: string | null;
-                  collectedAt?: string | null;
-                  hateScore?: number | string | null;
-                  postUrl?: string | null;
+              // If search fails, return null (don't show error)
+              if (!response.ok) {
+                return null;
+              }
+
+              const payload = (await response.json().catch(() => ({}))) as {
+                ok?: boolean;
+                results?: Array<{
+                  keyword?: string;
+                  comments?: Array<{
+                    post_id?: string | null;
+                    postText?: string | null;
+                    predIntent?: string | null;
+                    timeAgo?: string | null;
+                    collectedAt?: string | null;
+                    hateScore?: number | string | null;
+                    postUrl?: string | null;
+                  }>;
                 }>;
-              }>;
-              sourceTable?: string;
-              platform?: string;
-            };
+                sourceTable?: string;
+                platform?: string;
+              };
 
-            if (!response.ok || payload.ok === false) {
-              return null;
-            }
+              if (payload.ok === false) {
+                return null;
+              }
 
-            // Look for the post ID in all results
-            const results = payload.results || [];
-            for (const result of results) {
-              const comments = result.comments || [];
-              for (const comment of comments) {
-                const postId = comment.post_id?.toString().trim() || null;
-                
-                // Try multiple matching strategies
-                let isMatch = false;
-                if (postId === decodedPostId) {
-                  isMatch = true;
-                } else if (postId?.toLowerCase() === decodedPostId.toLowerCase()) {
-                  isMatch = true;
-                } else if (decodedPostId.includes("/app.bsky.feed.post/")) {
-                  // For AT URIs, try matching by URL or partial ID
-                  const postIdPart = decodedPostId.split("/app.bsky.feed.post/")[1];
-                  if (postIdPart && (postId?.includes(postIdPart) || comment.postUrl?.includes(postIdPart))) {
+              // Look for the post ID in all results
+              const results = payload.results || [];
+              for (const result of results) {
+                const comments = result.comments || [];
+                for (const comment of comments) {
+                  const postId = comment.post_id?.toString().trim() || null;
+                  
+                  // Try multiple matching strategies
+                  let isMatch = false;
+                  if (postId === decodedPostId) {
                     isMatch = true;
-                  } else if (comment.postUrl?.includes(decodedPostId) || decodedPostId.includes(comment.postUrl || "")) {
+                  } else if (postId?.toLowerCase() === decodedPostId.toLowerCase()) {
                     isMatch = true;
+                  } else if (decodedPostId.includes("/app.bsky.feed.post/")) {
+                    const postIdPart = decodedPostId.split("/app.bsky.feed.post/")[1];
+                    if (postIdPart && (postId?.includes(postIdPart) || comment.postUrl?.includes(postIdPart))) {
+                      isMatch = true;
+                    } else if (comment.postUrl?.includes(decodedPostId) || decodedPostId.includes(comment.postUrl || "")) {
+                      isMatch = true;
+                    }
+                  }
+
+                  if (isMatch) {
+                    const platformLabel = platformId === "BLUSKY_TEST" || platformId === "BLUSKY" || platformId === "BLUSKY2"
+                      ? "Bluesky"
+                      : platformId;
+
+                    const formatTimeAgoHelper = (date: Date): string => {
+                      const now = new Date();
+                      const diffMs = now.getTime() - date.getTime();
+                      const diffMins = Math.floor(diffMs / 60000);
+                      const diffHours = Math.floor(diffMs / 3600000);
+                      const diffDays = Math.floor(diffMs / 86400000);
+
+                      if (diffMins < 1) return "just now";
+                      if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+                      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+                      return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+                    };
+
+                    const hydratedPost: MonitoredPost = {
+                      id: decodedPostId,
+                      platform: platformLabel,
+                      sourceTable: payload.sourceTable || platformId,
+                      keyword: result.keyword ?? null,
+                      postText: comment.postText || "Post content not available. Click to view details.",
+                      predIntent: comment.predIntent ?? null,
+                      timeAgo: comment.timeAgo || null,
+                      collectedAt: comment.collectedAt || null,
+                      postUrl: comment.postUrl || null,
+                      hateScore: typeof comment.hateScore === "number"
+                        ? comment.hateScore
+                        : typeof comment.hateScore === "string"
+                          ? Number.parseFloat(comment.hateScore)
+                          : null,
+                    };
+                    return hydratedPost;
                   }
                 }
-
-                if (isMatch) {
-                  const platformLabel = platformId === "BLUSKY_TEST" || platformId === "BLUSKY" || platformId === "BLUSKY2"
-                    ? "Bluesky"
-                    : platformId;
-
-                  const formatTimeAgoHelper = (date: Date): string => {
-                    const now = new Date();
-                    const diffMs = now.getTime() - date.getTime();
-                    const diffMins = Math.floor(diffMs / 60000);
-                    const diffHours = Math.floor(diffMs / 3600000);
-                    const diffDays = Math.floor(diffMs / 86400000);
-
-                    if (diffMins < 1) return "just now";
-                    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
-                    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
-                    return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
-                  };
-
-                  const hydratedPost: MonitoredPost = {
-                    id: decodedPostId,
-                    platform: platformLabel,
-                    sourceTable: payload.sourceTable || platformId,
-                    keyword: result.keyword ?? null,
-                    postText: comment.postText || "Post content not available. Click to view details.",
-                    predIntent: comment.predIntent ?? null,
-                    timeAgo: comment.timeAgo || null,
-                    collectedAt: comment.collectedAt || null,
-                    postUrl: comment.postUrl || null,
-                    hateScore: typeof comment.hateScore === "number"
-                      ? comment.hateScore
-                      : typeof comment.hateScore === "string"
-                        ? Number.parseFloat(comment.hateScore)
-                        : null,
-                  };
-                  return hydratedPost;
-                }
               }
+              return null;
+            } catch {
+              return null;
             }
-            return null;
-          } catch {
-            return null;
+          });
+
+          const results = await Promise.all(searchPromises);
+          const foundPost = results.find((p) => p !== null);
+
+          if (foundPost) {
+            setPost(foundPost);
+            return;
           }
-        });
-
-        // Wait for all searches to complete
-        const results = await Promise.all(searchPromises);
-        const foundPost = results.find((p) => p !== null);
-
-        if (foundPost) {
-          setPost(foundPost);
-          return;
         }
 
-        // If not found, create a fallback post from the AT URI
+        // If not found anywhere, create a fallback post from the AT URI
+        // But preserve existing post data if available (don't overwrite with placeholder)
         if (decodedPostId.startsWith("at://")) {
           const atUriMatch = decodedPostId.match(/^at:\/\/([^/]+)\/(.+)$/);
           if (atUriMatch) {
@@ -252,29 +371,32 @@ const PostDetail = () => {
               postUrl = `https://bsky.app/profile/${did}/post/${postId}`;
             }
 
-            const fallbackPost: MonitoredPost = {
-              id: decodedPostId,
-              platform: isBlueskyPost ? "Bluesky" : "Unknown platform",
-              sourceTable: isBlueskyPost ? "BLUSKY_TEST" : "UNKNOWN",
-              keyword: null,
-              postText: "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.",
-              predIntent: null,
-              timeAgo: null,
-              collectedAt: null,
-              postUrl,
-              hateScore: null,
-            };
-            setPost(fallbackPost);
+            // Only set fallback if we don't already have a post
+            if (!post) {
+              const fallbackPost: MonitoredPost = {
+                id: decodedPostId,
+                platform: isBlueskyPost ? "Bluesky" : "Unknown platform",
+                sourceTable: isBlueskyPost ? "BLUSKY_TEST" : "UNKNOWN",
+                keyword: null,
+                postText: "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.",
+                predIntent: null,
+                timeAgo: null,
+                collectedAt: null,
+                postUrl,
+                hateScore: null,
+              };
+              setPost(fallbackPost);
+            }
             return;
           }
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
-        console.error("Failed to load post from database", error);
+        // Don't log errors - silently fail and preserve existing post data
       }
     };
 
-    void loadPostFromDatabase();
+    void loadPost();
 
     return () => controller.abort();
   }, [decodedPostId, post, token]);
