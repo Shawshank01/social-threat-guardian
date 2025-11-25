@@ -1,4 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "http";
+import https from "https";
+import http from "http";
 
 type ApiRequest = IncomingMessage & {
   method?: string;
@@ -6,6 +8,7 @@ type ApiRequest = IncomingMessage & {
     authorization?: string | string[];
   };
   url?: string;
+  body?: unknown;
 };
 
 type ApiResponse = ServerResponse & {
@@ -13,6 +16,7 @@ type ApiResponse = ServerResponse & {
   json: (body: unknown) => ApiResponse;
   send: (body?: unknown) => ApiResponse;
   end: (chunk?: unknown) => ApiResponse;
+  setHeader: (name: string, value: string) => void;
 };
 
 const BACKEND_URL = process.env.BACKEND_URL;
@@ -20,6 +24,63 @@ const BACKEND_URL = process.env.BACKEND_URL;
 const normalizeHeader = (value?: string | string[]) => {
   if (!value) return undefined;
   return Array.isArray(value) ? value[0] : value;
+};
+
+// Helper function to make HTTP/HTTPS requests to the backend
+function makeRequest(url: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === "https:";
+    const client = isHttps ? https : http;
+
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port || (isHttps ? 443 : 80),
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || "GET",
+      headers: options.headers || {},
+    };
+
+    const req = client.request(requestOptions, (res) => {
+      let body = "";
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => {
+        const headers: Record<string, string> = {};
+        Object.keys(res.headers).forEach((key) => {
+          const value = res.headers[key];
+          if (value) {
+            headers[key] = Array.isArray(value) ? value[0] : value;
+          }
+        });
+        resolve({
+          status: res.statusCode || 500,
+          headers,
+          body,
+        });
+      });
+    });
+
+    req.on("error", (error) => {
+      reject(error);
+    });
+
+    if (options.body) {
+      req.write(options.body);
+    }
+
+    req.end();
+  });
+}
+
+const serializeBody = (body: unknown): string => {
+  if (!body) return "{}";
+  try {
+    return JSON.stringify(body);
+  } catch {
+    return "{}";
+  }
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
@@ -71,39 +132,61 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (req.method === "GET") {
     // GET /bookmark/:processedId to retrieve a single bookmark
     const targetUrl = new URL(`/bookmark/${encodeURIComponent(processedId)}`, BACKEND_URL).toString();
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      headers,
-    });
+    
+    try {
+      const response = await makeRequest(targetUrl, {
+        method: "GET",
+        headers,
+      });
 
-    const text = await response.text();
-    const contentType = response.headers.get("content-type");
-    if (contentType) {
-      res.setHeader("Content-Type", contentType);
+      const contentType = response.headers["content-type"];
+      if (contentType) {
+        res.setHeader("Content-Type", contentType);
+      }
+      res.status(response.status).send(response.body);
+      return;
+    } catch (error) {
+      console.error("[api/favorites/[processedId]] Backend request failed:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({
+        ok: false,
+        error: "Failed to connect to backend server.",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+      return;
     }
-    res.status(response.status).send(text);
-    return;
   }
 
   if (req.method === "DELETE") {
     // DELETE /bookmark/remove, remove a bookmark
     const targetUrl = new URL("/bookmark/remove", BACKEND_URL).toString();
-    const response = await fetch(targetUrl, {
-      method: "DELETE",
-      headers: {
-        ...headers,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ post_id: processedId }),
-    });
+    
+    try {
+      const response = await makeRequest(targetUrl, {
+        method: "DELETE",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: serializeBody({ post_id: processedId }),
+      });
 
-    const text = await response.text();
-    const contentType = response.headers.get("content-type");
-    if (contentType) {
-      res.setHeader("Content-Type", contentType);
+      const contentType = response.headers["content-type"];
+      if (contentType) {
+        res.setHeader("Content-Type", contentType);
+      }
+      res.status(response.status).send(response.body);
+      return;
+    } catch (error) {
+      console.error("[api/favorites/[processedId]] Backend request failed:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({
+        ok: false,
+        error: "Failed to connect to backend server.",
+        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
+      });
+      return;
     }
-    res.status(response.status).send(text);
-    return;
   }
 
   res.status(405).send("Method Not Allowed");
