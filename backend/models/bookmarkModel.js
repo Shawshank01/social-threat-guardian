@@ -12,8 +12,7 @@ export async function ensureFavoritesTable() {
             USER_ID     VARCHAR2(255 BYTE) NOT NULL,
             POST_ID     VARCHAR2(255 BYTE) NOT NULL,
             CREATED_AT  TIMESTAMP(6)        DEFAULT SYSTIMESTAMP NOT NULL,
-            UPDATED_AT  TIMESTAMP(6)        DEFAULT SYSTIMESTAMP NOT NULL,
-            IS_DELETED  NUMBER(1, 0)        DEFAULT 0 NOT NULL
+            UPDATED_AT  TIMESTAMP(6)        DEFAULT SYSTIMESTAMP NOT NULL
           )
         ';
       EXCEPTION
@@ -90,10 +89,9 @@ export async function getBookmarks(userId) {
               POST_ID    AS PROCESSED_ID,
               CREATED_AT AS SAVED_AT,
               UPDATED_AT
-         FROM BOOKMARKS
-        WHERE USER_ID = :userId
-          AND NVL(IS_DELETED, 0) = 0
-     ORDER BY CREATED_AT DESC`,
+       FROM BOOKMARKS
+       WHERE USER_ID = :userId
+    ORDER BY CREATED_AT DESC`,
       { userId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -109,16 +107,14 @@ export async function addBookmarks(userId, postId) {
          USER_ID,
          POST_ID,
          CREATED_AT,
-         UPDATED_AT,
-         IS_DELETED
+         UPDATED_AT
        )
        VALUES (
          RAWTOHEX(SYS_GUID()),
          :userId,
          :postId,
          SYSTIMESTAMP,
-         SYSTIMESTAMP,
-         0
+         SYSTIMESTAMP
        )
        RETURNING BOOKMARK_ID INTO :bookmarkId`,
       {
@@ -155,12 +151,9 @@ export async function addBookmarks(userId, postId) {
 export async function deleteBookmarks(userId, processedId) {
   return withConnection(async (conn) => {
     const result = await conn.execute(
-      `UPDATE BOOKMARKS
-          SET IS_DELETED = 1,
-              UPDATED_AT = SYSTIMESTAMP
+      `DELETE FROM BOOKMARKS
         WHERE USER_ID = :userId
-          AND POST_ID = :processedId
-          AND NVL(IS_DELETED, 0) = 0`,
+          AND POST_ID = :processedId`,
       { userId, processedId },
       { autoCommit: true }
     );

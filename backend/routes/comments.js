@@ -1,7 +1,6 @@
 // /routes/comments.js
 import express from "express";
-import Fuse from "fuse.js";
-import { fetchLatestComments } from "../models/commentModel.js";
+import { fetchLatestComments, searchCommentsByText } from "../models/commentModel.js";
 import { createCommentForPost, listCommentsForPost } from "../models/commentNoteModel.js";
 
 const router = express.Router();
@@ -110,67 +109,15 @@ router.post("/search", async (req, res) => {
   const platformLabel = resolvePlatformLabel(tableName);
 
   try {
-    const candidateRows = await fetchLatestComments(1000, {
-      predIntent,
-      tableName,
-    });
-
-    const fuse = new Fuse(candidateRows, {
-      keys: ["POST_TEXT"],
-      includeScore: true,
-      threshold: 0.4,
-      ignoreLocation: true,
-      minMatchCharLength: 2,
-      useExtendedSearch: false,
-    });
-    const similarityAcceptanceThreshold = 0.25;
-
     const results = [];
     for (const keyword of cappedKeywords) {
-      const rows = await fetchLatestComments(parsedLimit, {
+      const rows = await searchCommentsByText([keyword], {
         predIntent,
         tableName,
-        keyword,
+        limit: parsedLimit,
       });
 
-      const fuzzyMatches = fuse.search(keyword, {
-        limit: Math.max(parsedLimit * 2, parsedLimit),
-      });
-      const bestFuzzyScore =
-        fuzzyMatches.length > 0 && typeof fuzzyMatches[0].score === "number"
-          ? fuzzyMatches[0].score
-          : null;
-
-      const hasEnoughExact = rows.length >= parsedLimit;
-      const hasHighSimilarity =
-        typeof bestFuzzyScore === "number" && bestFuzzyScore <= similarityAcceptanceThreshold;
-
-      const uniqueRows = [];
-      const seenIds = new Set();
-      const pushRow = (row) => {
-        if (!row || !row.POST_ID) return;
-        if (seenIds.has(row.POST_ID)) return;
-        seenIds.add(row.POST_ID);
-        uniqueRows.push(row);
-      };
-
-      if (hasEnoughExact && hasHighSimilarity) {
-        rows.forEach(pushRow);
-      } else if (!hasEnoughExact && !hasHighSimilarity) {
-        for (const { item } of fuzzyMatches) {
-          if (uniqueRows.length >= parsedLimit) break;
-          pushRow(item);
-        }
-      } else {
-        rows.forEach(pushRow);
-        for (const { item } of fuzzyMatches) {
-          if (uniqueRows.length >= parsedLimit) break;
-          pushRow(item);
-        }
-      }
-
-      const finalRows = uniqueRows.slice(0, parsedLimit);
-      const comments = finalRows.map((row) => mapCommentRow(row, platformLabel));
+      const comments = rows.map((row) => mapCommentRow(row, platformLabel));
 
       results.push({
         keyword,
