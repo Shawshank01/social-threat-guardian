@@ -3,11 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Filter, Loader2, RefreshCcw, ShieldAlert, Send, Network, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost, type SavedPreferences } from "@/types/monitors";
-import {
-  loadPreferencesFromStorage,
-  normalizePreferences,
-  savePreferencesToStorage,
-} from "@/utils/monitoringStorage";
+import { normalizePreferences } from "@/utils/preferences";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
@@ -23,6 +19,17 @@ const PLATFORM_OPTIONS = [
   { id: "MASTODON", label: "Mastodon" },
   { id: "TELEGRAM", label: "Telegram" },
 ];
+
+// Map platform IDs to actual database table names
+const PLATFORM_TO_TABLE_MAP: Record<string, string> = {
+  BLUSKY: "BLUSKY_TEST",
+  MASTODON: "MASTODON",
+  TELEGRAM: "TELEGRAM",
+};
+
+const getTableNameForPlatform = (platformId: string): string => {
+  return PLATFORM_TO_TABLE_MAP[platformId] || platformId;
+};
 
 type SearchResponse = {
   ok?: boolean;
@@ -99,10 +106,8 @@ const PersonalMonitors = () => {
 
   useEffect(() => {
     if (!user?.id || !token) {
-      const cachedPreferences = loadPreferencesFromStorage();
-      if (cachedPreferences) {
-        setPreferences(cachedPreferences);
-      }
+      setPreferences(null);
+      setPreferencesError("You need to be signed in to load your monitoring preferences.");
       return;
     }
 
@@ -116,7 +121,7 @@ const PersonalMonitors = () => {
           method: "GET",
           headers: {
             Accept: "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           signal: controller.signal,
         });
@@ -149,13 +154,11 @@ const PersonalMonitors = () => {
           languages: [],
         };
 
-        const cachedPreferences = loadPreferencesFromStorage();
+        // Use default platforms if none are specified
         const resolvedPlatforms =
           normalized.platforms.length > 0
             ? normalized.platforms
-            : cachedPreferences?.platforms && cachedPreferences.platforms.length > 0
-              ? cachedPreferences.platforms
-              : PLATFORM_OPTIONS.map((platform) => platform.id);
+            : PLATFORM_OPTIONS.map((platform) => platform.id);
 
         const mergedPreferences: SavedPreferences = {
           ...normalized,
@@ -163,10 +166,6 @@ const PersonalMonitors = () => {
         };
 
         setPreferences(mergedPreferences);
-        savePreferencesToStorage({
-          ...mergedPreferences,
-          updatedAt: new Date().toISOString(),
-        });
         setPreferencesError(null);
       } catch (error) {
         if ((error as Error).name === "AbortError") {
@@ -178,21 +177,11 @@ const PersonalMonitors = () => {
           return;
         }
 
-        const fallback = loadPreferencesFromStorage();
-        if (fallback) {
-          setPreferences(fallback);
-          setPreferencesError(
-            (error as Error).message
-              ? `${(error as Error).message} Showing cached settings instead.`
-              : "Showing cached settings because the server is unavailable.",
-          );
-        } else {
-          setPreferences(null);
-          setPreferencesError(
-            (error as Error).message ??
-            "We could not load your monitoring preferences. Configure them from the dashboard.",
-          );
-        }
+        setPreferences(null);
+        setPreferencesError(
+          (error as Error).message ??
+          "We could not load your monitoring preferences. Configure them from the dashboard.",
+        );
       } finally {
         setIsLoadingPreferences(false);
       }
@@ -234,6 +223,7 @@ const PersonalMonitors = () => {
               label: platformId,
             };
 
+          const tableName = getTableNameForPlatform(platformId);
           const response = await fetch(buildApiUrl("comments/search"), {
             method: "POST",
             headers: {
@@ -242,7 +232,7 @@ const PersonalMonitors = () => {
             },
             body: JSON.stringify({
               keywords: trimmedKeywords,
-              source: platformId,
+              source: tableName,
               limit: 50,
               languages: preferences.languages,
             }),

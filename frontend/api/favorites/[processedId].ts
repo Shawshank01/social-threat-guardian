@@ -89,6 +89,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  // Handle OPTIONS preflight
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET,DELETE,OPTIONS");
@@ -107,11 +108,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         ? new URL(req.url) 
         : new URL(req.url, "http://localhost");
       const pathParts = url.pathname.split("/").filter(Boolean);
-      processedId = pathParts[pathParts.length - 1] || "";
+      // Get the last segment and decode it (handles URL-encoded AT URIs)
+      const rawId = pathParts[pathParts.length - 1] || "";
+      processedId = decodeURIComponent(rawId);
     } catch {
       // Fallback: try to extract from the URL string directly using regex
       const match = req.url.match(/\/([^/?]+)(?:\?|$)/);
-      processedId = match ? match[1] : "";
+      if (match && match[1]) {
+        try {
+          processedId = decodeURIComponent(match[1]);
+        } catch {
+          processedId = match[1];
+        }
+      }
     }
   }
   
@@ -119,6 +128,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     res.status(400).json({ ok: false, error: "Missing post_id in URL" });
     return;
   }
+
+  // Normalise method to uppercase for comparison
+  const method = req.method?.toUpperCase() || "";
 
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -129,7 +141,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     headers.Authorization = authHeader;
   }
 
-  if (req.method === "GET") {
+  if (method === "GET") {
     // GET /bookmark/:processedId to retrieve a single bookmark
     const targetUrl = new URL(`/bookmark/${encodeURIComponent(processedId)}`, BACKEND_URL).toString();
     
@@ -157,7 +169,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
   }
 
-  if (req.method === "DELETE") {
+  if (method === "DELETE") {
     // DELETE /bookmark/remove, remove a bookmark
     const targetUrl = new URL("/bookmark/remove", BACKEND_URL).toString();
     
@@ -189,5 +201,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
   }
 
-  res.status(405).send("Method Not Allowed");
+  // Method not allowed
+  res.status(405).json({ 
+    ok: false, 
+    error: `Method ${method} not allowed. Supported methods: GET, DELETE, OPTIONS` 
+  });
 }
