@@ -486,10 +486,11 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```json
   {
     "languages": ["en"],
-    "keywords": ["trump", "election"]
+    "keywords": ["trump", "election"],
+    "platforms": ["TWITTER", "REDDIT"]
   }
   ```
-  - `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
+  - `languages`/`language`, `keywords`/`keyword`, and `platforms`/`platform` accept either a single string or an array; the backend trims empty values before storing them as JSON arrays.
 - **Responses:**
   - `200 OK`
     ```json
@@ -501,6 +502,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
         "userId": "user-uuid",
         "languages": ["en"],
         "keywords": ["trump", "election"],
+        "platform": ["TWITTER", "REDDIT"],
         "createdAt": "2024-01-01T12:34:56.000Z",
         "updatedAt": "2024-01-01T12:34:56.000Z"
       }
@@ -513,12 +515,12 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   curl -X POST https://localhost:3000/user-preferences \
        -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
-       -d '{"language":"en","keywords":["trump"]}'
+       -d '{"language":"en","keywords":["trump"],"platforms":["TWITTER"]}'
   ```
 ### Fetch User Preferences
 - `GET /user-preferences`
 - **Headers:** `Authorization: Bearer <token>`
-- **Description:** Returns the authenticated user’s keyword and language preferences. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
+- **Description:** Returns the authenticated user’s keyword, language, and platform preferences. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
 - **Successful Response (`200 OK`):**
   ```json
   {
@@ -526,7 +528,8 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     "preferences": {
       "userId": "user-uuid",
       "keywords": ["trump", "election"],
-      "languages": ["en", "es"]
+      "languages": ["en", "es"],
+      "platform": ["TWITTER", "REDDIT"]
     }
   }
   ```
@@ -547,7 +550,8 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   {
     "ID": "pref-uuid",
     "KEYWORDS": ["trump", "election"],
-    "LANGUAGES": ["en", "es"]
+    "LANGUAGES": ["en", "es"],
+    "PLATFORM": ["TWITTER", "REDDIT"]
   }
   ```
   - Returns an empty object (`{}`) when no preferences exist for the authenticated user.
