@@ -36,8 +36,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  // Extract processedId from URL (e.g., /api/favorites/post-123?userId=...)
-  // The URL might be relative or absolute, handle both cases
+  // Extract processedId from the dynamic route segment [processedId]
+  // In Vercel serverless functions, req.url contains the pathname (e.g., /api/favorites/post-123)
+  // Extract the last path segment which is the processedId
   let processedId = "";
   if (req.url) {
     try {
@@ -47,7 +48,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const pathParts = url.pathname.split("/").filter(Boolean);
       processedId = pathParts[pathParts.length - 1] || "";
     } catch {
-      // Fallback: try to extract from the URL string directly
+      // Fallback: try to extract from the URL string directly using regex
       const match = req.url.match(/\/([^/?]+)(?:\?|$)/);
       processedId = match ? match[1] : "";
     }
@@ -68,8 +69,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (req.method === "GET") {
-    // GET /bookmark. list all bookmarks, then filter client-side
-    const targetUrl = new URL("/bookmark", BACKEND_URL).toString();
+    // GET /bookmark/:processedId to retrieve a single bookmark
+    const targetUrl = new URL(`/bookmark/${encodeURIComponent(processedId)}`, BACKEND_URL).toString();
     const response = await fetch(targetUrl, {
       method: "GET",
       headers,

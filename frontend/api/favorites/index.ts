@@ -71,11 +71,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (req.method === "POST") {
-    // POST /bookmark/add, add a bookmark
+    // POST /bookmark/add, add a bookmark, only send post_id, backend will handle the rest
     const targetUrl = new URL("/bookmark/add", BACKEND_URL).toString();
-    const body = req.body as { post_id?: string; postId?: string; processedId?: string; [key: string]: unknown };
+    const body = req.body as {
+      post_id?: string;
+      postId?: string;
+      processedId?: string;
+      [key: string]: unknown;
+    };
     
-    // Transform request body to match backend API
+    // Only send post_id to backend, backend will fetch post data from database
     const backendBody = {
       post_id: body.post_id || body.postId || body.processedId,
     };
