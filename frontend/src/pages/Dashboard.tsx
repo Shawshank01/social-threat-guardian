@@ -64,7 +64,7 @@ const LANGUAGE_OPTIONS = [
 ];
 
 const Dashboard = () => {
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -198,6 +198,18 @@ const Dashboard = () => {
           preferences?: SavedPreferences;
         };
 
+        // Check for 401 Unauthorized: token expired
+        if (response.status === 401) {
+          logout();
+          navigate("/login", {
+            state: {
+              from: { pathname: "/dashboard" },
+              message: "Your session has expired. Please log in again."
+            }
+          });
+          return;
+        }
+
         if (!response.ok || payload.ok === false) {
           throw new Error(payload.error ?? "Unable to load saved settings from the server.");
         }
@@ -227,9 +239,21 @@ const Dashboard = () => {
       } catch (error) {
         if (isCancelled || (error as Error).name === "AbortError") return;
 
+        const errorMessage = (error as Error).message || "";
+        // Check if error indicates token expiration
+        if (errorMessage.includes("expired") || errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
+          logout();
+          navigate("/login", {
+            state: {
+              from: { pathname: "/dashboard" },
+              message: "Your session has expired. Please log in again."
+            }
+          });
+          return;
+        }
+
         setPreferencesError(
-          (error as Error).message ??
-          "Unable to load saved settings right now. Configure new preferences and save again.",
+          errorMessage || "Unable to load saved settings right now. Configure new preferences and save again.",
         );
       } finally {
         if (!isCancelled) {
@@ -248,11 +272,13 @@ const Dashboard = () => {
 
   const persistPreferencesToBackend = async (preferences: SavedPreferences) => {
     if (!user?.id || !token) {
-      setPreferencesError(
-        user?.id
-          ? "Unable to authenticate with the server. We'll keep these changes on this browser."
-          : "Sign in to sync your monitoring filters across devices. We'll keep these changes on this browser.",
-      );
+      logout();
+      navigate("/login", {
+        state: {
+          from: { pathname: "/dashboard" },
+          message: "Your session has expired. Please log in again."
+        }
+      });
       return false;
     }
 
@@ -276,6 +302,18 @@ const Dashboard = () => {
         preferences?: SavedPreferences;
       };
 
+      // Check for 401 Unauthorized: token expired
+      if (response.status === 401) {
+        logout();
+        navigate("/login", {
+          state: {
+            from: { pathname: "/dashboard" },
+            message: "Your session has expired. Please log in again."
+          }
+        });
+        return false;
+      }
+
       if (!response.ok || payload.ok === false) {
         throw new Error(payload.error ?? "Unable to update saved settings on the server.");
       }
@@ -284,9 +322,21 @@ const Dashboard = () => {
       return true;
     } catch (error) {
       console.error("Failed to persist dashboard preferences", error);
+      const errorMessage = (error as Error).message || "";
+      // Check if error indicates token expiration
+      if (errorMessage.includes("expired") || errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
+        logout();
+        navigate("/login", {
+          state: {
+            from: { pathname: "/dashboard" },
+            message: "Your session has expired. Please log in again."
+          }
+        });
+        return false;
+      }
+
       setPreferencesError(
-        (error as Error).message ??
-        "Unable to sync settings to the server. We'll keep your latest changes on this browser.",
+        errorMessage || "Unable to sync settings to the server. Please try again later.",
       );
       return false;
     }
@@ -407,6 +457,22 @@ const Dashboard = () => {
           });
 
           const payload = (await response.json().catch(() => ({}))) as SearchResponse;
+
+          // Check for 401 Unauthorized: token expired
+          if (response.status === 401) {
+            logout();
+            navigate("/login", {
+              state: {
+                from: { pathname: "/dashboard" },
+                message: "Your session has expired. Please log in again."
+              }
+            });
+            return {
+              platform: platformMeta.label,
+              sourceTable: platformId,
+              results: [],
+            };
+          }
 
           if (!response.ok || payload.ok === false) {
             throw new Error(payload.error ?? `Unable to search ${platformMeta.label}.`);
@@ -650,11 +716,10 @@ const Dashboard = () => {
                   key={language.value}
                   type="button"
                   onClick={() => toggleLanguage(language.value)}
-                  className={`flex items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${
-                    isSelected
+                  className={`flex items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
                       ? "border-stg-accent bg-stg-accent text-white shadow-lg"
                       : "border-slate-300/80 bg-white text-slate-700 hover:border-stg-accent/40 hover:text-stg-accent dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-stg-accent/60"
-                  }`}
+                    }`}
                   aria-pressed={isSelected}
                 >
                   {language.label}

@@ -217,8 +217,8 @@ const Bookmarks = () => {
   const handleRemove = async (processedId: string) => {
     if (!token) return;
     try {
-      // DELETE /bookmark/remove with post_id in body (per backend API)
-      // Use the [processedId] route which handles DELETE correctly
+      // DELETE /bookmark/remove
+      // The serverless function extracts post_id from the URL path and forwards it to the backend
       const response = await fetch(buildApiUrl(`favorites/${encodeURIComponent(processedId)}`), {
         method: "DELETE",
         headers: {
