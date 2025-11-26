@@ -638,6 +638,40 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     ]
   }
   ```
+### Add Reply to Post
+- **Endpoint:** `POST /reply/add`
+- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) 和可选的 `req.user.name`。
+- **Body:** JSON
+  ```json
+  {
+    "post_id": "POST_ID",
+    "reply_text": "your reply text",
+    "user_name": "Optional display name"
+  }
+  ```
+  `post_id`/`reply_text` 为必填；`user_name` 可选，不传则使用 JWT 中的 name（若存在）。后端同时接受 `postId` / `replyText` / `author_name` 的兼容字段。
+- **Response (201 Created):**
+  ```json
+  {
+    "ok": true,
+    "reply": {
+      "id": "generated-id",
+      "postId": "POST_ID",
+      "userId": "user-uuid",
+      "authorName": "Optional display name",
+      "replyText": "your reply text",
+      "createdAt": "2024-01-01T12:34:56.000Z"
+    }
+  }
+  ```
+- **Errors:** `400` 当缺少 `post_id` 或 `reply_text`；`401` 当 JWT 缺失/无效；`500` 未预期错误。
+- **Example (curl):**
+  ```bash
+  curl -X POST https://localhost:3000/reply/add \
+       -H "Authorization: Bearer <jwt>" \
+       -H "Content-Type: application/json" \
+       -d '{"post_id":"post-123","reply_text":"Great post!","user_name":"Alice"}'
+  ```
 ### Add Bookmark
 - **Endpoint:** `POST /bookmark/add`
 - **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.
