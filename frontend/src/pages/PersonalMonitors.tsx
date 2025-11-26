@@ -290,13 +290,13 @@ const PersonalMonitors = () => {
               (comment as { post_id?: string | null }).post_id?.toString().trim() ??
               (comment as { processedId?: string | null }).processedId?.toString().trim() ??
               null;
-            
+
             // Skip posts without a valid post_id from backend
             if (!postId || postId.length === 0) {
               console.warn("Skipping post without post_id from backend:", comment);
               continue;
             }
-            
+
             const parsedHateScore =
               typeof comment.hateScore === "number"
                 ? comment.hateScore
@@ -530,28 +530,27 @@ const PersonalMonitors = () => {
                   <p className="line-clamp-5 text-sm text-slate-700 transition group-hover:text-slate-900 dark:text-slate-200 dark:group-hover:text-white">
                     {post.postText}
                   </p>
-                  <footer className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-                    <span className="inline-flex items-center gap-1">
-                      <span className="block h-2 w-2 rounded-full bg-stg-accent" aria-hidden />
-                      Updated {post.timeAgo ?? "Unspecified"}
-                    </span>
-                    {post.postUrl ? (
-                      <a
-                        href={post.postUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
-                      >
-                        Original link
-                      </a>
-                    ) : (
-                      <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                        Original link unavailable
-                      </span>
-                    )}
-                  </footer>
                 </Link>
+                <footer className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span className="inline-flex items-center gap-1">
+                    <span className="block h-2 w-2 rounded-full bg-stg-accent" aria-hidden />
+                    Updated {post.timeAgo ?? "Unspecified"}
+                  </span>
+                  {post.postUrl ? (
+                    <a
+                      href={post.postUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[11px] font-semibold uppercase tracking-wide text-stg-accent transition hover:text-slate-900 dark:hover:text-white"
+                    >
+                      Original link
+                    </a>
+                  ) : (
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                      Original link unavailable
+                    </span>
+                  )}
+                </footer>
               </article>
             );
           })}
