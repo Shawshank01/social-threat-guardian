@@ -43,7 +43,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.status(204).end();
     return;
@@ -92,6 +92,64 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         ...(normalizeHeader(req.headers.authorization) ? { Authorization: normalizeHeader(req.headers.authorization)! } : {}),
       },
       body: JSON.stringify(backendBody),
+    });
+
+    const text = await response.text();
+    const contentType = response.headers.get("content-type");
+    if (contentType) {
+      res.setHeader("Content-Type", contentType);
+    }
+    res.status(response.status).send(text);
+    return;
+  }
+
+  if (req.method === "DELETE") {
+    // DELETE /bookmark/remove, remove a bookmark
+    // Extract post_id from query parameter or request body
+    let postId: string | undefined;
+    
+    // Try to get from query parameter first
+    if (req.url) {
+      try {
+        const url = new URL(req.url, "http://localhost");
+        postId = url.searchParams.get("post_id") || undefined;
+      } catch {
+        // If URL parsing fails, try regex
+        const match = req.url.match(/[?&]post_id=([^&]+)/);
+        if (match && match[1]) {
+          try {
+            postId = decodeURIComponent(match[1]);
+          } catch {
+            postId = match[1];
+          }
+        }
+      }
+    }
+    
+    // Fallback to request body
+    if (!postId) {
+      const body = req.body as {
+        post_id?: string;
+        postId?: string;
+        processedId?: string;
+        [key: string]: unknown;
+      };
+      postId = body.post_id || body.postId || body.processedId;
+    }
+
+    if (!postId) {
+      res.status(400).json({ ok: false, error: "post_id is required" });
+      return;
+    }
+
+    const targetUrl = new URL("/bookmark/remove", BACKEND_URL).toString();
+    const response = await fetch(targetUrl, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        ...(normalizeHeader(req.headers.authorization) ? { Authorization: normalizeHeader(req.headers.authorization)! } : {}),
+      },
+      body: JSON.stringify({ post_id: postId }),
     });
 
     const text = await response.text();

@@ -218,8 +218,8 @@ const Bookmarks = () => {
     if (!token) return;
     try {
       // DELETE /bookmark/remove
-      // The serverless function extracts post_id from the URL path and forwards it to the backend
-      const response = await fetch(buildApiUrl(`favorites/${encodeURIComponent(processedId)}`), {
+      // Use query parameter to avoid Vercel dynamic route issues with DELETE
+      const response = await fetch(buildApiUrl(`favorites?post_id=${encodeURIComponent(processedId)}`), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
