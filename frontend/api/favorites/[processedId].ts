@@ -89,8 +89,26 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  // Normalise method early for all checks
+  // Vercel may pass method in different ways, so check multiple sources
+  const rawMethod = req.method || 
+                    (req as any).httpMethod || 
+                    (req.headers as any)?.["x-http-method"] || 
+                    "";
+  const method = rawMethod.toUpperCase().trim();
+
+  // Comprehensive logging for debugging
+  console.log("[api/favorites/[processedId]] Method detection:", {
+    reqMethod: req.method,
+    httpMethod: (req as any).httpMethod,
+    xHttpMethod: (req.headers as any)?.["x-http-method"],
+    rawMethod,
+    normalizedMethod: method,
+    url: req.url,
+  });
+
   // Handle OPTIONS preflight
-  if (req.method === "OPTIONS") {
+  if (method === "OPTIONS" || req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -163,11 +181,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  // Normalise method to uppercase for comparison
-  // Handle both direct method access and potential undefined cases
-  const rawMethod = req.method || "";
-  const method = rawMethod.toUpperCase();
-
   // Debug logging (always log in case of errors)
   console.log("[api/favorites/[processedId]] Request details:", {
     rawMethod,
@@ -175,6 +188,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     url: req.url,
     processedId,
     hasProcessedId: !!processedId,
+    allHeaders: Object.keys(req.headers || {}),
   });
 
   const headers: Record<string, string> = {

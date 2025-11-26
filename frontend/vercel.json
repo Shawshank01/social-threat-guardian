@@ -4,5 +4,10 @@
       "source": "/(.*)",
       "destination": "/"
     }
-  ]
+  ],
+  "functions": {
+    "api/favorites/[processedId].ts": {
+      "methods": ["GET", "DELETE", "OPTIONS"]
+    }
+  }
 }
