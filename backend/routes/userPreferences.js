@@ -27,7 +27,7 @@ router.get("/", async (req, res) => {
           userId: resolvedUserId,
           keywords: [],
           languages: [],
-          platform: [],
+          platforms: [],
         },
       });
     }
@@ -38,7 +38,7 @@ router.get("/", async (req, res) => {
         userId: preferences.userId,
         keywords: preferences.keywords,
         languages: preferences.languages,
-        platform: preferences.platform,
+        platforms: preferences.platform,
       },
     });
   } catch (err) {
@@ -65,7 +65,7 @@ router.post("/get", async (req, res) => {
       ID: preferences.id,
       KEYWORDS: preferences.keywords,
       LANGUAGES: preferences.languages,
-      PLATFORM: preferences.platform,
+      PLATFORMS: preferences.platform,
     });
   } catch (err) {
     console.error("[POST /user-preferences/get] error:", err);
@@ -96,7 +96,10 @@ router.post("/", async (req, res) => {
     return res.json({
       ok: true,
       message: "User preferences saved",
-      preferences,
+      preferences: {
+        ...preferences,
+        platforms: preferences.platform,
+      },
     });
   } catch (err) {
     console.error("[POST /user-preferences] error:", err);
