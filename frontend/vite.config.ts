@@ -44,14 +44,32 @@ export default defineConfig(({ mode }) => {
               if (url.startsWith("/api/favorites")) {
                 const method = req.method || "GET";
                 const favoritesMatch = url.match(/^\/api\/favorites(?:\/([^/?]+))?/);
-                const postId = favoritesMatch?.[1];
+                const encodedPostId = favoritesMatch?.[1];
 
                 if (method === "GET") {
                   proxyReq.path = "/bookmark";
                 } else if (method === "POST") {
                   proxyReq.path = "/bookmark/add";
-                } else if (method === "DELETE" && postId) {
+                } else if (method === "DELETE" && encodedPostId) {
+                  // For DELETE, rewrite path and add request body with post_id
                   proxyReq.path = "/bookmark/remove";
+
+                  // Decode the URL-encoded postId
+                  let postId: string;
+                  try {
+                    postId = decodeURIComponent(encodedPostId);
+                  } catch {
+                    postId = encodedPostId;
+                  }
+
+                  // Set the request body with post_id (backend expects this in the body)
+                  const body = JSON.stringify({ post_id: postId });
+                  proxyReq.setHeader("Content-Type", "application/json");
+                  proxyReq.setHeader("Content-Length", Buffer.byteLength(body));
+
+                  // Write the body to the proxied request
+                  // The frontend doesn't send a body for DELETE, so we add it here
+                  proxyReq.write(body);
                 }
               }
             });
