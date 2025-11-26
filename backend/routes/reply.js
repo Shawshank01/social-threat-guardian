@@ -1,7 +1,7 @@
 // /routes/reply.js
 import express from "express";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { createReply } from "../models/replyModel.js";
+import { createReply, listRepliesForPost } from "../models/replyModel.js";
 
 const router = express.Router();
 
@@ -12,6 +12,21 @@ function sanitizePostId(value) {
   if (trimmed.length > 200) return null;
   return trimmed;
 }
+
+router.get("/:postId", async (req, res) => {
+  const postId = sanitizePostId(req.params.postId);
+  if (!postId) {
+    return res.status(400).json({ ok: false, error: "Invalid post identifier" });
+  }
+
+  try {
+    const replies = await listRepliesForPost(postId);
+    return res.json({ ok: true, count: replies.length, replies });
+  } catch (err) {
+    console.error("[GET /reply/:postId] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
 
 router.post("/add", requireAuth, async (req, res) => {
   const postId = sanitizePostId(req.body?.post_id ?? req.body?.postId);

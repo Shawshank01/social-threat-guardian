@@ -672,6 +672,28 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
        -H "Content-Type: application/json" \
        -d '{"post_id":"post-123","reply_text":"Great post!","user_name":"Alice"}'
   ```
+- **List Replies for a Post:** `GET /reply/{postId}`
+  - **Auth:** None required to read replies.
+  - **Description:** Returns all replies for the given `postId`, ordered by `created_at` ascending.
+  - **Response (200 OK):**
+    ```json
+    {
+      "ok": true,
+      "count": 2,
+      "replies": [
+        {
+          "id": "reply-id-1",
+          "postId": "POST_ID",
+          "userId": "user-uuid",
+          "authorName": "Alice",
+          "userName": "Alice",
+          "replyText": "Thanks for sharing!",
+          "createdAt": "2024-01-01T12:34:56.000Z"
+        }
+      ]
+    }
+    ```
+  - **Errors:** `400` for invalid/empty `postId`; `500` for unexpected errors.
 ### Add Bookmark
 - **Endpoint:** `POST /bookmark/add`
 - **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.

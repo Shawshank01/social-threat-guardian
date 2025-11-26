@@ -60,8 +60,49 @@ export async function createReply({ postId, userId, authorName, replyText }) {
       postId: extract(outBinds.outPostId),
       userId: extract(outBinds.outUserId),
       authorName: extract(outBinds.outAuthorName),
+      userName: extract(outBinds.outAuthorName),
       replyText: extract(outBinds.outReplyText),
       createdAt: createdAtValue instanceof Date ? createdAtValue.toISOString() : createdAtValue,
     };
+  });
+}
+
+/**
+ * List replies for a given post, ordered by creation time ascending.
+ * @param {string} postId
+ */
+export async function listRepliesForPost(postId) {
+  const trimmedPostId = String(postId || "").trim();
+  if (!trimmedPostId) throw new Error("postId is required");
+  if (trimmedPostId.length > 200) throw new Error("postId is too long");
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      `SELECT ID,
+              POST_ID,
+              USER_ID,
+              AUTHOR_NAME,
+              REPLY_TEXT,
+              CREATED_AT
+         FROM USER_POST_REPLIES
+        WHERE POST_ID = :postId
+     ORDER BY CREATED_AT ASC`,
+      { postId: trimmedPostId },
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        fetchInfo: { REPLY_TEXT: { type: oracledb.STRING } },
+      },
+    );
+
+    const rows = result.rows || [];
+    return rows.map((row) => ({
+      id: row.ID,
+      postId: row.POST_ID,
+      userId: row.USER_ID,
+      authorName: row.AUTHOR_NAME,
+      userName: row.AUTHOR_NAME,
+      replyText: row.REPLY_TEXT,
+      createdAt: row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : row.CREATED_AT,
+    }));
   });
 }
