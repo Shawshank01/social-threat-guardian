@@ -498,7 +498,8 @@ const GaugeChart = ({
               Current signal
             </span>
             <div className="flex items-end gap-2">
-              <span className="text-4xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}%</span>
+              {/* TODO: Optionally add "%" symbol here to show percentage (e.g., {displayValue.toFixed(0)}%) or keep as just numbers */}
+              <span className="text-4xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}</span>
               <span className="rounded-full border border-slate-200/80 bg-white px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
                 {zone.label}
               </span>

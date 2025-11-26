@@ -92,7 +92,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Handle OPTIONS preflight
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.status(204).end();
     return;
@@ -142,31 +142,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (method === "GET") {
-    // GET /bookmark/:processedId to retrieve a single bookmark
-    const targetUrl = new URL(`/bookmark/${encodeURIComponent(processedId)}`, BACKEND_URL).toString();
-    
-    try {
-      const response = await makeRequest(targetUrl, {
-        method: "GET",
-        headers,
-      });
-
-      const contentType = response.headers["content-type"];
-      if (contentType) {
-        res.setHeader("Content-Type", contentType);
-      }
-      res.status(response.status).send(response.body);
-      return;
-    } catch (error) {
-      console.error("[api/favorites/[processedId]] Backend request failed:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      res.status(500).json({
-        ok: false,
-        error: "Failed to connect to backend server.",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
-      });
-      return;
-    }
+    // GET single bookmark by processedId is not supported by the backend API
+    // Use GET /bookmark to list all bookmarks, or GET /bookmark/content to get bookmark content
+    res.status(501).json({
+      ok: false,
+      error: "GET single bookmark is not supported. Use GET /api/favorites to list all bookmarks.",
+    });
+    return;
   }
 
   if (method === "DELETE") {
@@ -204,6 +186,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // Method not allowed
   res.status(405).json({ 
     ok: false, 
-    error: `Method ${method} not allowed. Supported methods: GET, DELETE, OPTIONS` 
+    error: `Method ${method} not allowed. Supported methods: DELETE, OPTIONS` 
   });
 }

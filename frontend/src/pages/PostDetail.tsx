@@ -581,6 +581,7 @@ const PostDetail = () => {
     try {
       if (isFavorite) {
         // DELETE /bookmark/remove
+        // The serverless function extracts post_id from the URL path and forwards it to the backend
         const response = await fetch(
           buildApiUrl(`favorites/${encodeURIComponent(post.id)}`),
           {
@@ -589,7 +590,6 @@ const PostDetail = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ post_id: post.id }),
           },
         );
 
