@@ -40,6 +40,12 @@ const resolveString = (...values: (string | null | undefined)[]) => {
 
 const Settings = () => {
   const { user, token } = useAuth();
+  // Profile overview state updated from backend
+  const [profileOverview, setProfileOverview] = useState({
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+  });
+  // Form state for user input
   const [formState, setFormState] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -54,11 +60,17 @@ const Settings = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   useEffect(() => {
+    // Initialise form state from user context
     setFormState({
       name: user?.name ?? "",
       email: user?.email ?? "",
       password: "",
       confirmPassword: "",
+    });
+    // Initialise profile overview from user context
+    setProfileOverview({
+      name: user?.name ?? "",
+      email: user?.email ?? "",
     });
     setLastLogin(null);
     setProfileError(null);
@@ -76,7 +88,7 @@ const Settings = () => {
       setProfileError(null);
       const apiUrl = buildApiUrl(`users/${user.id}`);
       console.log("[Settings] Loading profile from:", apiUrl);
-      
+
       try {
         const response = await fetch(apiUrl, {
           method: "GET",
@@ -105,7 +117,7 @@ const Settings = () => {
 
         const serverUser = payload.user ?? {};
         console.log("[Settings] Server user data:", serverUser);
-        
+
         const resolvedName = resolveString(serverUser.name, serverUser.NAME);
         const resolvedEmail = resolveString(serverUser.email, serverUser.EMAIL);
         const resolvedLastLogin = resolveString(
@@ -116,11 +128,18 @@ const Settings = () => {
 
         console.log("[Settings] Resolved last login:", resolvedLastLogin);
 
+        // Update profile overview from backend data
+        setProfileOverview({
+          name: resolvedName ?? profileOverview.name,
+          email: resolvedEmail ?? profileOverview.email,
+        });
+
+        // Update form state from backend data (only if form hasn't been modified)
         setFormState((prev) => ({
           name: resolvedName ?? prev.name,
           email: resolvedEmail ?? prev.email,
-          password: "",
-          confirmPassword: "",
+          password: prev.password, // Keep password field as-is
+          confirmPassword: prev.confirmPassword, // Keep confirm password field as-is
         }));
 
         if (resolvedLastLogin) {
@@ -258,6 +277,13 @@ const Settings = () => {
         updatedUser.last_login_at
       );
 
+      // Update profile overview from backend response
+      setProfileOverview({
+        name: nextName,
+        email: nextEmail,
+      });
+
+      // Update form state from backend response
       setFormState({
         name: nextName,
         email: nextEmail,
@@ -347,7 +373,7 @@ const Settings = () => {
                 Username
               </dt>
               <dd className="text-sm font-medium text-slate-900 dark:text-white">
-                {formState.name || "Not provided"}
+                {profileOverview.name || "Not provided"}
               </dd>
             </div>
 
@@ -357,7 +383,7 @@ const Settings = () => {
                 Email address
               </dt>
               <dd className="text-sm font-medium text-slate-900 break-all dark:text-white">
-                {formState.email || "Not provided"}
+                {profileOverview.email || "Not provided"}
               </dd>
             </div>
 
