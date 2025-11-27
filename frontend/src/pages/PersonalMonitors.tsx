@@ -267,7 +267,7 @@ const PersonalMonitors = () => {
             body: JSON.stringify({
               keywords: trimmedKeywords,
               source: tableName,
-              limit: 50,
+              limit: 10000,
               languages: preferences.languages,
             }),
           });
@@ -372,7 +372,13 @@ const PersonalMonitors = () => {
         deduped.push(post);
       }
 
-      setPosts(deduped);
+      // Filter to only show posts with predIntent === "HARMFUL"
+      const harmfulPosts = deduped.filter((post) => {
+        const intent = post.predIntent?.trim().toUpperCase();
+        return intent === "HARMFUL";
+      });
+
+      setPosts(harmfulPosts);
       setCurrentPage(1);
       setPostsError(deduped.length === 0 ? "No posts matched your current filters." : null);
       setLastUpdatedAt(new Date().toISOString());
