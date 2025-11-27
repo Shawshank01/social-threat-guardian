@@ -74,24 +74,38 @@ const Settings = () => {
     const loadProfile = async () => {
       setIsLoadingProfile(true);
       setProfileError(null);
+      const apiUrl = buildApiUrl(`users/${user.id}`);
+      console.log("[Settings] Loading profile from:", apiUrl);
+      
       try {
-        const response = await fetch(buildApiUrl(`users/${user.id}`), {
+        const response = await fetch(apiUrl, {
           method: "GET",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           signal: controller.signal,
         });
 
-        const payload = (await response.json().catch(() => ({}))) as {
+        console.log("[Settings] Response status:", response.status, response.statusText);
+
+        const payload = (await response.json().catch((parseError) => {
+          console.error("[Settings] Failed to parse response JSON:", parseError);
+          return {};
+        })) as {
           ok?: boolean;
           user?: ServerUser;
           error?: string;
         };
 
+        console.log("[Settings] Response payload:", payload);
+
         if (!response.ok || payload.ok === false) {
-          throw new Error(payload.error ?? "Unable to load your profile details.");
+          const errorMsg = payload.error ?? "Unable to load your profile details.";
+          console.error("[Settings] Error response:", errorMsg);
+          throw new Error(errorMsg);
         }
 
         const serverUser = payload.user ?? {};
+        console.log("[Settings] Server user data:", serverUser);
+        
         const resolvedName = resolveString(serverUser.name, serverUser.NAME);
         const resolvedEmail = resolveString(serverUser.email, serverUser.EMAIL);
         const resolvedLastLogin = resolveString(
@@ -99,6 +113,8 @@ const Settings = () => {
           serverUser.LAST_LOGIN_AT,
           serverUser.last_login_at
         );
+
+        console.log("[Settings] Resolved last login:", resolvedLastLogin);
 
         setFormState((prev) => ({
           name: resolvedName ?? prev.name,
@@ -109,10 +125,17 @@ const Settings = () => {
 
         if (resolvedLastLogin) {
           setLastLogin(resolvedLastLogin);
+        } else {
+          console.warn("[Settings] No last login data found in response");
         }
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        setProfileError((err as Error).message || "Unable to load your profile details.");
+        if ((err as Error).name === "AbortError") {
+          console.log("[Settings] Request aborted");
+          return;
+        }
+        const errorMsg = (err as Error).message || "Unable to load your profile details.";
+        console.error("[Settings] Error loading profile:", err);
+        setProfileError(errorMsg);
       } finally {
         setIsLoadingProfile(false);
       }
