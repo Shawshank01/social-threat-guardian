@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Filter, Loader2, RefreshCcw, ShieldAlert, Send, Network, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -101,6 +101,40 @@ const PersonalMonitors = () => {
   const keywordsList = useMemo(() => preferences?.keywords ?? [], [preferences]);
   const languagesList = useMemo(() => preferences?.languages ?? [], [preferences]);
   const platformsList = useMemo(() => preferences?.platforms ?? [], [preferences]);
+
+  // Function to highlight keywords in text
+  const highlightKeywords = (text: string, keywords: string[]): React.ReactNode => {
+    if (!text || keywords.length === 0) {
+      return text;
+    }
+
+    // Create a regex pattern that matches any keyword (case-insensitive)
+    const keywordPattern = keywords
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .map((keyword) => keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) // Escape special regex characters
+      .join("|");
+
+    if (!keywordPattern) {
+      return text;
+    }
+
+    const regex = new RegExp(`(${keywordPattern})`, "gi");
+    const parts = text.split(regex);
+
+    return parts.map((part, index) => {
+      const isKeyword = keywords.some(
+        (keyword) => part.toLowerCase() === keyword.trim().toLowerCase(),
+      );
+      return isKeyword ? (
+        <strong key={index} className="font-bold text-stg-accent dark:text-stg-accent">
+          {part}
+        </strong>
+      ) : (
+        <span key={index}>{part}</span>
+      );
+    });
+  };
 
   // Posts are now always loaded from backend API, no localStorage cache
 
@@ -528,7 +562,7 @@ const PersonalMonitors = () => {
                     )}
                   </header>
                   <p className="line-clamp-5 text-sm text-slate-700 transition group-hover:text-slate-900 dark:text-slate-200 dark:group-hover:text-white">
-                    {post.postText}
+                    {highlightKeywords(post.postText, keywordsList)}
                   </p>
                 </Link>
                 <footer className="mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
