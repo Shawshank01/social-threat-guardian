@@ -18,6 +18,7 @@ export async function ensureUserPreferencesTable() {
             USER_ID     VARCHAR2(36) NOT NULL,
             KEYWORDS    CLOB CHECK (KEYWORDS IS JSON),
             LANGUAGES   CLOB CHECK (LANGUAGES IS JSON),
+            PLATFORM    CLOB CHECK (PLATFORM IS JSON),
             CREATED_AT  TIMESTAMP DEFAULT SYSTIMESTAMP,
             UPDATED_AT  TIMESTAMP
           )
@@ -71,16 +72,25 @@ export async function ensureUserPreferencesTable() {
   });
 }
 
-export async function upsertUserPreferenceModel({ userId, keywords = [], languages = [] }) {
+export async function upsertUserPreferenceModel({
+  userId,
+  keywords = [],
+  languages = [],
+  platform = [],
+}) {
   if (!userId) throw new Error("userId is required");
 
   const keywordsArr = Array.isArray(keywords) ? keywords : [keywords];
   const languagesArr = Array.isArray(languages) ? languages : [languages];
+  const platformArr = Array.isArray(platform) ? platform : [platform];
 
   const cleanedKeywords = keywordsArr
     .map((val) => String(val || "").trim())
     .filter((val) => val.length > 0);
   const cleanedLanguages = languagesArr
+    .map((val) => String(val || "").trim())
+    .filter((val) => val.length > 0);
+  const cleanedPlatform = platformArr
     .map((val) => String(val || "").trim())
     .filter((val) => val.length > 0);
 
@@ -89,6 +99,7 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
     userId,
     keywords: JSON.stringify(cleanedKeywords),
     languages: JSON.stringify(cleanedLanguages),
+    platform: JSON.stringify(cleanedPlatform),
   };
 
   return withConnection(async (conn) => {
@@ -101,10 +112,11 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
           UPDATE SET
             KEYWORDS = :keywords,
             LANGUAGES = :languages,
+            PLATFORM = :platform,
             UPDATED_AT = SYSTIMESTAMP
         WHEN NOT MATCHED THEN
-          INSERT (ID, USER_ID, KEYWORDS, LANGUAGES, CREATED_AT, UPDATED_AT)
-          VALUES (:id, :userId, :keywords, :languages, SYSTIMESTAMP, SYSTIMESTAMP)
+          INSERT (ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT)
+          VALUES (:id, :userId, :keywords, :languages, :platform, SYSTIMESTAMP, SYSTIMESTAMP)
       `,
       payload,
       { autoCommit: true }
@@ -112,7 +124,7 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
 
     const result = await conn.execute(
       `
-        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, CREATED_AT, UPDATED_AT
+        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT
           FROM USER_PREFERENCES
          WHERE USER_ID = :userId
       `,
@@ -122,6 +134,7 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
         fetchInfo: {
           KEYWORDS: { type: oracledb.STRING },
           LANGUAGES: { type: oracledb.STRING },
+          PLATFORM: { type: oracledb.STRING },
         },
       }
     );
@@ -134,6 +147,7 @@ export async function upsertUserPreferenceModel({ userId, keywords = [], languag
       userId: row.USER_ID,
       keywords: row.KEYWORDS ? JSON.parse(row.KEYWORDS) : [],
       languages: row.LANGUAGES ? JSON.parse(row.LANGUAGES) : [],
+      platform: row.PLATFORM ? JSON.parse(row.PLATFORM) : [],
       createdAt: row.CREATED_AT,
       updatedAt: row.UPDATED_AT,
     };
@@ -149,7 +163,7 @@ export async function getUserPreferenceModel(userId) {
   return withConnection(async (conn) => {
     const result = await conn.execute(
       `
-        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, CREATED_AT, UPDATED_AT
+        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT
           FROM USER_PREFERENCES
          WHERE USER_ID = :userId
       `,
@@ -159,6 +173,7 @@ export async function getUserPreferenceModel(userId) {
         fetchInfo: {
           KEYWORDS: { type: oracledb.STRING },
           LANGUAGES: { type: oracledb.STRING },
+          PLATFORM: { type: oracledb.STRING },
         },
       }
     );
@@ -173,6 +188,7 @@ export async function getUserPreferenceModel(userId) {
       userId: row.USER_ID,
       keywords: row.KEYWORDS ? JSON.parse(row.KEYWORDS) : [],
       languages: row.LANGUAGES ? JSON.parse(row.LANGUAGES) : [],
+      platform: row.PLATFORM ? JSON.parse(row.PLATFORM) : [],
       createdAt: row.CREATED_AT,
       updatedAt: row.UPDATED_AT,
     };

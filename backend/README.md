@@ -486,10 +486,11 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```json
   {
     "languages": ["en"],
-    "keywords": ["trump", "election"]
+    "keywords": ["trump", "election"],
+    "platforms": ["TWITTER", "REDDIT"]
   }
   ```
-  - `languages`/`language` and `keywords`/`keyword` accept either a single string or an array, and the backend trims empty values before storing them as JSON arrays.
+  - `languages`/`language`, `keywords`/`keyword`, and `platforms`/`platform` accept either a single string or an array; the backend trims empty values before storing them as JSON arrays.
 - **Responses:**
   - `200 OK`
     ```json
@@ -501,6 +502,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
         "userId": "user-uuid",
         "languages": ["en"],
         "keywords": ["trump", "election"],
+        "platform": ["TWITTER", "REDDIT"],
         "createdAt": "2024-01-01T12:34:56.000Z",
         "updatedAt": "2024-01-01T12:34:56.000Z"
       }
@@ -513,12 +515,12 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   curl -X POST https://localhost:3000/user-preferences \
        -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
-       -d '{"language":"en","keywords":["trump"]}'
+       -d '{"language":"en","keywords":["trump"],"platforms":["TWITTER"]}'
   ```
 ### Fetch User Preferences
 - `GET /user-preferences`
 - **Headers:** `Authorization: Bearer <token>`
-- **Description:** Returns the authenticated user’s keyword and language preferences. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
+- **Description:** Returns the authenticated user’s keyword, language, and platform preferences. If no record exists yet, the response falls back to empty arrays so the UI can render a default state.
 - **Successful Response (`200 OK`):**
   ```json
   {
@@ -526,7 +528,8 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     "preferences": {
       "userId": "user-uuid",
       "keywords": ["trump", "election"],
-      "languages": ["en", "es"]
+      "languages": ["en", "es"],
+      "platform": ["TWITTER", "REDDIT"]
     }
   }
   ```
@@ -547,7 +550,8 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   {
     "ID": "pref-uuid",
     "KEYWORDS": ["trump", "election"],
-    "LANGUAGES": ["en", "es"]
+    "LANGUAGES": ["en", "es"],
+    "PLATFORM": ["TWITTER", "REDDIT"]
   }
   ```
   - Returns an empty object (`{}`) when no preferences exist for the authenticated user.
@@ -634,6 +638,78 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     ]
   }
   ```
+### Add Reply to Post
+- **Endpoint:** `POST /reply/add`
+- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) 和可选的 `req.user.name`。
+- **Body:** JSON
+  ```json
+  {
+    "post_id": "POST_ID",
+    "reply_text": "your reply text",
+    "user_name": "Optional display name"
+  }
+  ```
+  `post_id`/`reply_text` 为必填；`user_name` 可选，不传则使用 JWT 中的 name（若存在）。后端同时接受 `postId` / `replyText` / `author_name` 的兼容字段。
+- **Response (201 Created):**
+  ```json
+  {
+    "ok": true,
+    "reply": {
+      "id": "generated-id",
+      "postId": "POST_ID",
+      "userId": "user-uuid",
+      "authorName": "Optional display name",
+      "replyText": "your reply text",
+      "createdAt": "2024-01-01T12:34:56.000Z"
+    }
+  }
+  ```
+- **Errors:** `400` 当缺少 `post_id` 或 `reply_text`；`401` 当 JWT 缺失/无效；`500` 未预期错误。
+- **Example (curl):**
+  ```bash
+  curl -X POST https://localhost:3000/reply/add \
+       -H "Authorization: Bearer <jwt>" \
+       -H "Content-Type: application/json" \
+       -d '{"post_id":"post-123","reply_text":"Great post!","user_name":"Alice"}'
+  ```
+- **List Replies for a Post:** `GET /reply/{postId}`
+  - **Auth:** None required to read replies.
+  - **Description:** Returns all replies for the given `postId`, ordered by `created_at` ascending.
+  - **Response (200 OK):**
+    ```json
+    {
+      "ok": true,
+      "count": 2,
+      "replies": [
+        {
+          "id": "reply-id-1",
+          "postId": "POST_ID",
+          "userId": "user-uuid",
+          "authorName": "Alice",
+          "userName": "Alice",
+          "replyText": "Thanks for sharing!",
+          "createdAt": "2024-01-01T12:34:56.000Z"
+        }
+      ]
+    }
+    ```
+  - **Errors:** `400` for invalid/empty `postId`; `500` for unexpected errors.
+- **Delete Reply:** `DELETE /reply/{id}`
+  - **Auth:** `Authorization: Bearer <JWT>` required.
+  - **Description:** Deletes a reply owned by the authenticated user. Matches both `id` and `user_id` in the table; returns 404 if the reply does not exist or is not owned by the caller.
+  - **Response (200 OK):**
+    ```json
+    {
+      "ok": true,
+      "removed": 1
+    }
+    ```
+  - **Errors:** `400` for missing/invalid `id`; `401` for missing/invalid JWT; `404` when the reply is not found or not owned by the user; `500` for unexpected errors.
+  - **Example:**
+    ```bash
+    curl -X DELETE https://localhost:3000/reply/reply-id-1 \
+         -H "Authorization: Bearer <jwt>"
+    ```
 ### Add Bookmark
 - **Endpoint:** `POST /bookmark/add`
 - **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.

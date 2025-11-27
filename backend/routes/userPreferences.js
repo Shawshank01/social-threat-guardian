@@ -27,6 +27,7 @@ router.get("/", async (req, res) => {
           userId: resolvedUserId,
           keywords: [],
           languages: [],
+          platforms: [],
         },
       });
     }
@@ -37,6 +38,7 @@ router.get("/", async (req, res) => {
         userId: preferences.userId,
         keywords: preferences.keywords,
         languages: preferences.languages,
+        platforms: preferences.platform,
       },
     });
   } catch (err) {
@@ -63,6 +65,7 @@ router.post("/get", async (req, res) => {
       ID: preferences.id,
       KEYWORDS: preferences.keywords,
       LANGUAGES: preferences.languages,
+      PLATFORMS: preferences.platform,
     });
   } catch (err) {
     console.error("[POST /user-preferences/get] error:", err);
@@ -72,7 +75,7 @@ router.post("/get", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { keywords, keyword, languages, language } = req.body || {};
+    const { keywords, keyword, languages, language, platform, platforms } = req.body || {};
 
     const resolvedUserId = String(req.body?.user_id || "").trim();
     if (!resolvedUserId) {
@@ -81,17 +84,22 @@ router.post("/", async (req, res) => {
 
     const keywordsInput = keywords !== undefined ? keywords : keyword;
     const languagesInput = languages !== undefined ? languages : language;
+    const platformInput = platforms !== undefined ? platforms : platform;
 
     const preferences = await upsertUserPreferenceModel({
       userId: resolvedUserId,
       keywords: keywordsInput,
       languages: languagesInput,
+      platform: platformInput,
     });
 
     return res.json({
       ok: true,
       message: "User preferences saved",
-      preferences,
+      preferences: {
+        ...preferences,
+        platforms: preferences.platform,
+      },
     });
   } catch (err) {
     console.error("[POST /user-preferences] error:", err);
