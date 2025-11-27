@@ -16,10 +16,10 @@ const About = () => {
             Social Threat Guardian offers protection against hate speech.
           </p>
           <p className="mb-4">
-            A live threat index shows the social media climate of the Bluesky platform.
+            A live threat index shows the social media climate of multiple platforms.
           </p>
-          <p className="mb-6 font-semibold text-slate-900 dark:text-white">
-            We give you one thing attackers don't anticipate; an early warning.
+          <p className="mb-4">
+            We give you one thing attackers don't anticipate: an early warning.
           </p>
         </div>
 
@@ -38,7 +38,7 @@ const About = () => {
               <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-stg-accent/10 text-xs font-semibold text-stg-accent dark:bg-stg-accent/20">
                 2
               </span>
-              <span>Visualize harassment networks to see coordinated campaigns.</span>
+              <span>Visualise harassment networks to see coordinated campaigns.</span>
             </li>
             <li className="flex gap-3">
               <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-stg-accent/10 text-xs font-semibold text-stg-accent dark:bg-stg-accent/20">
