@@ -85,7 +85,15 @@ const serializeBody = (body: unknown): string => {
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+    // Log incoming request for debugging
+    console.log("[api/users/[id]] Request received:", {
+        method: req.method,
+        url: req.url,
+        hasAuth: !!req.headers.authorization,
+    });
+
     if (!BACKEND_URL) {
+        console.error("[api/users/[id]] BACKEND_URL is not configured");
         res.status(500).json({ ok: false, error: "BACKEND_URL is not configured." });
         return;
     }
@@ -100,6 +108,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     // Extract userId from the dynamic route segment [id]
+    // In Vercel serverless functions, req.url contains the pathname (e.g., /api/users/user-123)
+    // Extract the last path segment which is the userId
     let userId = "";
     if (req.url) {
         try {
@@ -113,24 +123,27 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             }
 
             const pathParts = urlObj.pathname.split("/").filter(Boolean);
+            // Get the last segment (should be after /api/users/)
             // Path structure: /api/users/{userId}
-            // Get the last segment which is the userId
             const rawId = pathParts[pathParts.length - 1] || "";
 
             if (rawId) {
                 try {
                     userId = decodeURIComponent(rawId);
                 } catch (decodeError) {
+                    console.warn("[api/users/[id]] Failed to decode userId:", decodeError);
                     userId = rawId;
                 }
             }
         } catch (urlError) {
             // Fallback: try to extract from the URL string directly using regex
-            const match = req.url.match(/\/api\/users\/([^/?]+)/);
+            console.warn("[api/users/[id]] URL parsing failed, using regex fallback:", urlError);
+            // Match everything after /api/users/ until query string or end
+            const match = req.url.match(/\/api\/users\/([^?]+)/);
             if (match && match[1]) {
                 try {
                     userId = decodeURIComponent(match[1]);
-                } catch {
+                } catch (decodeError) {
                     userId = match[1];
                 }
             } else {
@@ -148,12 +161,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (!userId) {
+        console.error("[api/users/[id]] Failed to extract userId from URL:", req.url);
         res.status(400).json({
             ok: false,
             error: "Missing user ID in URL",
         });
         return;
     }
+
+    console.log("[api/users/[id]] Extracted userId:", userId);
 
     const method = req.method?.toUpperCase() || "";
 
@@ -169,11 +185,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     if (method === "GET") {
         // GET /users/:id to get user details
         const targetUrl = new URL(`/users/${encodeURIComponent(userId)}`, BACKEND_URL).toString();
+        console.log("[api/users/[id]] Making GET request to backend:", targetUrl);
 
         try {
             const response = await makeRequest(targetUrl, {
                 method: "GET",
                 headers,
+            });
+
+            console.log("[api/users/[id]] Backend response:", {
+                status: response.status,
+                bodyLength: response.body?.length || 0,
+                hasBody: !!response.body,
             });
 
             const contentType = response.headers["content-type"];

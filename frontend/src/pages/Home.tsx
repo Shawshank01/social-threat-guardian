@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, type LucideIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, X, type LucideIcon } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
+
+const SPLASH_BOX_STORAGE_KEY = "stg.splashBox.dismissed";
+const SPLASH_BOX_ENABLED_KEY = "stg.splashBox.enabled";
 
 type CommentPost = {
   postText?: string | null;
@@ -144,11 +148,45 @@ const resolvePlatformIcon = (platform?: string | null) => {
 };
 
 const Home = () => {
+  const navigate = useNavigate();
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [isFeedRevealed, setIsFeedRevealed] = useState(false);
   const [posts, setPosts] = useState<CommentPost[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [postsError, setPostsError] = useState<string | null>(null);
+  const [showSplashBox, setShowSplashBox] = useState(false);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
+
+  // Check if splash box should be shown
+  useEffect(() => {
+    const isDismissed = localStorage.getItem(SPLASH_BOX_STORAGE_KEY) === "true";
+    const isEnabled = localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false"; // Default to true
+    
+    if (!isDismissed && isEnabled) {
+      setShowSplashBox(true);
+    }
+  }, []);
+
+  const handleSplashYes = () => {
+    if (dontShowAgain) {
+      localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
+      localStorage.setItem(SPLASH_BOX_ENABLED_KEY, "false");
+      // Dispatch custom event for same-tab updates
+      window.dispatchEvent(new Event("splashBoxSettingChanged"));
+    }
+    setShowSplashBox(false);
+    navigate("/about");
+  };
+
+  const handleSplashNo = () => {
+    if (dontShowAgain) {
+      localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
+      localStorage.setItem(SPLASH_BOX_ENABLED_KEY, "false");
+      // Dispatch custom event for same-tab updates
+      window.dispatchEvent(new Event("splashBoxSettingChanged"));
+    }
+    setShowSplashBox(false);
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -213,6 +251,62 @@ const Home = () => {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-4">
+      {/* Splash Box */}
+      {showSplashBox && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xl transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/95">
+            <button
+              type="button"
+              onClick={handleSplashNo}
+              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-200/80 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              aria-label="Close"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+            <div className="space-y-4">
+              <header className="space-y-2 pr-8">
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                  Welcome to Social Threat Guardian
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Would you like to learn more about our platform and how we help protect against online threats?
+                </p>
+              </header>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="dont-show-again"
+                  checked={dontShowAgain}
+                  onChange={(e) => setDontShowAgain(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-stg-accent focus:ring-2 focus:ring-stg-accent/40 dark:border-white/20"
+                />
+                <label
+                  htmlFor="dont-show-again"
+                  className="text-sm text-slate-600 dark:text-slate-300"
+                >
+                  Don't show this message again
+                </label>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleSplashYes}
+                  className="flex-1 rounded-full bg-stg-accent px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40"
+                >
+                  Yes, tell me more
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSplashNo}
+                  className="flex-1 rounded-full border border-slate-300/80 bg-white px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  No, thanks
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
         <div className="order-1">
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />

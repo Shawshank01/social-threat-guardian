@@ -450,6 +450,28 @@ const GaugeChart = ({
         </div>
       </header>
 
+      {onPlatformChange && (
+        <div className="mb-6 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 transition-colors dark:border-white/10 dark:bg-slate-900/60">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Filter by platform</h3>
+          <div className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm">
+            {availablePlatforms.map((filter) => (
+              <button
+                key={filter.value}
+                type="button"
+                onClick={() => onPlatformChange(filter.value)}
+                className={`rounded-full border px-4 py-2 font-semibold uppercase tracking-wide transition ${platform === filter.value
+                  ? "border-stg-accent bg-stg-accent/20 text-stg-accent dark:text-stg-accent"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-stg-accent/60 hover:text-stg-accent dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
+                  }`}
+                aria-pressed={platform === filter.value}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col items-center justify-center">
         <div
           ref={containerRef}
@@ -493,7 +515,7 @@ const GaugeChart = ({
               </span>
             ))}
           </div>
-          <div className="absolute inset-x-0 bottom-2 flex flex-col items-center gap-1 text-center">
+          <div className="absolute inset-x-0 -bottom-4 flex flex-col items-center gap-1 text-center sm:bottom-0 md:bottom-2">
             <span className="text-[11px] uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
               Current signal
             </span>
@@ -516,27 +538,6 @@ const GaugeChart = ({
           </div>
         </div>
       </div>
-      {onPlatformChange && (
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 transition-colors dark:border-white/10 dark:bg-slate-900/60">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">Filter by platform</h3>
-          <div className="flex flex-wrap justify-center gap-2 text-xs sm:text-sm">
-            {availablePlatforms.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => onPlatformChange(filter.value)}
-                className={`rounded-full border px-4 py-2 font-semibold uppercase tracking-wide transition ${platform === filter.value
-                  ? "border-stg-accent bg-stg-accent/20 text-stg-accent dark:text-stg-accent"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-stg-accent/60 hover:text-stg-accent dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:text-white"
-                  }`}
-                aria-pressed={platform === filter.value}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 };

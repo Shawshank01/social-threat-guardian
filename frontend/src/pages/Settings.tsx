@@ -8,7 +8,11 @@ import {
   Lock,
   Save,
   User as UserIcon,
+  Info,
 } from "lucide-react";
+
+const SPLASH_BOX_STORAGE_KEY = "stg.splashBox.dismissed";
+const SPLASH_BOX_ENABLED_KEY = "stg.splashBox.enabled";
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
@@ -40,6 +44,12 @@ const resolveString = (...values: (string | null | undefined)[]) => {
 
 const Settings = () => {
   const { user, token } = useAuth();
+  // Profile overview state updated from backend
+  const [profileOverview, setProfileOverview] = useState({
+    name: user?.name ?? "",
+    email: user?.email ?? "",
+  });
+  // Form state for user input
   const [formState, setFormState] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -52,13 +62,45 @@ const Settings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showSplashBox, setShowSplashBox] = useState(() => {
+    return localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false";
+  });
+
+  // Listen for changes to splash box setting from other pages
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === SPLASH_BOX_ENABLED_KEY) {
+        setShowSplashBox(e.newValue !== "false");
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    
+    // Also listen for custom events for same-tab updates
+    const handleCustomStorageChange = () => {
+      setShowSplashBox(localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false");
+    };
+    
+    window.addEventListener("splashBoxSettingChanged", handleCustomStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("splashBoxSettingChanged", handleCustomStorageChange);
+    };
+  }, []);
 
   useEffect(() => {
+    // Initialise form state from user context
     setFormState({
       name: user?.name ?? "",
       email: user?.email ?? "",
       password: "",
       confirmPassword: "",
+    });
+    // Initialise profile overview from user context
+    setProfileOverview({
+      name: user?.name ?? "",
+      email: user?.email ?? "",
     });
     setLastLogin(null);
     setProfileError(null);
@@ -74,24 +116,38 @@ const Settings = () => {
     const loadProfile = async () => {
       setIsLoadingProfile(true);
       setProfileError(null);
+      const apiUrl = buildApiUrl(`users/${user.id}`);
+      console.log("[Settings] Loading profile from:", apiUrl);
+
       try {
-        const response = await fetch(buildApiUrl(`users/${user.id}`), {
+        const response = await fetch(apiUrl, {
           method: "GET",
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           signal: controller.signal,
         });
 
-        const payload = (await response.json().catch(() => ({}))) as {
+        console.log("[Settings] Response status:", response.status, response.statusText);
+
+        const payload = (await response.json().catch((parseError) => {
+          console.error("[Settings] Failed to parse response JSON:", parseError);
+          return {};
+        })) as {
           ok?: boolean;
           user?: ServerUser;
           error?: string;
         };
 
+        console.log("[Settings] Response payload:", payload);
+
         if (!response.ok || payload.ok === false) {
-          throw new Error(payload.error ?? "Unable to load your profile details.");
+          const errorMsg = payload.error ?? "Unable to load your profile details.";
+          console.error("[Settings] Error response:", errorMsg);
+          throw new Error(errorMsg);
         }
 
         const serverUser = payload.user ?? {};
+        console.log("[Settings] Server user data:", serverUser);
+
         const resolvedName = resolveString(serverUser.name, serverUser.NAME);
         const resolvedEmail = resolveString(serverUser.email, serverUser.EMAIL);
         const resolvedLastLogin = resolveString(
@@ -100,19 +156,35 @@ const Settings = () => {
           serverUser.last_login_at
         );
 
+        console.log("[Settings] Resolved last login:", resolvedLastLogin);
+
+        // Update profile overview from backend data
+        setProfileOverview({
+          name: resolvedName ?? profileOverview.name,
+          email: resolvedEmail ?? profileOverview.email,
+        });
+
+        // Update form state from backend data (only if form hasn't been modified)
         setFormState((prev) => ({
           name: resolvedName ?? prev.name,
           email: resolvedEmail ?? prev.email,
-          password: "",
-          confirmPassword: "",
+          password: prev.password, // Keep password field as-is
+          confirmPassword: prev.confirmPassword, // Keep confirm password field as-is
         }));
 
         if (resolvedLastLogin) {
           setLastLogin(resolvedLastLogin);
+        } else {
+          console.warn("[Settings] No last login data found in response");
         }
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        setProfileError((err as Error).message || "Unable to load your profile details.");
+        if ((err as Error).name === "AbortError") {
+          console.log("[Settings] Request aborted");
+          return;
+        }
+        const errorMsg = (err as Error).message || "Unable to load your profile details.";
+        console.error("[Settings] Error loading profile:", err);
+        setProfileError(errorMsg);
       } finally {
         setIsLoadingProfile(false);
       }
@@ -171,6 +243,18 @@ const Settings = () => {
       ...prev,
       [field]: field === "email" ? value.toLowerCase() : value,
     }));
+  };
+
+  const handleSplashBoxToggle = (enabled: boolean) => {
+    setShowSplashBox(enabled);
+    localStorage.setItem(SPLASH_BOX_ENABLED_KEY, enabled ? "true" : "false");
+    if (!enabled) {
+      // If disabling, also mark as dismissed so it won't show
+      localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
+    } else {
+      // If enabling, clear the dismissed flag so it can show again
+      localStorage.removeItem(SPLASH_BOX_STORAGE_KEY);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -235,6 +319,13 @@ const Settings = () => {
         updatedUser.last_login_at
       );
 
+      // Update profile overview from backend response
+      setProfileOverview({
+        name: nextName,
+        email: nextEmail,
+      });
+
+      // Update form state from backend response
       setFormState({
         name: nextName,
         email: nextEmail,
@@ -324,7 +415,7 @@ const Settings = () => {
                 Username
               </dt>
               <dd className="text-sm font-medium text-slate-900 dark:text-white">
-                {formState.name || "Not provided"}
+                {profileOverview.name || "Not provided"}
               </dd>
             </div>
 
@@ -334,7 +425,7 @@ const Settings = () => {
                 Email address
               </dt>
               <dd className="text-sm font-medium text-slate-900 break-all dark:text-white">
-                {formState.email || "Not provided"}
+                {profileOverview.email || "Not provided"}
               </dd>
             </div>
 
@@ -504,6 +595,51 @@ const Settings = () => {
               </button>
             </div>
           </form>
+        </section>
+
+        <section className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/60">
+          <header className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stg-accent/15 text-stg-accent">
+              <Info className="h-5 w-5" aria-hidden />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white">Welcome message</h2>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Control whether to show the welcome splash box on the homepage.
+              </p>
+            </div>
+          </header>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/70 p-4 dark:border-white/10 dark:bg-slate-900/40">
+              <div className="space-y-1">
+                <label
+                  htmlFor="splash-box-toggle"
+                  className="text-sm font-medium text-slate-900 dark:text-white"
+                >
+                  Show welcome message on homepage
+                </label>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  When enabled, first-time visitors will see a welcome message asking if they'd like to learn about the platform.
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input
+                  type="checkbox"
+                  id="splash-box-toggle"
+                  checked={showSplashBox}
+                  onChange={(e) => handleSplashBoxToggle(e.target.checked)}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-stg-accent peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-stg-accent/40 dark:bg-slate-700 dark:after:border-slate-600 dark:after:bg-slate-300"></div>
+              </label>
+            </div>
+            {!showSplashBox && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The welcome message is currently disabled. Enable it to show the splash box to new visitors.
+              </p>
+            )}
+          </div>
         </section>
       </div>
     </section>
