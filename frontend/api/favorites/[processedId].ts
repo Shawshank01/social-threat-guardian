@@ -89,10 +89,28 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
+  // Normalise method early for all checks
+  // Vercel may pass method in different ways, so check multiple sources
+  const rawMethod = req.method || 
+                    (req as any).httpMethod || 
+                    (req.headers as any)?.["x-http-method"] || 
+                    "";
+  const method = rawMethod.toUpperCase().trim();
+
+  // Comprehensive logging for debugging
+  console.log("[api/favorites/[processedId]] Method detection:", {
+    reqMethod: req.method,
+    httpMethod: (req as any).httpMethod,
+    xHttpMethod: (req.headers as any)?.["x-http-method"],
+    rawMethod,
+    normalizedMethod: method,
+    url: req.url,
+  });
+
   // Handle OPTIONS preflight
-  if (req.method === "OPTIONS") {
+  if (method === "OPTIONS" || req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.status(204).end();
     return;
@@ -104,33 +122,74 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   let processedId = "";
   if (req.url) {
     try {
-      const url = req.url.startsWith("http") 
-        ? new URL(req.url) 
-        : new URL(req.url, "http://localhost");
-      const pathParts = url.pathname.split("/").filter(Boolean);
-      // Get the last segment and decode it (handles URL-encoded AT URIs)
+      // Handle both absolute URLs and relative paths
+      let urlObj: URL;
+      if (req.url.startsWith("http://") || req.url.startsWith("https://")) {
+        urlObj = new URL(req.url);
+      } else {
+        // For relative paths, construct a full URL
+        urlObj = new URL(req.url, "http://localhost");
+      }
+
+      const pathParts = urlObj.pathname.split("/").filter(Boolean);
+      // Get the last segment (should be after /api/favorites/)
+      // Path structure: /api/favorites/{processedId}
       const rawId = pathParts[pathParts.length - 1] || "";
-      processedId = decodeURIComponent(rawId);
-    } catch {
+
+      if (rawId) {
+        try {
+          // Decode URL-encoded characters (handles AT URIs like at%3A%2F%2F...)
+          processedId = decodeURIComponent(rawId);
+        } catch (decodeError) {
+          // If decoding fails, use the raw ID
+          console.warn("[api/favorites/[processedId]] Failed to decode processedId:", decodeError);
+          processedId = rawId;
+        }
+      }
+    } catch (urlError) {
       // Fallback: try to extract from the URL string directly using regex
-      const match = req.url.match(/\/([^/?]+)(?:\?|$)/);
+      console.warn("[api/favorites/[processedId]] URL parsing failed, using regex fallback:", urlError);
+      // Match everything after /api/favorites/ until query string or end
+      const match = req.url.match(/\/api\/favorites\/([^?]+)/);
       if (match && match[1]) {
         try {
           processedId = decodeURIComponent(match[1]);
-        } catch {
+        } catch (decodeError) {
           processedId = match[1];
+        }
+      } else {
+        // Last resort: try to get the last segment after any slash
+        const lastSlashMatch = req.url.match(/\/([^/?]+)(?:\?|$)/);
+        if (lastSlashMatch && lastSlashMatch[1]) {
+          try {
+            processedId = decodeURIComponent(lastSlashMatch[1]);
+          } catch {
+            processedId = lastSlashMatch[1];
+          }
         }
       }
     }
   }
-  
+
   if (!processedId) {
-    res.status(400).json({ ok: false, error: "Missing post_id in URL" });
+    console.error("[api/favorites/[processedId]] Failed to extract processedId from URL:", req.url);
+    res.status(400).json({
+      ok: false,
+      error: "Missing post_id in URL",
+      details: process.env.NODE_ENV === "development" ? { url: req.url } : undefined,
+    });
     return;
   }
 
-  // Normalise method to uppercase for comparison
-  const method = req.method?.toUpperCase() || "";
+  // Debug logging (always log in case of errors)
+  console.log("[api/favorites/[processedId]] Request details:", {
+    rawMethod,
+    normalizedMethod: method,
+    url: req.url,
+    processedId,
+    hasProcessedId: !!processedId,
+    allHeaders: Object.keys(req.headers || {}),
+  });
 
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -142,37 +201,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
 
   if (method === "GET") {
-    // GET /bookmark/:processedId to retrieve a single bookmark
-    const targetUrl = new URL(`/bookmark/${encodeURIComponent(processedId)}`, BACKEND_URL).toString();
-    
-    try {
-      const response = await makeRequest(targetUrl, {
-        method: "GET",
-        headers,
-      });
-
-      const contentType = response.headers["content-type"];
-      if (contentType) {
-        res.setHeader("Content-Type", contentType);
-      }
-      res.status(response.status).send(response.body);
-      return;
-    } catch (error) {
-      console.error("[api/favorites/[processedId]] Backend request failed:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      res.status(500).json({
-        ok: false,
-        error: "Failed to connect to backend server.",
-        details: process.env.NODE_ENV === "development" ? errorMessage : undefined,
-      });
-      return;
-    }
+    // GET single bookmark by processedId is not supported by the backend API
+    // Use GET /bookmark to list all bookmarks, or GET /bookmark/content to get bookmark content
+    res.status(501).json({
+      ok: false,
+      error: "GET single bookmark is not supported. Use GET /api/favorites to list all bookmarks.",
+    });
+    return;
   }
 
   if (method === "DELETE") {
     // DELETE /bookmark/remove, remove a bookmark
     const targetUrl = new URL("/bookmark/remove", BACKEND_URL).toString();
-    
+
     try {
       const response = await makeRequest(targetUrl, {
         method: "DELETE",
@@ -201,9 +242,18 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
   }
 
-  // Method not allowed
-  res.status(405).json({ 
-    ok: false, 
-    error: `Method ${method} not allowed. Supported methods: GET, DELETE, OPTIONS` 
+  // Log the actual method received for debugging
+  console.error("[api/favorites/[processedId]] Method not allowed:", {
+    receivedMethod: req.method,
+    normalizedMethod: method,
+    url: req.url,
+    processedId,
+  });
+
+  res.status(405).json({
+    ok: false,
+    error: `Method ${method || req.method || "UNKNOWN"} not allowed. Supported methods: DELETE, OPTIONS`,
+    receivedMethod: req.method,
+    normalizedMethod: method,
   });
 }

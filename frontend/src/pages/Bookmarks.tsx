@@ -217,9 +217,9 @@ const Bookmarks = () => {
   const handleRemove = async (processedId: string) => {
     if (!token) return;
     try {
-      // DELETE /bookmark/remove with post_id in body (per backend API)
-      // Use the [processedId] route which handles DELETE correctly
-      const response = await fetch(buildApiUrl(`favorites/${encodeURIComponent(processedId)}`), {
+      // DELETE /bookmark/remove
+      // Use query parameter to avoid Vercel dynamic route issues with DELETE
+      const response = await fetch(buildApiUrl(`favorites?post_id=${encodeURIComponent(processedId)}`), {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",

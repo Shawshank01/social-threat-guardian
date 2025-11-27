@@ -581,15 +581,15 @@ const PostDetail = () => {
     try {
       if (isFavorite) {
         // DELETE /bookmark/remove
+        // Use query parameter to avoid Vercel dynamic route issues with DELETE
         const response = await fetch(
-          buildApiUrl(`favorites/${encodeURIComponent(post.id)}`),
+          buildApiUrl(`favorites?post_id=${encodeURIComponent(post.id)}`),
           {
             method: "DELETE",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify({ post_id: post.id }),
           },
         );
 
