@@ -694,6 +694,22 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     }
     ```
   - **Errors:** `400` for invalid/empty `postId`; `500` for unexpected errors.
+- **Delete Reply:** `DELETE /reply/{id}`
+  - **Auth:** `Authorization: Bearer <JWT>` required.
+  - **Description:** Deletes a reply owned by the authenticated user. Matches both `id` and `user_id` in the table; returns 404 if the reply does not exist or is not owned by the caller.
+  - **Response (200 OK):**
+    ```json
+    {
+      "ok": true,
+      "removed": 1
+    }
+    ```
+  - **Errors:** `400` for missing/invalid `id`; `401` for missing/invalid JWT; `404` when the reply is not found or not owned by the user; `500` for unexpected errors.
+  - **Example:**
+    ```bash
+    curl -X DELETE https://localhost:3000/reply/reply-id-1 \
+         -H "Authorization: Bearer <jwt>"
+    ```
 ### Add Bookmark
 - **Endpoint:** `POST /bookmark/add`
 - **Auth:** Requires `Authorization: Bearer <JWT>` header. The token must encode the user ID in the `sub` (or `id`) claim so the backend can associate the bookmark with the authenticated user.

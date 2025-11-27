@@ -1,7 +1,7 @@
 // /routes/reply.js
 import express from "express";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { createReply, listRepliesForPost } from "../models/replyModel.js";
+import { createReply, listRepliesForPost, deleteReplyById } from "../models/replyModel.js";
 
 const router = express.Router();
 
@@ -10,6 +10,14 @@ function sanitizePostId(value) {
   const trimmed = String(value).trim();
   if (!trimmed) return null;
   if (trimmed.length > 200) return null;
+  return trimmed;
+}
+
+function sanitizeId(value) {
+  if (value === undefined || value === null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  if (trimmed.length > 64) return null;
   return trimmed;
 }
 
@@ -24,6 +32,31 @@ router.get("/:postId", async (req, res) => {
     return res.json({ ok: true, count: replies.length, replies });
   } catch (err) {
     console.error("[GET /reply/:postId] error:", err);
+    return res.status(500).json({ ok: false, error: err.message || String(err) });
+  }
+});
+
+router.delete("/:id", requireAuth, async (req, res) => {
+  const replyId = sanitizeId(
+    req.params.id ?? req.params.replyId ?? req.body?.id ?? req.body?.reply_id ?? req.body?.replyId,
+  );
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
+  if (!replyId) {
+    return res.status(400).json({ ok: false, error: "reply_id is required" });
+  }
+
+  try {
+    const deleted = await deleteReplyById({ id: replyId, user_id: userId });
+    if (deleted === 0) {
+      return res.status(404).json({ ok: false, error: "Reply not found or not owned by user" });
+    }
+    return res.json({ ok: true, removed: deleted });
+  } catch (err) {
+    console.error("[DELETE /reply/:replyId] error:", err);
     return res.status(500).json({ ok: false, error: err.message || String(err) });
   }
 });

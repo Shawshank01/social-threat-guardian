@@ -59,6 +59,7 @@ export async function createReply({ postId, userId, authorName, replyText }) {
       id: extract(outBinds.outId),
       postId: extract(outBinds.outPostId),
       userId: extract(outBinds.outUserId),
+      user_id: extract(outBinds.outUserId),
       authorName: extract(outBinds.outAuthorName),
       userName: extract(outBinds.outAuthorName),
       replyText: extract(outBinds.outReplyText),
@@ -99,10 +100,39 @@ export async function listRepliesForPost(postId) {
       id: row.ID,
       postId: row.POST_ID,
       userId: row.USER_ID,
+      user_id: row.USER_ID,
       authorName: row.AUTHOR_NAME,
       userName: row.AUTHOR_NAME,
       replyText: row.REPLY_TEXT,
       createdAt: row.CREATED_AT instanceof Date ? row.CREATED_AT.toISOString() : row.CREATED_AT,
     }));
+  });
+}
+
+/**
+ * Delete a reply by ID owned by the given user.
+ * @param {object} params
+ * @param {string} params.id
+ * @param {string} params.user_id
+ * @returns {Promise<number>} number of rows deleted
+ */
+export async function deleteReplyById({ id, user_id }) {
+  const trimmedReplyId = String(id || "").trim();
+  const trimmedUserId = String(user_id || "").trim();
+
+  if (!trimmedReplyId) throw new Error("id is required");
+  if (!trimmedUserId) throw new Error("user_id is required");
+  if (trimmedReplyId.length > 64) throw new Error("id is too long");
+
+  return withConnection(async (conn) => {
+    const result = await conn.execute(
+      `DELETE FROM USER_POST_REPLIES
+        WHERE ID = :replyId
+          AND USER_ID = :userId`,
+      { replyId: trimmedReplyId, userId: trimmedUserId },
+      { autoCommit: true },
+    );
+
+    return result.rowsAffected || 0;
   });
 }
