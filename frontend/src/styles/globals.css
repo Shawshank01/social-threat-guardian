@@ -6,3 +6,23 @@ body {
   color-scheme: light dark;
   @apply bg-slate-100 text-slate-900 font-sans antialiased transition-colors duration-200 dark:bg-stg-bg dark:text-white;
 }
+
+@keyframes flash {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  25%,
+  75% {
+    opacity: 0.5;
+    transform: scale(0.98);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
