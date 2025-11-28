@@ -23,4 +23,5 @@ export type PostComment = {
   author: string;
   text: string;
   createdAt: string;
+  userId?: string;
 };
