@@ -66,15 +66,15 @@ export default defineConfig(({ mode }) => {
                   try {
                     const urlObj = new URL(url, "http://localhost");
                     const postId = urlObj.searchParams.get("post_id");
-                    
+
                     if (postId) {
                       proxyReq.path = "/bookmark/remove";
-                      
+
                       // Set the request body with post_id (backend expects this in the body)
                       const body = JSON.stringify({ post_id: postId });
                       proxyReq.setHeader("Content-Type", "application/json");
                       proxyReq.setHeader("Content-Length", Buffer.byteLength(body));
-                      
+
                       // Write the body to the proxied request
                       proxyReq.write(body);
                     }

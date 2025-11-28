@@ -8,8 +8,8 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        "stg-bg": "#05070f",
-        "stg-panel": "#0f1a2a",
+        "stg-bg": "#1e293b", // Warmer dark slate instead of near-black
+        "stg-panel": "#334155", // Lighter panel for better contrast
         "stg-accent": "#3da1ff",
         "stg-accent-soft": "#7f53ff",
         "stg-alert": "#ff6b6b"
@@ -18,7 +18,7 @@ module.exports = {
         sans: ["Inter", "ui-sans-serif", "system-ui"],
       },
       boxShadow: {
-        soft: "0 20px 45px rgba(5, 14, 35, 0.4)"
+        soft: "0 20px 45px rgba(30, 41, 59, 0.3)"
       }
     },
   },
