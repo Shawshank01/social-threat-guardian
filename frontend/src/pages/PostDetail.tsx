@@ -42,21 +42,21 @@ const PostDetail = () => {
 
   // Initialise post from route state if available, otherwise null
   const [post, setPost] = useState<MonitoredPost | null>(postFromState ?? null);
-  
+
   // Update post if route state changes (e.g., when navigating from Bookmarks)
   // But if the post has placeholder text, we'll try to reload it from the database
   useEffect(() => {
     if (postFromState && postFromState.id === decodedPostId) {
-      const hasPlaceholderText = 
+      const hasPlaceholderText =
         postFromState.postText === "Post content not available. Click to view details." ||
         postFromState.postText === "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.";
-      
+
       // If post has placeholder text, set it but don't prevent reload
       // Otherwise, set it and it will prevent reload (hasPostWithContent check)
       setPost(postFromState);
     }
   }, [postFromState, decodedPostId]);
-  
+
   const [isFavorite, setIsFavorite] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
@@ -64,52 +64,61 @@ const PostDetail = () => {
   const [commentInput, setCommentInput] = useState("");
   const [favoriteError, setFavoriteError] = useState<string | null>(null);
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   // Load post from bookmarks or database if not available from route state or has placeholder content
   useEffect(() => {
     // Check if we have a post with valid content (not placeholder text)
-    const hasPostWithContent = post && 
-      post.postText && 
+    const hasPostWithContent = post &&
+      post.postText &&
       post.postText !== "Post content not available. Click to view details." &&
       post.postText !== "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.";
-    
-    // Skip if we already have valid content, or missing required data
-    if (hasPostWithContent || !decodedPostId || !token) return;
-    
+
+    // Skip if we already have valid content, or missing post ID
+    if (hasPostWithContent || !decodedPostId) return;
+
     const controller = new AbortController();
 
     const loadPost = async () => {
       try {
         // First, check if this post is bookmarked and try to load from /bookmark/content
-        const bookmarksResponse = await fetch(buildApiUrl("favorites"), {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          signal: controller.signal,
-        });
-
+        // Only if user is authenticated
         let isBookmarked = false;
-        if (bookmarksResponse.ok) {
-          const bookmarksPayload = (await bookmarksResponse.json().catch(() => ({}))) as {
-            ok?: boolean;
-            bookmarks?: Array<{
-              PROCESSED_ID?: string;
-            }>;
-          };
+        if (token) {
+          try {
+            const bookmarksResponse = await fetch(buildApiUrl("favorites"), {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              signal: controller.signal,
+            });
 
-          if (bookmarksPayload.ok && bookmarksPayload.bookmarks) {
-            isBookmarked = bookmarksPayload.bookmarks.some(
-              (bookmark) => bookmark.PROCESSED_ID === decodedPostId
-            );
+            if (bookmarksResponse.ok) {
+              const bookmarksPayload = (await bookmarksResponse.json().catch(() => ({}))) as {
+                ok?: boolean;
+                bookmarks?: Array<{
+                  PROCESSED_ID?: string;
+                }>;
+              };
+
+              if (bookmarksPayload.ok && bookmarksPayload.bookmarks) {
+                isBookmarked = bookmarksPayload.bookmarks.some(
+                  (bookmark) => bookmark.PROCESSED_ID === decodedPostId
+                );
+              }
+            }
+          } catch {
+            // If bookmark check fails, continue to try other methods
           }
         }
 
         // If bookmarked, try to load from /bookmark/content endpoint first
         if (isBookmarked) {
           const sourceTables = ["BLUSKY_TEST", "BLUSKY", "BLUSKY2"];
-          
+
           for (const sourceTable of sourceTables) {
             try {
               const contentResponse = await fetch(
@@ -141,24 +150,24 @@ const PostDetail = () => {
               if (contentResponse.ok && contentPayload.ok && contentPayload.posts) {
                 // Try to find the post using flexible matching
                 let postData = contentPayload.posts.find((p) => p.postId === decodedPostId);
-                
+
                 if (!postData) {
                   postData = contentPayload.posts.find(
                     (p) => p.postId?.toLowerCase() === decodedPostId.toLowerCase()
                   );
                 }
-                
+
                 if (!postData && decodedPostId.includes("/app.bsky.feed.post/")) {
                   const postIdPart = decodedPostId.split("/app.bsky.feed.post/")[1];
                   if (postIdPart) {
-                    postData = contentPayload.posts.find((p) => 
-                      p.postId?.includes(postIdPart) || 
+                    postData = contentPayload.posts.find((p) =>
+                      p.postId?.includes(postIdPart) ||
                       p.postId?.endsWith(postIdPart) ||
                       p.postUrl?.includes(postIdPart)
                     );
                   }
                 }
-                
+
                 if (postData) {
                   const platformLabel = sourceTable === "BLUSKY_TEST" || sourceTable === "BLUSKY" || sourceTable === "BLUSKY2"
                     ? "Bluesky"
@@ -203,41 +212,47 @@ const PostDetail = () => {
         }
 
         // If not found in bookmarks, try searching the database using user preferences
-        // Only if we have keywords configured
-        const preferencesResponse = await fetch(buildApiUrl("user-preferences"), {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          signal: controller.signal,
-        });
-
+        // Only if we have keywords configured and user is authenticated
         let keywords: string[] = [];
         let platforms: string[] = ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
         let languages: string[] = [];
 
-        if (preferencesResponse.ok) {
-          const preferencesPayload = (await preferencesResponse.json().catch(() => ({}))) as {
-            ok?: boolean;
-            preferences?: {
-              keywords?: string[];
-              platforms?: string[];
-              languages?: string[];
-            };
-          };
+        if (token) {
+          try {
+            const preferencesResponse = await fetch(buildApiUrl("user-preferences"), {
+              method: "GET",
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              signal: controller.signal,
+            });
 
-          if (preferencesPayload.ok && preferencesPayload.preferences) {
-            keywords = preferencesPayload.preferences.keywords || [];
-            platforms = preferencesPayload.preferences.platforms && preferencesPayload.preferences.platforms.length > 0
-              ? preferencesPayload.preferences.platforms
-              : ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
-            languages = preferencesPayload.preferences.languages || [];
+            if (preferencesResponse.ok) {
+              const preferencesPayload = (await preferencesResponse.json().catch(() => ({}))) as {
+                ok?: boolean;
+                preferences?: {
+                  keywords?: string[];
+                  platforms?: string[];
+                  languages?: string[];
+                };
+              };
+
+              if (preferencesPayload.ok && preferencesPayload.preferences) {
+                keywords = preferencesPayload.preferences.keywords || [];
+                platforms = preferencesPayload.preferences.platforms && preferencesPayload.preferences.platforms.length > 0
+                  ? preferencesPayload.preferences.platforms
+                  : ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
+                languages = preferencesPayload.preferences.languages || [];
+              }
+            }
+          } catch {
+            // If preferences fetch fails, use defaults
           }
         }
 
-        // Only search if we have keywords
-        if (keywords.length > 0) {
+        // Only search if we have keywords and token
+        if (keywords.length > 0 && token) {
           const searchPromises = platforms.map(async (platformId) => {
             try {
               const response = await fetch(buildApiUrl("comments/search"), {
@@ -288,7 +303,7 @@ const PostDetail = () => {
                 const comments = result.comments || [];
                 for (const comment of comments) {
                   const postId = comment.post_id?.toString().trim() || null;
-                  
+
                   // Try multiple matching strategies
                   let isMatch = false;
                   if (postId === decodedPostId) {
@@ -364,7 +379,7 @@ const PostDetail = () => {
           if (atUriMatch) {
             const [, did, path] = atUriMatch;
             const isBlueskyPost = path.includes("app.bsky.feed.post");
-            
+
             let postUrl: string | null = null;
             if (isBlueskyPost) {
               const postId = path.split("/").pop();
@@ -501,7 +516,7 @@ const PostDetail = () => {
           .filter((reply) => reply.id) // Only include replies with backend-provided IDs
           .map((reply) => ({
             id: reply.id!,
-            author: (reply.authorName || reply.userName) && (reply.authorName || reply.userName)!.trim().length > 0 
+            author: (reply.authorName || reply.userName) && (reply.authorName || reply.userName)!.trim().length > 0
               ? (reply.authorName || reply.userName)!
               : "Analyst",
             text: reply.replyText ?? "",
@@ -524,9 +539,9 @@ const PostDetail = () => {
     return () => controller.abort();
   }, [decodedPostId]);
 
-  // Show loading state while trying to load post from bookmarks
-  const isLoadingPost = !post && decodedPostId && token;
-  
+  // Show loading state while trying to load post (token not required for loading state)
+  const isLoadingPost = !post && decodedPostId;
+
   if (!decodedPostId) {
     return (
       <section className="mx-auto flex min-h-[60vh] max-w-4xl flex-col justify-center gap-6 px-4 text-center">
@@ -539,7 +554,7 @@ const PostDetail = () => {
       </section>
     );
   }
-  
+
   if (!post && isLoadingPost) {
     return (
       <section className="mx-auto flex min-h-[60vh] max-w-4xl flex-col justify-center gap-6 px-4 text-center">
@@ -552,7 +567,7 @@ const PostDetail = () => {
       </section>
     );
   }
-  
+
   if (!post) {
     return (
       <section className="mx-auto flex min-h-[60vh] max-w-4xl flex-col justify-center gap-6 px-4 text-center">
@@ -633,9 +648,6 @@ const PostDetail = () => {
       setIsUpdatingFavorite(false);
     }
   };
-
-  const [isPostingComment, setIsPostingComment] = useState(false);
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   const handleSubmitComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
