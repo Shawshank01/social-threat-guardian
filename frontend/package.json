@@ -10,6 +10,8 @@
   },
   "dependencies": {
     "apexcharts": "^4.0.0",
+    "cytoscape": "^3.30.0",
+    "cytoscape-fcose": "^2.2.0",
     "lucide-react": "^0.453.0",
     "react": "^18.3.1",
     "react-apexcharts": "^1.7.0",
@@ -17,6 +19,7 @@
     "react-router-dom": "^6.22.3"
   },
   "devDependencies": {
+    "@types/cytoscape": "^3.21.0",
     "@types/node": "^24.7.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
