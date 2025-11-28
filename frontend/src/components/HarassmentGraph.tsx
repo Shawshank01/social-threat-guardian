@@ -35,16 +35,28 @@ const HarassmentGraph: React.FC = () => {
     setError(null);
     setSelectedEdge(null);
     try {
-      // Use /api proxy pattern to connect to backend (works in both dev and production)
-      const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
-      const buildApiUrl = (path: string) => {
-        const normalizedPath = path.replace(/^\/+/, "");
-        return `${API_BASE}/${normalizedPath}`;
-      };
+      // In production (Vercel), call backend directly to avoid serverless function limit
+      // In development, use /api proxy
+      const isProduction = import.meta.env.PROD;
+      let url: string;
       
-      const url = query 
-        ? buildApiUrl(`harassment-network/cliques?q=${encodeURIComponent(query)}`)
-        : buildApiUrl("harassment-network/cliques");
+      if (isProduction && import.meta.env.VITE_BACKEND_URL) {
+        // Production: call backend directly
+        const backendUrl = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
+        url = query 
+          ? `${backendUrl}/harassment-network/cliques?q=${encodeURIComponent(query)}`
+          : `${backendUrl}/harassment-network/cliques`;
+      } else {
+        // Development: use /api proxy
+        const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+        const buildApiUrl = (path: string) => {
+          const normalizedPath = path.replace(/^\/+/, "");
+          return `${API_BASE}/${normalizedPath}`;
+        };
+        url = query 
+          ? buildApiUrl(`harassment-network/cliques?q=${encodeURIComponent(query)}`)
+          : buildApiUrl("harassment-network/cliques");
+      }
       
       const response = await fetch(url, {
         cache: 'no-cache',
