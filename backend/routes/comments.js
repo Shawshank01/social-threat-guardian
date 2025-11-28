@@ -84,7 +84,7 @@ router.get("/latest", async (req, res) => {
 });
 
 router.post("/search", async (req, res) => {
-  const { keywords, limit = 4, predIntent, source } = req.body || {};
+  const { keywords, limit = 4, predIntent: rawPredIntent, source } = req.body || {};
   const parsedLimit = Math.max(1, Number(limit) || 4);
 
   const keywordList = Array.isArray(keywords)
@@ -107,6 +107,14 @@ router.post("/search", async (req, res) => {
   }
 
   const platformLabel = resolvePlatformLabel(tableName);
+
+  const predIntent =
+    rawPredIntent === undefined || rawPredIntent === null
+      ? "HARMFUL"
+      : (() => {
+          const trimmed = String(rawPredIntent).trim();
+          return trimmed ? trimmed.toUpperCase() : "HARMFUL";
+        })();
 
   try {
     const results = [];

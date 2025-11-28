@@ -78,7 +78,7 @@ export async function searchCommentsByText(keywords = [], options = {}) {
   const containsQuery = buildContainsQuery(keywords);
   if (!containsQuery) return [];
 
-  const limit = Math.max(1, Math.min(Number(options.limit) || 10, 200));
+  const limit = Math.max(1, Number(options.limit) || 10);
 
   let predIntent = options.predIntent;
   if (predIntent !== undefined && predIntent !== null) {
