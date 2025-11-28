@@ -1,6 +1,8 @@
 import { defineConfig, loadEnv } from "vite";
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
+import { writeFileSync } from "fs";
+import { join } from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -30,8 +32,25 @@ export default defineConfig(({ mode }) => {
     return path.replace(/^\/api/, "");
   };
 
+  // Generate build version at config time
+  const buildVersion = Date.now().toString();
+
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      // Plugin to generate version file on build
+      {
+        name: 'generate-version',
+        writeBundle() {
+          const publicDir = join(process.cwd(), 'dist');
+          writeFileSync(join(publicDir, 'version.txt'), buildVersion, 'utf-8');
+        },
+      },
+    ],
+    define: {
+      // Inject build version at build time
+      'import.meta.env.VITE_BUILD_VERSION': JSON.stringify(buildVersion),
+    },
     server: {
       port: 5173,
       proxy: {

@@ -4,6 +4,7 @@ import NavBar from "@/components/NavBar";
 import Footer from "@/components/Footer";
 import ThemeToggle from "@/components/ThemeToggle";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { checkOnRouteChange } from "@/utils/versionCheck";
 import Home from "@/pages/Home";
 import HarassmentNetworks from "@/pages/HarassmentNetworks";
 import PersonalMonitors from "@/pages/PersonalMonitors";
@@ -40,9 +41,13 @@ const App = () => {
     .filter(Boolean)
     .join(" ");
 
-  // Scroll to top when route changes
+  // Scroll to top and check for updates when route changes
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    // Check for new version when navigating to a different page
+    if (import.meta.env.PROD) {
+      checkOnRouteChange();
+    }
   }, [location.pathname]);
 
   return (
