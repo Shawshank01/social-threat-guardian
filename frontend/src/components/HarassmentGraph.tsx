@@ -35,7 +35,7 @@ const HarassmentGraph: React.FC = () => {
     setError(null);
     setSelectedEdge(null);
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:443';
+      const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:443';
       const url = query 
         ? `${API_BASE_URL}/harassment-network/cliques?q=${encodeURIComponent(query)}`
         : `${API_BASE_URL}/harassment-network/cliques`;
