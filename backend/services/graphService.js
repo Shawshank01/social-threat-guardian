@@ -11,11 +11,12 @@ export async function searchGraphByKeyword(keyword, options = {}) {
   const limit = normalizeLimit(options.limit);
   const sql = `
     SELECT 
-      g.SOURCE_USER AS USER_A_DID,
-      g.TARGET_USER AS USER_B_DID,
-      t.AUTHOR_HANDLE AS USER_A_HANDLE,
+      g.SOURCE_USER AS USER_A,
+      g.TARGET_USER AS USER_B,
+      t.AUTHOR_HANDLE AS HANDLE_A,
       t.POST_TEXT,
-      t.POST_ID
+      t.POST_ID,
+      t.HATE_SCORE
     FROM DIWEN.GRAPH_EDGES g
     JOIN DIWEN.BLUSKY_TEST t ON g.POST_ID = t.POST_ID
     WHERE 
@@ -27,7 +28,17 @@ export async function searchGraphByKeyword(keyword, options = {}) {
     const result = await conn.execute(
       sql,
       { keyword, limit },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        fetchInfo: {
+          USER_A: { type: oracledb.STRING },
+          USER_B: { type: oracledb.STRING },
+          HANDLE_A: { type: oracledb.STRING },
+          POST_TEXT: { type: oracledb.STRING },
+          POST_ID: { type: oracledb.STRING },
+          HATE_SCORE: { type: oracledb.STRING },
+        },
+      }
     );
     return result.rows || [];
   });
@@ -37,11 +48,12 @@ export async function findCliqueTriples(options = {}) {
   const limit = normalizeLimit(options.limit);
   const sql = `
     SELECT
-      g.SOURCE_USER AS USER_A_DID,
-      g.TARGET_USER AS USER_B_DID,
-      t.AUTHOR_HANDLE AS USER_A_HANDLE,
+      g.SOURCE_USER AS USER_A,
+      g.TARGET_USER AS USER_B,
+      t.AUTHOR_HANDLE AS HANDLE_A,
       t.POST_TEXT,
-      t.POST_ID
+      t.POST_ID,
+      t.HATE_SCORE
     FROM DIWEN.GRAPH_EDGES g
     JOIN DIWEN.BLUSKY_TEST t ON g.POST_ID = t.POST_ID
     WHERE g.SOURCE_USER <> g.TARGET_USER
@@ -51,7 +63,17 @@ export async function findCliqueTriples(options = {}) {
     const result = await conn.execute(
       sql,
       { limit },
-      { outFormat: oracledb.OUT_FORMAT_OBJECT },
+      {
+        outFormat: oracledb.OUT_FORMAT_OBJECT,
+        fetchInfo: {
+          USER_A: { type: oracledb.STRING },
+          USER_B: { type: oracledb.STRING },
+          HANDLE_A: { type: oracledb.STRING },
+          POST_TEXT: { type: oracledb.STRING },
+          POST_ID: { type: oracledb.STRING },
+          HATE_SCORE: { type: oracledb.STRING },
+        },
+      },
     );
     return result.rows || [];
   });

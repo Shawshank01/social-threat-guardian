@@ -567,12 +567,12 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```
 ### Search Comments by Keyword
 - `POST /comments/search` (body: `{ "keywords": ["foo", "bar"], "limit": 4, "predIntent": "HARMFUL", "source": "BLUSKY_TEST" }`)  
-- **Description:** For each keyword provided, the backend first runs an exact database search (`POST_TEXT` contains the keyword, case-insensitive). If the exact result count meets the requested `limit` **and** the best Fuse.js similarity score is high enough, the response is composed entirely of the exact hits to enforce precision. If both checks fail, the system falls back to pure Fuse-based fuzzy matches so misspelled keywords still yield results. When only one of the conditions passes, the exact results are returned first and then topped up with fuzzy matches until the requested `limit` is reached. All comments still include the friendly `platform` label, `postUrl`, and human-readable `timeAgo`, and you can override `predIntent` or `source` as needed.
+- **Description:** For each keyword (first 10 only), the backend runs an Oracle `CONTAINS` query and returns up to `limit` rows per keyword (minimum 1, no backend cap). By default it filters to `PRED_INTENT = 'HARMFUL'`; pass a different `predIntent` (e.g., `HATE_SPEECH`) to override. Results include the friendly `platform` label, `postUrl`, and human-readable `timeAgo`.
 - **Request Body:**
   ```json
   {
     "keywords": ["hate speech", "alert"],
-    "limit": 4,
+    "limit": 100,
     "predIntent": "HARMFUL",
     "source": "BLUSKY_TEST"
   }
