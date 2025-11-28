@@ -6,7 +6,7 @@ interface Connection {
   USER_A: string;
   USER_B: string;
   USER_C?: string;
-  HANDLE_A?: string; 
+  HANDLE_A?: string;
   POST_TEXT?: string;
   HATE_SCORE?: number;
 }
@@ -39,11 +39,11 @@ const HarassmentGraph: React.FC = () => {
       // In development, use /api proxy
       const isProduction = import.meta.env.PROD;
       let url: string;
-      
+
       if (isProduction && import.meta.env.VITE_BACKEND_URL) {
         // Production: call backend directly
         const backendUrl = import.meta.env.VITE_BACKEND_URL.replace(/\/+$/, "");
-        url = query 
+        url = query
           ? `${backendUrl}/harassment-network/cliques?q=${encodeURIComponent(query)}`
           : `${backendUrl}/harassment-network/cliques`;
       } else {
@@ -53,11 +53,11 @@ const HarassmentGraph: React.FC = () => {
           const normalizedPath = path.replace(/^\/+/, "");
           return `${API_BASE}/${normalizedPath}`;
         };
-        url = query 
+        url = query
           ? buildApiUrl(`harassment-network/cliques?q=${encodeURIComponent(query)}`)
           : buildApiUrl("harassment-network/cliques");
       }
-      
+
       const response = await fetch(url, {
         cache: 'no-cache',
       });
@@ -70,9 +70,9 @@ const HarassmentGraph: React.FC = () => {
             if (errorJson.error) {
               const backendError = String(errorJson.error);
               // Check if it's a circular structure error from Oracle database
-              if (backendError.includes('circular structure') || 
-                  backendError.includes('ConnectDescription') ||
-                  backendError.includes('ConnOption')) {
+              if (backendError.includes('circular structure') ||
+                backendError.includes('ConnectDescription') ||
+                backendError.includes('ConnOption')) {
                 errorMessage = 'Database connection error. Please check backend server logs for details.';
               } else {
                 errorMessage = backendError;
@@ -80,9 +80,9 @@ const HarassmentGraph: React.FC = () => {
             }
           } catch (parseError) {
             // If not JSON, check the text directly
-            if (errorText && (errorText.includes('circular structure') || 
-                errorText.includes('ConnectDescription') ||
-                errorText.includes('ConnOption'))) {
+            if (errorText && (errorText.includes('circular structure') ||
+              errorText.includes('ConnectDescription') ||
+              errorText.includes('ConnOption'))) {
               errorMessage = 'Database connection error. Please check backend server logs for details.';
             }
           }
@@ -98,9 +98,9 @@ const HarassmentGraph: React.FC = () => {
       }
       if (!isMounted.current) return;
       if (items.length === 0) {
-         if (cyRef.current) cyRef.current.elements().remove();
-         setIsLoading(false);
-         return; 
+        if (cyRef.current) cyRef.current.elements().remove();
+        setIsLoading(false);
+        return;
       }
       const elements: cytoscape.ElementDefinition[] = [];
       const addedNodes = new Set<string>();
@@ -108,11 +108,11 @@ const HarassmentGraph: React.FC = () => {
       const nodeDegrees: Record<string, number> = {};
       items.forEach(item => {
         if (item.USER_A) {
-            aggressorSet.add(item.USER_A);
-            nodeDegrees[item.USER_A] = (nodeDegrees[item.USER_A] || 0) + 1;
+          aggressorSet.add(item.USER_A);
+          nodeDegrees[item.USER_A] = (nodeDegrees[item.USER_A] || 0) + 1;
         }
         if (item.USER_B) {
-            nodeDegrees[item.USER_B] = (nodeDegrees[item.USER_B] || 0) + 1;
+          nodeDegrees[item.USER_B] = (nodeDegrees[item.USER_B] || 0) + 1;
         }
       });
       const addNode = (did: string, handle?: string) => {
@@ -120,9 +120,9 @@ const HarassmentGraph: React.FC = () => {
         addedNodes.add(did);
         let label = handle;
         if (!label) {
-             label = did.split(':')[2]?.substring(0, 8) || did.substring(0, 8);
+          label = did.split(':')[2]?.substring(0, 8) || did.substring(0, 8);
         } else {
-             if (!label.startsWith('@')) label = `@${label}`;
+          if (!label.startsWith('@')) label = `@${label}`;
         }
         const isAggressor = aggressorSet.has(did);
         const role = isAggressor ? 'attacker' : 'target';
@@ -130,9 +130,9 @@ const HarassmentGraph: React.FC = () => {
         const size = Math.min(100, 30 + (degree * 5));
         elements.push({
           group: 'nodes',
-          data: { 
-            id: did, 
-            label: label, 
+          data: {
+            id: did,
+            label: label,
             role: role,
             size: size
           },
@@ -145,22 +145,22 @@ const HarassmentGraph: React.FC = () => {
         if (!uA || !uB) return;
         if (uA === uB) return;
         addNode(uA, item.HANDLE_A);
-        addNode(uB); 
-        elements.push({ 
-            group: 'edges', 
-            data: { 
-                id: `e${i}_ab`, 
-                source: uA, 
-                target: uB,
-                postText: item.POST_TEXT || "No content available",
-                handle: item.HANDLE_A || "Unknown",
-                score: item.HATE_SCORE || 0
-            } 
+        addNode(uB);
+        elements.push({
+          group: 'edges',
+          data: {
+            id: `e${i}_ab`,
+            source: uA,
+            target: uB,
+            postText: item.POST_TEXT || "No content available",
+            handle: item.HANDLE_A || "Unknown",
+            score: item.HATE_SCORE || 0
+          }
         });
         if (uC && uC !== 'N/A' && uC !== uA && uC !== uB) {
-           addNode(uC);
-           elements.push({ group: 'edges', data: { id: `e${i}_bc`, source: uB, target: uC } });
-           elements.push({ group: 'edges', data: { id: `e${i}_ca`, source: uC, target: uA } });
+          addNode(uC);
+          elements.push({ group: 'edges', data: { id: `e${i}_bc`, source: uB, target: uC } });
+          elements.push({ group: 'edges', data: { id: `e${i}_ca`, source: uC, target: uA } });
         }
       });
       if (containerRef.current) {
@@ -193,7 +193,7 @@ const HarassmentGraph: React.FC = () => {
                 'border-width': 2,
                 'border-color': '#fff',
                 'background-color': '#94a3b8'
-              } as any 
+              } as any
             },
             {
               selector: 'node[role="attacker"]',
@@ -212,7 +212,7 @@ const HarassmentGraph: React.FC = () => {
               selector: 'edge',
               style: {
                 'width': 2,
-                'curve-style': 'bezier', 
+                'curve-style': 'bezier',
                 'line-color': '#cbd5e1',
                 'target-arrow-color': '#cbd5e1',
                 'target-arrow-shape': 'triangle',
@@ -223,7 +223,7 @@ const HarassmentGraph: React.FC = () => {
             {
               selector: 'edge:selected',
               style: {
-                'line-color': '#0ea5e9', 
+                'line-color': '#0ea5e9',
                 'target-arrow-color': '#0ea5e9',
                 'width': 4,
                 'z-index': 999,
@@ -231,39 +231,39 @@ const HarassmentGraph: React.FC = () => {
               } as any
             }
           ],
-          layout: { name: 'grid' } 
+          layout: { name: 'grid' }
         });
         const layout = cyRef.current.layout({
-            name: 'fcose',
-            quality: 'default',
-            randomize: true, 
-            animate: true,
-            animationDuration: 1000,
-            fit: true,
-            padding: 50,
-            nodeRepulsion: 2000000,
-            idealEdgeLength: 120,
-            edgeElasticity: 0.1,
-            nestingFactor: 0.1,
-            gravity: 0.25,
-            numIter: 2500,
-            initialTemp: 1000,
-            coolingFactor: 0.99,
-            minTemp: 1.0,
-            tile: true,
-            tilingPaddingVertical: 20,
-            tilingPaddingHorizontal: 20,
-            packComponents: true
+          name: 'fcose',
+          quality: 'default',
+          randomize: true,
+          animate: true,
+          animationDuration: 1000,
+          fit: true,
+          padding: 50,
+          nodeRepulsion: 2000000,
+          idealEdgeLength: 120,
+          edgeElasticity: 0.1,
+          nestingFactor: 0.1,
+          gravity: 0.25,
+          numIter: 2500,
+          initialTemp: 1000,
+          coolingFactor: 0.99,
+          minTemp: 1.0,
+          tile: true,
+          tilingPaddingVertical: 20,
+          tilingPaddingHorizontal: 20,
+          packComponents: true
         } as any);
         layout.run();
         cyRef.current.on('tap', 'edge', (evt) => {
           const edge = evt.target;
           if (edge.data('postText')) {
-              setSelectedEdge({
-                text: edge.data('postText'),
-                handle: edge.data('handle'),
-                score: edge.data('score')
-              });
+            setSelectedEdge({
+              text: edge.data('postText'),
+              handle: edge.data('handle'),
+              score: edge.data('score')
+            });
           }
         });
         cyRef.current.on('tap', 'core', () => {
@@ -284,26 +284,26 @@ const HarassmentGraph: React.FC = () => {
     fetchGraphData(searchTerm);
   };
   return (
-    <div className="relative h-[700px] w-full rounded-xl border border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
+    <div className="relative h-[700px] w-full rounded-xl border border-slate-200 bg-slate-50 shadow-sm overflow-hidden dark:border-white/10 dark:bg-stg-panel/50">
       <div className="absolute top-4 left-4 z-20 flex gap-2">
         <form onSubmit={handleSearch} className="flex gap-2">
-            <input 
-            type="text" 
+          <input
+            type="text"
             placeholder="Search keyword..."
-            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-48"
+            className="px-3 py-1.5 border border-slate-300 rounded-md text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500 w-48 dark:border-white/20 dark:bg-white/10 dark:text-white dark:placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <button type="submit" className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 shadow-sm">Search</button>
+          />
+          <button type="submit" className="bg-slate-900 text-white px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-800 shadow-sm dark:bg-stg-accent dark:hover:bg-stg-accent/90">Search</button>
         </form>
       </div>
       <div className="absolute top-4 right-4 z-20 flex gap-4 text-xs font-medium text-slate-600 bg-white/90 backdrop-blur px-3 py-2 rounded-lg border border-slate-200 shadow-sm pointer-events-none">
-          <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Aggressor
-          </div>
-          <div className="flex items-center gap-1">
-              <span className="w-3 h-3 rounded-full bg-violet-500 inline-block"></span> Victim
-          </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span> Aggressor
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-full bg-violet-500 inline-block"></span> Victim
+        </div>
       </div>
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/80">
@@ -322,26 +322,26 @@ const HarassmentGraph: React.FC = () => {
       {selectedEdge && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 animate-in slide-in-from-bottom-4 duration-200 w-full max-w-xl px-4">
           <div className="bg-white border border-slate-200 rounded-xl shadow-xl p-5 relative">
-            <button 
-                onClick={() => setSelectedEdge(null)} 
-                className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 p-1"
+            <button
+              onClick={() => setSelectedEdge(null)}
+              className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 p-1"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
             </button>
             <div className="flex items-center gap-2 mb-2">
-                <div className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide">
-                    Hate Score: {selectedEdge.score ? selectedEdge.score.toFixed(2) : 'N/A'}
-                </div>
-                <span className="text-xs text-slate-400 font-mono">@{selectedEdge.handle || 'Unknown'}</span>
+              <div className="bg-red-100 text-red-700 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wide">
+                Hate Score: {selectedEdge.score ? selectedEdge.score.toFixed(2) : 'N/A'}
+              </div>
+              <span className="text-xs text-slate-400 font-mono">@{selectedEdge.handle || 'Unknown'}</span>
             </div>
             <p className="text-sm text-slate-800 leading-relaxed font-medium">
-                "{selectedEdge.text}"
+              "{selectedEdge.text}"
             </p>
           </div>
         </div>
       )}
       <div className="absolute bottom-2 right-2 text-[10px] text-slate-400 pointer-events-none select-none hidden sm:block">
-          Scroll to Zoom • Click Lines to Inspect
+        Scroll to Zoom • Click Lines to Inspect
       </div>
     </div>
   );

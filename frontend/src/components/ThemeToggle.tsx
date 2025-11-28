@@ -39,9 +39,8 @@ const ThemeToggle = () => {
 
   const panelBaseClasses =
     "absolute bottom-14 right-0 w-48 origin-bottom-right rounded-2xl border border-slate-200/70 bg-white/95 p-4 shadow-xl backdrop-blur transition-all duration-200 ease-out pointer-events-none opacity-0 translate-y-2 scale-95 dark:border-white/10 dark:bg-slate-900/90";
-  const panelClassName = `${panelBaseClasses} ${
-    showPanel ? "pointer-events-auto opacity-100 translate-y-0 scale-100" : ""
-  }`;
+  const panelClassName = `${panelBaseClasses} ${showPanel ? "pointer-events-auto opacity-100 translate-y-0 scale-100" : ""
+    }`;
 
   const handleMouseEnter = () => {
     if (hideTimerRef.current) {
@@ -142,11 +141,10 @@ const ThemeToggle = () => {
                 key={value}
                 type="button"
                 onClick={() => handleThemeSelect(value)}
-                className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                  isActive
-                    ? "border-stg-accent bg-stg-accent/10 text-stg-accent"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-stg-accent/60 hover:text-stg-accent dark:border-white/10 dark:bg-white/10 dark:text-slate-300 dark:hover:text-white"
-                }`}
+                className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition ${isActive
+                  ? "border-stg-accent bg-stg-accent/10 text-stg-accent"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-stg-accent/60 hover:text-stg-accent dark:border-white/10 dark:bg-white/10 dark:text-slate-300 dark:hover:text-white"
+                  }`}
                 role="radio"
                 aria-checked={isActive}
               >
