@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Bookmark, BookmarkCheck, MessageSquarePlus } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, MessageSquarePlus, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost, type PostComment } from "@/types/monitors";
 
@@ -468,11 +468,12 @@ const PostDetail = () => {
     const loadComments = async () => {
       try {
         const response = await fetch(
-          buildApiUrl(`comments/${encodeURIComponent(decodedPostId)}/notes`),
+          buildApiUrl(`reply/${encodeURIComponent(decodedPostId)}`),
           {
             method: "GET",
             headers: {
               Accept: "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             signal: controller.signal,
           },
@@ -480,11 +481,13 @@ const PostDetail = () => {
 
         const payload = (await response.json().catch(() => ({}))) as {
           ok?: boolean;
-          comments?: Array<{
+          replies?: Array<{
             id?: string;
             userId?: string;
+            user_id?: string;
             authorName?: string | null;
-            commentText?: string | null;
+            userName?: string | null;
+            replyText?: string | null;
             createdAt?: string | null;
           }>;
           error?: string;
@@ -494,13 +497,16 @@ const PostDetail = () => {
           throw new Error(payload.error ?? "Unable to load comments.");
         }
 
-        const mapped: PostComment[] = (payload.comments ?? [])
-          .filter((comment) => comment.id) // Only include comments with backend-provided IDs
-          .map((comment) => ({
-            id: comment.id!,
-            author: comment.authorName && comment.authorName.trim().length > 0 ? comment.authorName : "Analyst",
-            text: comment.commentText ?? "",
-            createdAt: comment.createdAt ?? new Date().toISOString(),
+        const mapped: PostComment[] = (payload.replies ?? [])
+          .filter((reply) => reply.id) // Only include replies with backend-provided IDs
+          .map((reply) => ({
+            id: reply.id!,
+            author: (reply.authorName || reply.userName) && (reply.authorName || reply.userName)!.trim().length > 0 
+              ? (reply.authorName || reply.userName)!
+              : "Analyst",
+            text: reply.replyText ?? "",
+            createdAt: reply.createdAt ?? new Date().toISOString(),
+            userId: reply.userId || reply.user_id || undefined,
           }));
 
         setComments(mapped);
@@ -629,6 +635,7 @@ const PostDetail = () => {
   };
 
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
   const handleSubmitComment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -636,7 +643,7 @@ const PostDetail = () => {
     if (!trimmed) return;
 
     const userId = user?.id;
-    if (!userId) {
+    if (!userId || !token) {
       setCommentsError("You need an authenticated session to add comments.");
       return;
     }
@@ -646,27 +653,28 @@ const PostDetail = () => {
 
     try {
       const response = await fetch(
-        buildApiUrl(`comments/${encodeURIComponent(post.id)}/notes`),
+        buildApiUrl("reply/add"),
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
-            userId,
-            author: user?.name?.trim() ?? null,
-            commentText: trimmed,
+            post_id: post.id,
+            reply_text: trimmed,
+            user_name: user?.name?.trim() ?? null,
           }),
         },
       );
 
       const payload = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
-        comment?: {
+        reply?: {
           id?: string;
           authorName?: string | null;
-          commentText?: string | null;
+          userName?: string | null;
+          replyText?: string | null;
           createdAt?: string | null;
         } | null;
         error?: string;
@@ -676,19 +684,20 @@ const PostDetail = () => {
         throw new Error(payload.error ?? "Unable to save your comment.");
       }
 
-      const savedComment = payload.comment;
-      if (!savedComment?.id) {
-        throw new Error("Backend did not return a comment ID. Please refresh to see your comment.");
+      const savedReply = payload.reply;
+      if (!savedReply?.id) {
+        throw new Error("Backend did not return a reply ID. Please refresh to see your comment.");
       }
 
       const mapped: PostComment = {
-        id: savedComment.id,
+        id: savedReply.id,
         author:
-          savedComment.authorName && savedComment.authorName.trim().length > 0
-            ? savedComment.authorName
+          (savedReply.authorName || savedReply.userName) && (savedReply.authorName || savedReply.userName)!.trim().length > 0
+            ? (savedReply.authorName || savedReply.userName)!
             : user?.name?.trim() || "Analyst",
-        text: savedComment.commentText ?? trimmed,
-        createdAt: savedComment.createdAt ?? new Date().toISOString(),
+        text: savedReply.replyText ?? trimmed,
+        createdAt: savedReply.createdAt ?? new Date().toISOString(),
+        userId: userId,
       };
 
       setComments((prev) => [...prev, mapped]);
@@ -697,6 +706,46 @@ const PostDetail = () => {
       setCommentsError((error as Error).message || "Unable to save your comment.");
     } finally {
       setIsPostingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!token || !user?.id) {
+      setCommentsError("You need an authenticated session to delete comments.");
+      return;
+    }
+
+    setDeletingCommentId(commentId);
+    setCommentsError(null);
+
+    try {
+      const response = await fetch(
+        buildApiUrl(`reply/${encodeURIComponent(commentId)}`),
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const payload = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        removed?: number;
+        error?: string;
+      };
+
+      if (!response.ok || payload.ok === false) {
+        throw new Error(payload.error ?? "Unable to delete comment.");
+      }
+
+      // Remove comment from local state
+      setComments((prev) => prev.filter((comment) => comment.id !== commentId));
+    } catch (error) {
+      setCommentsError((error as Error).message || "Unable to delete comment.");
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -793,18 +842,35 @@ const PostDetail = () => {
           </p>
         ) : (
           <ul className="space-y-3">
-            {comments.map((comment) => (
-              <li
-                key={comment.id}
-                className="space-y-2 rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
-                  <span className="font-semibold text-slate-700 dark:text-slate-100">{comment.author}</span>
-                  <span>{formatTimestamp(comment.createdAt)}</span>
-                </div>
-                <p>{comment.text}</p>
-              </li>
-            ))}
+            {comments.map((comment) => {
+              const isOwnComment = comment.userId === user?.id;
+              return (
+                <li
+                  key={comment.id}
+                  className="space-y-2 rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-sm text-slate-700 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-300">
+                    <span className="font-semibold text-slate-700 dark:text-slate-100">{comment.author}</span>
+                    <div className="flex items-center gap-3">
+                      <span>{formatTimestamp(comment.createdAt)}</span>
+                      {isOwnComment && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteComment(comment.id)}
+                          disabled={deletingCommentId === comment.id}
+                          className="inline-flex items-center gap-1 rounded-full border border-red-500/70 px-2.5 py-1 text-red-600 transition hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-400/60 dark:text-red-300"
+                          title="Delete comment"
+                        >
+                          <Trash2 className="h-3 w-3" aria-hidden />
+                          {deletingCommentId === comment.id ? "Deleting…" : "Delete"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <p>{comment.text}</p>
+                </li>
+              );
+            })}
           </ul>
         )}
 

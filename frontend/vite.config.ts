@@ -44,7 +44,17 @@ export default defineConfig(({ mode }) => {
               if (url.startsWith("/api/favorites")) {
                 const method = req.method || "GET";
 
-                if (method === "GET") {
+                // Handle /api/favorites/content?source=...
+                if (url.startsWith("/api/favorites/content")) {
+                  try {
+                    const urlObj = new URL(url, "http://localhost");
+                    const source = urlObj.searchParams.get("source") || "BLUSKY_TEST";
+                    proxyReq.path = `/bookmark/content?source=${encodeURIComponent(source)}`;
+                  } catch (error) {
+                    console.warn("[vite proxy] Failed to parse favorites/content request URL:", error);
+                    proxyReq.path = "/bookmark/content?source=BLUSKY_TEST";
+                  }
+                } else if (method === "GET") {
                   proxyReq.path = "/bookmark";
                 } else if (method === "POST") {
                   proxyReq.path = "/bookmark/add";
