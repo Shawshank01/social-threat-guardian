@@ -35,13 +35,49 @@ const HarassmentGraph: React.FC = () => {
     setError(null);
     setSelectedEdge(null);
     try {
-      const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:443';
+      // Use /api proxy pattern to connect to backend (works in both dev and production)
+      const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+      const buildApiUrl = (path: string) => {
+        const normalizedPath = path.replace(/^\/+/, "");
+        return `${API_BASE}/${normalizedPath}`;
+      };
+      
       const url = query 
-        ? `${API_BASE_URL}/harassment-network/cliques?q=${encodeURIComponent(query)}`
-        : `${API_BASE_URL}/harassment-network/cliques`;
-      const response = await fetch(url);
+        ? buildApiUrl(`harassment-network/cliques?q=${encodeURIComponent(query)}`)
+        : buildApiUrl("harassment-network/cliques");
+      
+      const response = await fetch(url, {
+        cache: 'no-cache',
+      });
       if (!response.ok) {
-        throw new Error(`API Error: ${response.status}`);
+        let errorMessage = `API Error: ${response.status}`;
+        try {
+          const errorText = await response.text();
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.error) {
+              const backendError = String(errorJson.error);
+              // Check if it's a circular structure error from Oracle database
+              if (backendError.includes('circular structure') || 
+                  backendError.includes('ConnectDescription') ||
+                  backendError.includes('ConnOption')) {
+                errorMessage = 'Database connection error. Please check backend server logs for details.';
+              } else {
+                errorMessage = backendError;
+              }
+            }
+          } catch (parseError) {
+            // If not JSON, check the text directly
+            if (errorText && (errorText.includes('circular structure') || 
+                errorText.includes('ConnectDescription') ||
+                errorText.includes('ConnOption'))) {
+              errorMessage = 'Database connection error. Please check backend server logs for details.';
+            }
+          }
+        } catch (e) {
+          // Ignore parsing errors
+        }
+        throw new Error(errorMessage);
       }
       const data: ApiResponse = await response.json();
       const items = Array.isArray(data) ? data : (data.connections || data.cliques || []);

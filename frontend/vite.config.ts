@@ -24,6 +24,9 @@ export default defineConfig(({ mode }) => {
     if (path.startsWith("/api/comments")) {
       return path.replace(/^\/api\/comments/, "/comments");
     }
+    if (path.startsWith("/api/harassment-network")) {
+      return path.replace(/^\/api\/harassment-network/, "/harassment-network");
+    }
     return path.replace(/^\/api/, "");
   };
 
