@@ -47,6 +47,7 @@ const Dashboard = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showNavigationPrompt, setShowNavigationPrompt] = useState(false);
+  const [redirectCountdown, setRedirectCountdown] = useState(3);
   const [lastSavedSettings, setLastSavedSettings] = useState<{
     keywords: string[];
     platforms: string[];
@@ -54,7 +55,8 @@ const Dashboard = () => {
   } | null>(null);
   const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
-  const navigationPromptRef = useRef<HTMLElement | null>(null);
+  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const applySavedPreferences = useCallback(
     (preferences: SavedPreferences) => {
@@ -387,11 +389,29 @@ const Dashboard = () => {
         });
         setSaveSuccess(true);
         setShowNavigationPrompt(true);
+        setRedirectCountdown(3);
 
-        // Scroll to navigation prompt after a brief delay to ensure DOM is updated
-        setTimeout(() => {
-          navigationPromptRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 100);
+        // Start countdown timer
+        countdownTimerRef.current = setInterval(() => {
+          setRedirectCountdown((prev) => {
+            if (prev <= 1) {
+              if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+              }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+
+        // Auto-redirect after 3 seconds
+        redirectTimerRef.current = setTimeout(() => {
+          setShowNavigationPrompt(false);
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+          }
+          navigate("/personal-monitors");
+        }, 3000);
       } else {
         setSaveError("Failed to save preferences. Please try again.");
       }
@@ -405,13 +425,39 @@ const Dashboard = () => {
   };
 
   const handleGoToPersonalMonitors = () => {
+    // Clear timers
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
     setShowNavigationPrompt(false);
     navigate("/personal-monitors");
   };
 
   const handleStayOnDashboard = () => {
+    // Clear timers
+    if (redirectTimerRef.current) {
+      clearTimeout(redirectTimerRef.current);
+    }
+    if (countdownTimerRef.current) {
+      clearInterval(countdownTimerRef.current);
+    }
     setShowNavigationPrompt(false);
   };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
+      if (countdownTimerRef.current) {
+        clearInterval(countdownTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleExportKeywords = () => {
     if (!keywordInput.trim()) {
@@ -656,35 +702,47 @@ const Dashboard = () => {
       </form>
 
       {showNavigationPrompt && (
-        <aside
-          ref={navigationPromptRef}
-          className="rounded-3xl border border-stg-accent/40 bg-stg-accent/10 p-6 text-sm text-slate-700 shadow-lg dark:border-stg-accent/30 dark:bg-stg-accent/20 dark:text-white"
-          style={{
-            animation: "flash 0.6s ease-in-out 1",
-          }}
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-semibold">
-              Settings saved. Would you like to visit the Personal Monitors page to review the results?
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={handleGoToPersonalMonitors}
-                className="inline-flex items-center justify-center rounded-full bg-stg-accent px-5 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60"
-              >
-                Go to Personal Monitors
-              </button>
-              <button
-                type="button"
-                onClick={handleStayOnDashboard}
-                className="inline-flex items-center justify-center rounded-full border border-slate-300/70 px-5 py-2 text-xs font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 dark:border-white/10 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Stay on Dashboard
-              </button>
+        <>
+          {/* Modal overlay */}
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={handleStayOnDashboard}
+          />
+          {/* Modal popup */}
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 transform rounded-2xl border border-slate-200/80 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-slate-900">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-stg-accent/10 dark:bg-stg-accent/20">
+                  <CheckCircle2 className="h-6 w-6 text-stg-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
+                  Preferences Saved!
+                </h3>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                You will be redirected to the Personal Monitors page in{" "}
+                <span className="font-semibold text-stg-accent">{redirectCountdown}</span>{" "}
+                {redirectCountdown === 1 ? "second" : "seconds"} to view the results.
+              </p>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleGoToPersonalMonitors}
+                  className="flex-1 rounded-lg bg-stg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60"
+                >
+                  Go Now
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStayOnDashboard}
+                  className="flex-1 rounded-lg border border-slate-300/70 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 dark:border-white/10 dark:text-slate-200 dark:hover:bg-slate-800"
+                >
+                  Stay Here
+                </button>
+              </div>
             </div>
           </div>
-        </aside>
+        </>
       )}
     </section>
   );

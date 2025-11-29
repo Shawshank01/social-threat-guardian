@@ -39,12 +39,12 @@ export async function checkForUpdates(): Promise<boolean> {
 
 /**
  * Prompt user to reload the page when a new version is detected.
- * This will show a non-intrusive notification that can be dismissed or acted upon.
+ * This will show a permanent notification banner until the user reloads.
  */
 export function promptReload(): void {
-    // Check if we've already shown the prompt in this session
-    const hasPrompted = sessionStorage.getItem('version-update-prompted');
-    if (hasPrompted) {
+    // Check if banner already exists to avoid duplicates
+    const existingBanner = document.getElementById('version-update-banner');
+    if (existingBanner) {
         return;
     }
 
@@ -69,7 +69,7 @@ export function promptReload(): void {
   `;
 
     banner.innerHTML = `
-    <span>✨ A new version is available!</span>
+    <span>✨ A new version is available! Please reload to get the latest updates.</span>
     <div style="display: flex; gap: 8px; align-items: center;">
       <button id="reload-btn" style="
         background: white;
@@ -80,42 +80,21 @@ export function promptReload(): void {
         font-weight: 600;
         cursor: pointer;
         font-size: 13px;
-      ">Reload Now</button>
-      <button id="dismiss-btn" style="
-        background: transparent;
-        color: white;
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        padding: 6px 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 13px;
-      ">Later</button>
+        transition: opacity 0.2s;
+      " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">Reload Now</button>
     </div>
   `;
 
     document.body.appendChild(banner);
 
-    // Add event listeners
+    // Add event listener for reload button
     const reloadBtn = banner.querySelector('#reload-btn');
-    const dismissBtn = banner.querySelector('#dismiss-btn');
-
     reloadBtn?.addEventListener('click', () => {
-        sessionStorage.removeItem('version-update-prompted');
         window.location.reload();
     });
 
-    dismissBtn?.addEventListener('click', () => {
-        sessionStorage.setItem('version-update-prompted', 'true');
-        banner.remove();
-    });
-
-    // Auto-dismiss after 10 seconds
-    setTimeout(() => {
-        if (document.body.contains(banner)) {
-            sessionStorage.setItem('version-update-prompted', 'true');
-            banner.remove();
-        }
-    }, 10000);
+    // Banner stays visible permanently until user reloads
+    // No auto-dismiss or dismiss button
 }
 
 /**
