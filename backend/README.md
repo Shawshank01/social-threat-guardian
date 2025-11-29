@@ -757,6 +757,36 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
 - **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
 
+### Threat Index 趋势查询
+- **Endpoint:** `GET /threat-index/trend`
+- **描述 (CN)：** 查询历史 Threat Index 聚合趋势（按分钟/小时/天），数据来源聚合表 `HATE_THREAT_TREND`。
+- **Query 参数：**
+  - `aggLevel`（可选，默认 `minute`）：`minute` | `hour` | `day`
+  - `start`（可选）：ISO 时间字符串，起始窗口
+  - `end`（可选）：ISO 时间字符串，结束窗口；默认当前时间
+  - `target`（可选）：覆盖聚合表名，默认 `HATE_THREAT_TREND`
+- **行为：**
+  ```sql
+  SELECT TIME_BUCKET, AVG_HATE_SCORE, MSG_COUNT
+    FROM HATE_THREAT_TREND
+   WHERE AGG_LEVEL = :aggLevel
+     AND TIME_BUCKET BETWEEN :start AND :end
+   ORDER BY TIME_BUCKET;
+  ```
+- **成功响应 (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "aggLevel": "minute",
+    "count": 2,
+    "data": [
+      { "time": "2025-11-29T12:00:00.000Z", "avgHateScore": 0.3456, "count": 120 },
+      { "time": "2025-11-29T12:01:00.000Z", "avgHateScore": 0.4012, "count": 95 }
+    ]
+  }
+  ```
+- **错误响应：** 参数错误返回 `400`；数据库/服务异常返回 `500`。
+
 ### Harassment Network Cliques
 - **Endpoint:** `GET /harassment-network/cliques`
 - **Description:** Executes an Oracle `GRAPH_TABLE` query against `DIWEN.HARASSMENT_NETWORK` to find 3-person harassment cycles (A→B, B→C, C→A). Useful for drawing network graphs on the frontend. Supports light parameterization so dashboards can control payload size.
