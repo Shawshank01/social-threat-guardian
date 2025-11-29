@@ -38,10 +38,10 @@ const Dashboard = () => {
 
   const [keywordInput, setKeywordInput] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(
-    () => new Set(PLATFORM_OPTIONS.map((platform) => platform.id)),
+    () => new Set(),
   );
   const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
-    () => new Set(LANGUAGE_OPTIONS.map((language) => language.value)),
+    () => new Set(),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -77,10 +77,8 @@ const Dashboard = () => {
           ),
         ),
       );
-      const platformsToApply =
-        validPlatformIds.length > 0
-          ? validPlatformIds
-          : PLATFORM_OPTIONS.map((platform) => platform.id);
+      // Don't apply defaults: use empty array if no platforms are specified
+      const platformsToApply = validPlatformIds;
 
       const originalLanguageIds = Array.isArray(preferences.languages) ? preferences.languages : [];
       const validLanguageIds = Array.from(
@@ -90,10 +88,8 @@ const Dashboard = () => {
           ),
         ),
       );
-      const languagesToApply =
-        validLanguageIds.length > 0
-          ? validLanguageIds
-          : LANGUAGE_OPTIONS.map((language) => language.value);
+      // Don't apply defaults: use empty array if no languages are specified
+      const languagesToApply = validLanguageIds;
 
       setKeywordInput(trimmedKeywords.join("\n"));
       setSelectedPlatforms(new Set(platformsToApply));
@@ -188,15 +184,11 @@ const Dashboard = () => {
             languages: [],
           };
 
-        // Use default platforms if none are specified
-        const resolvedPlatforms =
-          normalized.platforms.length > 0
-            ? normalized.platforms
-            : PLATFORM_OPTIONS.map((platform) => platform.id);
-
+        // Don't apply defaults: use empty arrays if none are specified
         const mergedPreferences: SavedPreferences = {
           ...normalized,
-          platforms: resolvedPlatforms,
+          platforms: normalized.platforms || [],
+          languages: normalized.languages || [],
         };
 
         if (isCancelled) return;
