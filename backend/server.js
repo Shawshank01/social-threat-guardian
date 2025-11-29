@@ -26,6 +26,7 @@ import { startHateScoreMonitor } from "./services/hateScoreMonitor.js";
 import { initWebSocketServer } from "./websocket/index.js";
 import harassmentNetworkRouter from "./routes/harassmentNetwork.js";
 import notificationsRouter from "./routes/notifications.js";
+import threatTrendRouter from "./routes/threatTrend.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env"), override: true });
@@ -58,6 +59,7 @@ app.use("/bookmark", favoritesRouter);
 app.use("/reply", replyRouter);
 app.use("/harassment-network", harassmentNetworkRouter);
 app.use("/notifications", notificationsRouter);
+app.use("/", threatTrendRouter);
 
 app.use(errorHandler);
 
