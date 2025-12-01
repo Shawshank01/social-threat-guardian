@@ -27,19 +27,6 @@ router.get("/threat-index/trend", async (req, res) => {
       .json({ ok: false, error: "Invalid aggLevel; use minute | hour | day" });
   }
 
-  const start = parseIsoDate(req.query.start);
-  const end = parseIsoDate(req.query.end);
-
-  if (req.query.start && !start) {
-    return res.status(400).json({ ok: false, error: "Invalid start time" });
-  }
-  if (req.query.end && !end) {
-    return res.status(400).json({ ok: false, error: "Invalid end time" });
-  }
-  if (start && end && start > end) {
-    return res.status(400).json({ ok: false, error: "start must be before end" });
-  }
-
   const targetTable =
     typeof req.query.target === "string" && req.query.target.trim()
       ? req.query.target.trim()
@@ -48,8 +35,6 @@ router.get("/threat-index/trend", async (req, res) => {
   try {
     const data = await fetchThreatTrend({
       aggLevel,
-      start,
-      end,
       targetTable,
     });
     return res.json({ ok: true, aggLevel, count: data.length, data });

@@ -640,7 +640,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```
 ### Add Reply to Post
 - **Endpoint:** `POST /reply/add`
-- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) 和可选的 `req.user.name`。
+- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) and optionally `req.user.name`.
 - **Body:** JSON
   ```json
   {
@@ -649,7 +649,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     "user_name": "Optional display name"
   }
   ```
-  `post_id`/`reply_text` 为必填；`user_name` 可选，不传则使用 JWT 中的 name（若存在）。后端同时接受 `postId` / `replyText` / `author_name` 的兼容字段。
+  `post_id`/`reply_text` are required; `user_name` is optional and falls back to the name in JWT if present. Backward-compatible fields `postId` / `replyText` / `author_name` are also accepted.
 - **Response (201 Created):**
   ```json
   {
@@ -664,7 +664,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     }
   }
   ```
-- **Errors:** `400` 当缺少 `post_id` 或 `reply_text`；`401` 当 JWT 缺失/无效；`500` 未预期错误。
+- **Errors:** `400` when `post_id` or `reply_text` is missing; `401` when JWT is missing/invalid; `500` unexpected errors.
 - **Example (curl):**
   ```bash
   curl -X POST https://localhost:3000/reply/add \
@@ -757,23 +757,21 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
 - **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
 
-### Threat Index 趋势查询
+### Threat Index Trend
 - **Endpoint:** `GET /threat-index/trend`
-- **描述 (CN)：** 查询历史 Threat Index 聚合趋势（按分钟/小时/天），数据来源聚合表 `HATE_THREAT_TREND`。
-- **Query 参数：**
-  - `aggLevel`（可选，默认 `minute`）：`minute` | `hour` | `day`
-  - `start`（可选）：ISO 时间字符串，起始窗口
-  - `end`（可选）：ISO 时间字符串，结束窗口；默认当前时间
-  - `target`（可选）：覆盖聚合表名，默认 `HATE_THREAT_TREND`
-- **行为：**
+- **Description:** Query historical Threat Index aggregates (minute/hour/day) from `HATE_THREAT_TREND`.
+- **Query Parameters:**
+  - `aggLevel` (optional, default `minute`): `minute` | `hour` | `day`
+  - `target` (optional): override the aggregate table name, default `HATE_THREAT_TREND`
+  - If `start/end` are omitted, the backend uses default lookback windows: `minute` → past 60 minutes, `hour` → past 48 hours, `day` → past 30 days.
+- **Behavior:**
   ```sql
   SELECT TIME_BUCKET, AVG_HATE_SCORE, MSG_COUNT
     FROM HATE_THREAT_TREND
    WHERE AGG_LEVEL = :aggLevel
-     AND TIME_BUCKET BETWEEN :start AND :end
    ORDER BY TIME_BUCKET;
   ```
-- **成功响应 (`200 OK`):**
+- **Success Response (`200 OK`):**
   ```json
   {
     "ok": true,
@@ -785,7 +783,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     ]
   }
   ```
-- **错误响应：** 参数错误返回 `400`；数据库/服务异常返回 `500`。
+- **Errors:** `400` for invalid parameters; `500` for database/service failures.
 
 ### Harassment Network Cliques
 - **Endpoint:** `GET /harassment-network/cliques`

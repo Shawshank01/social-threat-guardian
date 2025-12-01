@@ -27,6 +27,7 @@ import { initWebSocketServer } from "./websocket/index.js";
 import harassmentNetworkRouter from "./routes/harassmentNetwork.js";
 import notificationsRouter from "./routes/notifications.js";
 import threatTrendRouter from "./routes/threatTrend.js";
+import { startThreatTrendJobs } from "./jobs/threatTrend.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, ".env"), override: true });
@@ -42,6 +43,8 @@ try {
   await ensureUserPreferencesTable();
   await ensureFavoritesTable();
   await ensureCommentsTable();
+  // Start periodic aggregation into HATE_THREAT_TREND after pool is ready
+  startThreatTrendJobs();
 } catch (err) {
   console.error("[Startup] Failed to initialize Oracle pool:", err);
   process.exit(1);
