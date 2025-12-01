@@ -144,16 +144,17 @@ const NavBar = () => {
   }, [isSettingsMenuOpen, handleCloseSettingsMenu]);
 
   const navItems = useMemo(() => {
-    const items = [
-      { label: "Home", to: "/" },
-      { label: "Harassment Networks", to: "/harassment-networks" },
-      { label: "Personal Monitors", to: "/personal-monitors" },
-    ];
+    const items = [];
 
     if (token) {
       items.push({ label: "Dashboard", to: "/dashboard" });
-      items.push({ label: "Bookmarks", to: "/bookmarks" });
     }
+
+    items.push(
+      { label: "Home", to: "/" },
+      { label: "Harassment Networks", to: "/harassment-networks" },
+      { label: "Personal Monitors", to: "/personal-monitors" },
+    );
 
     return items;
   }, [token]);
@@ -301,6 +302,15 @@ const NavBar = () => {
                       }
                     >
                       Account Settings
+                    </NavLink>
+                    <NavLink
+                      to="/bookmarks"
+                      onClick={handleCloseSettingsMenu}
+                      className={({ isActive }) =>
+                        `block rounded-xl px-3 py-2 text-xs transition sm:text-sm ${isActive ? "bg-stg-accent/10 text-stg-accent" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-white"}`
+                      }
+                    >
+                      Bookmarks
                     </NavLink>
                     <button
                       type="button"
