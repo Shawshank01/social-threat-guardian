@@ -9,12 +9,12 @@ const DEFAULT_JOBS = {
     lookbackMs: 60 * 60 * 1000, // cover past 60 minutes
   },
   hour: {
-    enabled: false, // enable if you want hourly aggregation
+    enabled: true, // enable if you want hourly aggregation
     intervalMs: 15 * 60 * 1000, // every 15 minutes to keep hours fresh
     lookbackMs: 72 * 60 * 60 * 1000, // cover past 72 hours
   },
   day: {
-    enabled: false, // enable if you want daily aggregation
+    enabled: true, // enable if you want daily aggregation
     intervalMs: 60 * 60 * 1000, // every hour to keep days fresh
     lookbackMs: 35 * 24 * 60 * 60 * 1000, // cover past 35 days
   },
