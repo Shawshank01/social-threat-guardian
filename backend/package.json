@@ -18,7 +18,9 @@
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "fuse.js": "^7.1.0",
+    "jlouvain": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
+    "louvain": "^1.2.0",
     "oracledb": "^6.9.0",
     "web-push": "^3.6.7",
     "ws": "^8.18.3"
