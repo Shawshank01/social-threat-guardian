@@ -6,8 +6,28 @@ import { join } from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const DEFAULT_BACKEND = "http://localhost:3000";
-  const backendTarget = env.BACKEND_URL ?? DEFAULT_BACKEND;
+  
+  // BACKEND_URL: Used by Vite proxy (server-side) for HTTP/HTTPS requests via /api routes
+  // VITE_BACKEND_URL: Exposed to client-side code for WebSocket (ws/wss) connections and direct API calls
+  // Both should be set in .env.development.local
+  const backendTarget = env.BACKEND_URL;
+  
+  if (!backendTarget) {
+    throw new Error(
+      "BACKEND_URL not configured in .env.development.local. " +
+      "This is required for the Vite proxy to forward HTTP/HTTPS requests to the backend."
+    );
+  }
+  
+  // VITE_BACKEND_URL is automatically exposed to client-side code by Vite (variables prefixed with VITE_)
+  // It's used by GaugeChart for WebSocket connections and HarassmentGraph for direct API calls
+  if (!env.VITE_BACKEND_URL) {
+    console.warn(
+      "[Vite] VITE_BACKEND_URL not set in .env.development.local. " +
+      "WebSocket connections and direct API calls may fail. " +
+      "Set VITE_BACKEND_URL to the same value as BACKEND_URL."
+    );
+  }
 
   const rewritePath = (path: string) => {
     // Don't rewrite /api/favorites here, let configure handle it
