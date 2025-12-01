@@ -122,11 +122,6 @@ export async function fetchThreatTrend(options = {}) {
       { aggLevel: agg.dbValue, start_ts: startDate, end_ts: endDate },
       {
         outFormat: oracledb.OUT_FORMAT_OBJECT,
-        fetchInfo: {
-          TIME_BUCKET: { type: oracledb.DATE },
-          AVG_HATE_SCORE: { type: oracledb.NUMBER },
-          MSG_COUNT: { type: oracledb.NUMBER },
-        },
       }
     );
     return result.rows || [];
