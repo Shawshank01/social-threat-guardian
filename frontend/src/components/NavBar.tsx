@@ -1,16 +1,29 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { Bell, Menu, X } from "lucide-react";
+import { Bell, Menu, X, Check } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import {
+  fetchNotifications,
+  fetchUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+  type Notification,
+} from "@/utils/notifications";
 
 const NavBar = () => {
   const navigate = useNavigate();
   const { token, user, logout } = useAuth();
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationMenuOpen, setIsNotificationMenuOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const hideMenuTimeoutRef = useRef<number | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const notificationMenuRef = useRef<HTMLDivElement>(null);
+  const notificationButtonRef = useRef<HTMLButtonElement>(null);
   const menuOpenTimeRef = useRef<number>(0);
   const lastToggleTimeRef = useRef<number>(0);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -164,6 +177,112 @@ const NavBar = () => {
     navigate("/", { replace: true });
   };
 
+  // Load notifications and unread count
+  const loadNotifications = useCallback(async () => {
+    if (!token) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      setIsLoadingNotifications(true);
+      const [notifs, count] = await Promise.all([
+        fetchNotifications(token, { limit: 10, unreadOnly: false }),
+        fetchUnreadCount(token),
+      ]);
+      setNotifications(notifs);
+      setUnreadCount(count);
+    } catch (error) {
+      console.error("[NavBar] Failed to load notifications:", error);
+    } finally {
+      setIsLoadingNotifications(false);
+    }
+  }, [token]);
+
+  // Load notifications on mount and when token changes
+  useEffect(() => {
+    loadNotifications();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [loadNotifications]);
+
+  // Handle notification menu toggle
+  const handleToggleNotificationMenu = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setIsNotificationMenuOpen((prev) => {
+      if (!prev) {
+        loadNotifications();
+      }
+      return !prev;
+    });
+  }, [loadNotifications]);
+
+  const handleCloseNotificationMenu = useCallback(() => {
+    setIsNotificationMenuOpen(false);
+  }, []);
+
+  // Mark notification as read
+  const handleMarkAsRead = useCallback(async (notificationId: string) => {
+    if (!token) return;
+    try {
+      await markNotificationRead(token, notificationId);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, readAt: new Date().toISOString() } : n)),
+      );
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error("[NavBar] Failed to mark notification as read:", error);
+    }
+  }, [token]);
+
+  // Mark all as read
+  const handleMarkAllAsRead = useCallback(async () => {
+    if (!token) return;
+    try {
+      await markAllNotificationsRead(token);
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, readAt: n.readAt || new Date().toISOString() })),
+      );
+      setUnreadCount(0);
+    } catch (error) {
+      console.error("[NavBar] Failed to mark all as read:", error);
+    }
+  }, [token]);
+
+  // Handle click outside notification menu
+  useEffect(() => {
+    if (!isNotificationMenuOpen) return;
+
+    const handleClickOutside = (event: Event) => {
+      const target = event.target as Node;
+      if (
+        notificationMenuRef.current?.contains(target) ||
+        notificationButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      handleCloseNotificationMenu();
+    };
+
+    const isMobile = window.innerWidth < 640;
+    const delay = isMobile ? 200 : 0;
+
+    const timeoutId = setTimeout(() => {
+      document.addEventListener("mousedown", handleClickOutside, true);
+      document.addEventListener("touchstart", handleClickOutside, true);
+    }, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener("mousedown", handleClickOutside, true);
+      document.removeEventListener("touchstart", handleClickOutside, true);
+    };
+  }, [isNotificationMenuOpen, handleCloseNotificationMenu]);
+
   return (
     <header className="fixed inset-x-0 top-0 z-50 min-h-[4rem] border-b border-slate-200/70 bg-white/80 backdrop-blur transition-colors duration-200 dark:border-white/10 dark:bg-slate-950/70 sm:h-16">
       <nav className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-2 sm:h-16 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-6 sm:py-0">
@@ -251,13 +370,115 @@ const NavBar = () => {
         <div className="flex items-center justify-end gap-1.5 text-slate-500 dark:text-slate-300 sm:gap-2 md:gap-3">
           {token ? (
             <>
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="flex flex-shrink-0 rounded-full border border-slate-200/70 bg-white/70 p-1.5 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:hover:text-white sm:p-2"
+              <div
+                ref={notificationMenuRef}
+                className="relative flex flex-shrink-0"
+                onMouseEnter={(e) => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    setIsNotificationMenuOpen(true);
+                    loadNotifications();
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (window.matchMedia('(hover: hover)').matches) {
+                    setIsNotificationMenuOpen(false);
+                  }
+                }}
               >
-                <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
-              </button>
+                <button
+                  ref={notificationButtonRef}
+                  type="button"
+                  aria-label="Notifications"
+                  aria-expanded={isNotificationMenuOpen}
+                  onClick={handleToggleNotificationMenu}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleToggleNotificationMenu(e);
+                  }}
+                  className="relative flex flex-shrink-0 rounded-full border border-slate-200/70 bg-white/70 p-1.5 transition transform duration-150 hover:scale-105 hover:text-slate-900 dark:border-white/10 dark:bg-white/5 dark:hover:text-white sm:p-2"
+                >
+                  <Bell className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
+                  {unreadCount > 0 && (
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white sm:h-5 sm:w-5 sm:text-xs">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </button>
+                {isNotificationMenuOpen && (
+                  <div className="absolute right-0 top-full z-50 mt-2 w-80 max-h-[32rem] rounded-2xl border border-slate-200/80 bg-white/95 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:w-96" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+                    <div className="flex items-center justify-between border-b border-slate-200/70 p-3 dark:border-white/10">
+                      <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                        Notifications
+                      </h3>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleMarkAllAsRead}
+                          className="text-xs text-stg-accent hover:underline"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-[28rem] overflow-y-auto">
+                      {isLoadingNotifications ? (
+                        <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                          Loading...
+                        </div>
+                      ) : notifications.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                          No notifications
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-200/70 dark:divide-white/10">
+                          {notifications.map((notification) => {
+                            const isUnread = !notification.readAt;
+                            return (
+                              <div
+                                key={notification.id}
+                                className={`p-3 transition-colors ${
+                                  isUnread
+                                    ? "bg-stg-accent/5 dark:bg-stg-accent/10"
+                                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    {notification.title && (
+                                      <h4 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+                                        {notification.title}
+                                      </h4>
+                                    )}
+                                    {notification.message && (
+                                      <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-2">
+                                        {notification.message}
+                                      </p>
+                                    )}
+                                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                                      {new Date(notification.createdAt).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  {isUnread && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkAsRead(notification.id)}
+                                      className="flex-shrink-0 rounded-full p-1 hover:bg-slate-200/70 dark:hover:bg-slate-700"
+                                      aria-label="Mark as read"
+                                    >
+                                      <Check className="h-3 w-3 text-slate-400 dark:text-slate-500" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div
                 ref={settingsMenuRef}
                 className="relative flex flex-shrink-0"

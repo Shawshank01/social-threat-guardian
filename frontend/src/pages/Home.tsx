@@ -118,8 +118,8 @@ type PlatformIconFactory = () => JSX.Element;
 
 const createLucideIconFactory =
   (Icon: LucideIcon): PlatformIconFactory =>
-  () =>
-    <Icon className="h-5 w-5" aria-hidden />;
+    () =>
+      <Icon className="h-5 w-5" aria-hidden />;
 
 const BlueskyIcon: PlatformIconFactory = () => (
   <img src="/Bluesky_Logo.svg" alt="" className="h-5 w-5 object-contain" aria-hidden />
@@ -161,7 +161,7 @@ const Home = () => {
   useEffect(() => {
     const isDismissed = localStorage.getItem(SPLASH_BOX_STORAGE_KEY) === "true";
     const isEnabled = localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false"; // Default to true
-    
+
     if (!isDismissed && isEnabled) {
       setShowSplashBox(true);
     }
@@ -312,7 +312,7 @@ const Home = () => {
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
         <div className="order-2">
-          <section aria-label="Platform threat summaries" className="flex h-full flex-col gap-6">
+          <section aria-label="Platform threat summaries" className="flex flex-col gap-6">
             <header className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
                 {FEED_FRAMING.sectionTitle}
@@ -321,9 +321,9 @@ const Home = () => {
                 {FEED_FRAMING.sectionDescription}
               </p>
             </header>
-            <div className="relative flex-1 space-y-4 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
+            <div className="relative flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-3 sm:p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
               <div
-                className={`max-h-[32rem] space-y-4 overflow-y-auto pr-2 transition duration-200 ${isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
+                className={`max-h-[32rem] space-y-3 sm:space-y-4 overflow-y-auto px-1 sm:px-2 pt-0 pb-3 sm:pb-4 transition duration-200 ${isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
                   }`}
                 role="list"
                 aria-busy={isLoadingPosts}
