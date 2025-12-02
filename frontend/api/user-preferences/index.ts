@@ -20,7 +20,6 @@ type ApiResponse = ServerResponse & {
 
 const BACKEND_URL = process.env.BACKEND_URL;
 
-// Helper function to make HTTP/HTTPS requests to the backend
 function makeRequest(url: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);

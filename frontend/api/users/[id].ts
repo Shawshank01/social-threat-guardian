@@ -255,4 +255,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         error: `Method ${method} not allowed. Supported methods: GET, PATCH, OPTIONS`,
     });
 }
-

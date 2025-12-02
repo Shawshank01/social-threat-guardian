@@ -91,38 +91,75 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  // Parse the path from URL - handle both /api/notifications and /api/notifications/*
   const url = req.url || "";
   let subPath = "";
-  
-  const exactMatch = url.match(/^\/api\/notifications\/?$/);
-  const pathMatch = url.match(/^\/api\/notifications\/(.+)$/);
-  
-  if (exactMatch) {
-    subPath = "";
-  } else if (pathMatch) {
-    subPath = pathMatch[1];
-  } else {
-    res.status(404).json({ ok: false, error: "Not found" });
-    return;
+  let queryParams: URLSearchParams;
+  let search = "";
+
+  try {
+    let urlObj: URL;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      urlObj = new URL(url);
+    } else {
+      urlObj = new URL(url, "http://localhost");
+    }
+
+    const pathname = urlObj.pathname;
+    const exactMatch = pathname.match(/^\/api\/notifications\/?$/);
+    const pathMatch = pathname.match(/^\/api\/notifications\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    } else {
+      res.status(404).json({ ok: false, error: "Not found" });
+      return;
+    }
+
+    queryParams = urlObj.searchParams;
+    search = urlObj.search || "";
+  } catch {
+    const exactMatch = url.match(/^\/api\/notifications\/?$/);
+    const pathMatch = url.match(/^\/api\/notifications\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    } else {
+      res.status(404).json({ ok: false, error: "Not found" });
+      return;
+    }
+
+    try {
+      const urlObj = new URL(url, "http://localhost");
+      queryParams = urlObj.searchParams;
+      search = urlObj.search || "";
+    } catch {
+      const queryMatch = url.match(/\?(.+)$/);
+      search = queryMatch ? `?${queryMatch[1]}` : "";
+      queryParams = new URLSearchParams(search);
+    }
   }
 
   try {
     let targetPath = "/notifications";
     let method = req.method || "GET";
 
-    // Route based on sub-path
-    if (subPath === "unread-count") {
+    const subPathWithoutQuery = subPath.split("?")[0];
+
+    if (subPathWithoutQuery === "unread-count") {
       targetPath = "/notifications/unread-count";
       method = "GET";
-    } else if (subPath === "read-all") {
+    } else if (subPathWithoutQuery === "read-all") {
       targetPath = "/notifications/read-all";
       method = "POST";
-    } else if (subPath.match(/^[^/]+\/read$/)) {
-      const id = subPath.replace(/\/read$/, "");
-      targetPath = `/notifications/${id}/read`;
+    } else if (subPathWithoutQuery.match(/^[^/]+\/read$/)) {
+      const id = subPathWithoutQuery.replace(/\/read$/, "");
+      targetPath = `/notifications/${encodeURIComponent(id)}/read`;
       method = "POST";
-    } else if (subPath === "" || !subPath) {
+    } else if (subPathWithoutQuery === "" || !subPathWithoutQuery) {
       targetPath = "/notifications";
       method = "GET";
     } else {
@@ -130,13 +167,16 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return;
     }
 
-    // Build query params for GET /notifications
     if (method === "GET" && targetPath === "/notifications") {
-      const { limit, offset, unreadOnly } = req.query || {};
       const params = new URLSearchParams();
-      if (limit) params.append("limit", String(limit));
-      if (offset) params.append("offset", String(offset));
+      const limit = queryParams.get("limit");
+      const offset = queryParams.get("offset");
+      const unreadOnly = queryParams.get("unreadOnly");
+
+      if (limit) params.append("limit", limit);
+      if (offset) params.append("offset", offset);
       if (unreadOnly === "true") params.append("unreadOnly", "true");
+
       if (params.toString()) {
         targetPath += `?${params.toString()}`;
       }
@@ -167,4 +207,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 }
-
