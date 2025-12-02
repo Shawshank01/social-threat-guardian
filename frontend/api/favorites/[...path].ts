@@ -107,7 +107,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   let queryParams: URLSearchParams;
 
   try {
-    // Try to parse as absolute URL first, then fall back to relative
     let urlObj: URL;
     if (url.startsWith("http://") || url.startsWith("https://")) {
       urlObj = new URL(url);
@@ -115,7 +114,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       urlObj = new URL(url, "http://localhost");
     }
 
-    // Extract path from URL object
     const pathname = urlObj.pathname;
     const exactMatch = pathname.match(/^\/api\/favorites\/?$/);
     const pathMatch = pathname.match(/^\/api\/favorites\/(.+)$/);
@@ -128,7 +126,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     queryParams = urlObj.searchParams;
   } catch {
-    // Fallback: use regex parsing if URL parsing fails
     const exactMatch = url.match(/^\/api\/favorites\/?$/);
     const pathMatch = url.match(/^\/api\/favorites\/(.+)$/);
 
@@ -138,12 +135,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       subPath = pathMatch[1];
     }
 
-    // Try to create URL object for query params, but use empty if it fails
     try {
       const urlObj = new URL(url, "http://localhost");
       queryParams = urlObj.searchParams;
     } catch {
-      // If URL parsing completely fails, extract query string manually
       const queryMatch = url.match(/\?(.+)$/);
       const search = queryMatch ? `?${queryMatch[1]}` : "";
       queryParams = new URLSearchParams(search);
@@ -154,11 +149,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     let targetPath = "";
     let backendMethod = method;
 
-    // Strip query parameters from subPath for comparison
     const subPathWithoutQuery = subPath.split("?")[0];
 
     if (subPathWithoutQuery === "content") {
-      // GET /favorites/content?source=...
       if (method !== "GET") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
@@ -169,7 +162,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       targetPath = targetUrl.pathname + targetUrl.search;
       backendMethod = "GET";
     } else if (subPathWithoutQuery && subPathWithoutQuery !== "") {
-      // DELETE /favorites/:processedId
       if (method !== "DELETE") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
@@ -177,17 +169,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const processedId = subPathWithoutQuery;
       targetPath = "/bookmark/remove";
       backendMethod = "DELETE";
-      // The body will contain post_id
       req.body = { post_id: processedId };
     } else {
-      // GET /favorites (list all) or POST /favorites (add)
       if (method === "GET") {
         targetPath = "/bookmark";
         backendMethod = "GET";
       } else if (method === "POST") {
         targetPath = "/bookmark/add";
         backendMethod = "POST";
-        // Transform body to only send post_id
         const body = req.body as {
           post_id?: string;
           postId?: string;

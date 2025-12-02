@@ -108,14 +108,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   let search = "";
 
   try {
-    // Try to parse as absolute URL first, then fall back to relative
     if (url.startsWith("http://") || url.startsWith("https://")) {
       urlObj = new URL(url);
     } else {
       urlObj = new URL(url, "http://localhost");
     }
 
-    // Extract path from URL object
     const pathname = urlObj.pathname;
     const exactMatch = pathname.match(/^\/api\/comments\/?$/);
     const pathMatch = pathname.match(/^\/api\/comments\/(.+)$/);
@@ -129,7 +127,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     queryParams = urlObj.searchParams;
     search = urlObj.search || "";
   } catch {
-    // Fallback: use regex parsing if URL parsing fails
     const exactMatch = url.match(/^\/api\/comments\/?$/);
     const pathMatch = url.match(/^\/api\/comments\/(.+)$/);
 
@@ -139,13 +136,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       subPath = pathMatch[1];
     }
 
-    // Try to create URL object for query params, but use empty if it fails
     try {
       urlObj = new URL(url, "http://localhost");
       queryParams = urlObj.searchParams;
       search = urlObj.search || "";
     } catch {
-      // If URL parsing completely fails, extract query string manually
       const queryMatch = url.match(/\?(.+)$/);
       search = queryMatch ? `?${queryMatch[1]}` : "";
       queryParams = new URLSearchParams(search);
@@ -156,11 +151,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     let targetPath = "";
     let backendMethod = method;
 
-    // Strip query parameters from subPath for comparison
     const subPathWithoutQuery = subPath.split("?")[0];
 
     if (subPathWithoutQuery === "latest") {
-      // GET /comments/latest
       if (method !== "GET") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
@@ -168,7 +161,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       targetPath = `/comments/latest${search}`;
       backendMethod = "GET";
     } else if (subPathWithoutQuery === "search") {
-      // POST /comments/search
       if (method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
@@ -176,7 +168,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       targetPath = "/comments/search";
       backendMethod = "POST";
     } else if (subPathWithoutQuery.match(/^[^/]+\/notes$/)) {
-      // GET or POST /comments/:processedId/notes
       const processedId = subPathWithoutQuery.replace(/\/notes$/, "");
       targetPath = `/comments/${encodeURIComponent(processedId)}/notes${search}`;
       backendMethod = method;

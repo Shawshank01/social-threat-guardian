@@ -99,12 +99,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const method = (req.method || "").toUpperCase().trim();
   const url = req.url || "";
-  
-  // Parse the path from URL - handle both /api/reply and /api/reply/*
+
   let subPath = "";
   const exactMatch = url.match(/^\/api\/reply\/?$/);
   const pathMatch = url.match(/^\/api\/reply\/(.+)$/);
-  
+
   if (exactMatch) {
     subPath = "";
   } else if (pathMatch) {
@@ -116,7 +115,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     let backendMethod = method;
 
     if (subPath === "add") {
-      // POST /reply/add
       if (method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
@@ -124,8 +122,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       targetPath = "/reply/add";
       backendMethod = "POST";
     } else if (subPath) {
-      // GET /reply/:postId or DELETE /reply/:id
-      const id = subPath.split("?")[0]; // Remove query params
+      const id = subPath.split("?")[0];
       targetPath = `/reply/${encodeURIComponent(id)}`;
       if (method === "DELETE") {
         backendMethod = "DELETE";
@@ -160,7 +157,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       body: (backendMethod === "POST" || backendMethod === "DELETE") ? serializeBody(req.body) : undefined,
     });
 
-    // For DELETE requests, check if backend returned success despite status code
     if (backendMethod === "DELETE") {
       try {
         const responsePayload = JSON.parse(response.body);
@@ -173,7 +169,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           return;
         }
       } catch {
-        // If parsing fails, continue with original response
       }
     }
 
@@ -192,4 +187,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 }
-
