@@ -1,7 +1,7 @@
-import { Buffer } from "node:buffer";
 import type { IncomingMessage, ServerResponse } from "http";
 import https from "https";
 import http from "http";
+import { Buffer } from "node:buffer";
 
 type ApiRequest = IncomingMessage & {
   body?: unknown;
@@ -10,17 +10,23 @@ type ApiRequest = IncomingMessage & {
     authorization?: string | string[];
     "content-type"?: string | string[];
   };
+  url?: string;
 };
 
 type ApiResponse = ServerResponse & {
   status: (statusCode: number) => ApiResponse;
   json: (body: unknown) => ApiResponse;
   send: (body?: unknown) => ApiResponse;
+  setHeader: (name: string, value: string) => void;
 };
 
 const BACKEND_URL = process.env.BACKEND_URL;
 
-// Helper function to make HTTP/HTTPS requests to the backend
+const normalizeHeader = (value?: string | string[]) => {
+  if (!value) return undefined;
+  return Array.isArray(value) ? value[0] : value;
+};
+
 function makeRequest(url: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -67,24 +73,11 @@ function makeRequest(url: string, options: { method?: string; headers?: Record<s
     req.end();
   });
 }
-const SEARCH_PATH = "/comments/search";
-const METHOD_NOT_ALLOWED = "Method Not Allowed";
-
-const normalizeHeader = (value?: string | string[]) => {
-  if (!value) return undefined;
-  return Array.isArray(value) ? value[0] : value;
-};
 
 const serializeBody = (body: unknown) => {
-  if (typeof body === "string") {
-    return body;
-  }
-  if (body instanceof Buffer) {
-    return body.toString();
-  }
-  if (body === undefined || body === null) {
-    return "{}";
-  }
+  if (typeof body === "string") return body;
+  if (body instanceof Buffer) return body.toString();
+  if (body === undefined || body === null) return "{}";
   try {
     return JSON.stringify(body);
   } catch {
@@ -100,36 +93,76 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   if (req.method === "OPTIONS") {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.status(204).end();
     return;
   }
 
-  if (req.method !== "POST") {
-    res.status(405).send(METHOD_NOT_ALLOWED);
-    return;
+  const method = (req.method || "").toUpperCase().trim();
+  const url = req.url || "";
+  
+  // Parse the path from URL - handle both /api/comments and /api/comments/*
+  let subPath = "";
+  const exactMatch = url.match(/^\/api\/comments\/?$/);
+  const pathMatch = url.match(/^\/api\/comments\/(.+)$/);
+  
+  if (exactMatch) {
+    subPath = "";
+  } else if (pathMatch) {
+    subPath = pathMatch[1];
   }
-
-  const targetUrl = new URL(SEARCH_PATH, BACKEND_URL).toString();
-
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "Content-Type": normalizeHeader(req.headers["content-type"]) ?? "application/json",
-  };
-
-  const authHeader = normalizeHeader(req.headers.authorization);
-  if (authHeader) {
-    headers.Authorization = authHeader;
-  }
-
-  const payload = serializeBody(req.body);
 
   try {
+    let targetPath = "";
+    let backendMethod = method;
+
+    if (subPath === "latest") {
+      // GET /comments/latest
+      if (method !== "GET") {
+        res.status(405).json({ ok: false, error: "Method not allowed" });
+        return;
+      }
+      const parsedUrl = new URL(url, "http://localhost");
+      const search = parsedUrl.search || "";
+      targetPath = `/comments/latest${search}`;
+      backendMethod = "GET";
+    } else if (subPath === "search") {
+      // POST /comments/search
+      if (method !== "POST") {
+        res.status(405).json({ ok: false, error: "Method not allowed" });
+        return;
+      }
+      targetPath = "/comments/search";
+      backendMethod = "POST";
+    } else if (subPath.match(/^[^/]+\/notes$/)) {
+      // GET or POST /comments/:processedId/notes
+      const processedId = subPath.replace(/\/notes$/, "");
+      targetPath = `/comments/${encodeURIComponent(processedId)}/notes`;
+      backendMethod = method;
+    } else {
+      res.status(404).json({ ok: false, error: "Not found" });
+      return;
+    }
+
+    const targetUrl = new URL(targetPath, BACKEND_URL).toString();
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+    };
+
+    const authHeader = normalizeHeader(req.headers.authorization);
+    if (authHeader) {
+      headers.Authorization = authHeader;
+    }
+
+    if (backendMethod === "POST") {
+      headers["Content-Type"] = normalizeHeader(req.headers["content-type"]) ?? "application/json";
+    }
+
     const response = await makeRequest(targetUrl, {
-      method: "POST",
+      method: backendMethod,
       headers,
-      body: payload,
+      body: backendMethod === "POST" ? serializeBody(req.body) : undefined,
     });
 
     const contentType = response.headers["content-type"];
@@ -138,9 +171,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
     res.status(response.status).send(response.body);
   } catch (error) {
-    console.error("[api/comments/search] Backend request failed:", error);
+    console.error("[api/comments] Backend request failed:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-
+    
     if (errorMessage.includes("certificate") || errorMessage.includes("SSL") || errorMessage.includes("TLS")) {
       res.status(500).json({
         ok: false,
@@ -156,3 +189,4 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
   }
 }
+

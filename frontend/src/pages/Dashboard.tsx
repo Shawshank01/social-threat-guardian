@@ -55,6 +55,26 @@ const Dashboard = () => {
   } | null>(null);
   const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
+  const [threatIndexAlertsEnabled, setThreatIndexAlertsEnabled] = useState(() => {
+    const stored = localStorage.getItem("stg.threatIndexAlerts.enabled");
+    return stored === "true"; // Default to false (disabled)
+  });
+  const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number>>(() => {
+    const stored = localStorage.getItem("stg.threatIndexAlerts.thresholds");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return {};
+      }
+    }
+    // Default thresholds: 30 for all platforms
+    const defaults: Record<string, number> = {};
+    PLATFORM_OPTIONS.forEach((platform) => {
+      defaults[platform.id] = 30;
+    });
+    return defaults;
+  });
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -651,6 +671,117 @@ const Dashboard = () => {
           >
             Reset
           </button>
+        </section>
+
+        <section className="space-y-4 rounded-2xl border border-slate-200/70 bg-white/50 p-4 dark:border-white/10 dark:bg-slate-900/40">
+          <header>
+            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Notification Settings</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300">
+              Configure how you receive notifications about Threat Index alerts and other important updates.
+            </p>
+          </header>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-xl border border-slate-200/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-800/50">
+              <div className="flex-1 pr-4">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">Threat Index Alerts</h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  Receive notifications when Threat Index value exceeds your threshold
+                </p>
+              </div>
+              <label className="relative inline-flex cursor-pointer items-center flex-shrink-0">
+                <input
+                  type="checkbox"
+                  checked={threatIndexAlertsEnabled}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setThreatIndexAlertsEnabled(enabled);
+                    localStorage.setItem("stg.threatIndexAlerts.enabled", String(enabled));
+                  }}
+                  className="peer sr-only"
+                />
+                <div className="peer h-6 w-11 rounded-full bg-slate-300 transition-colors after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border after:border-slate-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-stg-accent peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-stg-accent/40 dark:bg-slate-700 dark:after:border-slate-600 dark:after:bg-slate-300"></div>
+              </label>
+            </div>
+
+            {threatIndexAlertsEnabled && (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-3 dark:border-amber-800/30 dark:bg-amber-900/20">
+                  <p className="text-xs text-amber-800 dark:text-amber-200">
+                    <strong className="font-semibold">Note:</strong> Currently, Threat Index alerts are only supported for <strong>Bluesky</strong>. Support for other platforms will be added in the future.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-slate-200/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-800/50">
+                  <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-3">
+                    Alert Thresholds by Platform
+                  </label>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mb-4">
+                    Set the Threat Index threshold for each platform (0-100). You will receive notifications when the Threat Index value exceeds the threshold for that platform.
+                  </p>
+                  <div className="space-y-3">
+                    {PLATFORM_OPTIONS.map((platform) => {
+                      const isBluesky = platform.id === "BLUSKY_TEST";
+                      const threshold = threatIndexThresholds[platform.id] ?? 20;
+                      return (
+                        <div
+                          key={platform.id}
+                          className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
+                            isBluesky
+                              ? "border-slate-300/80 bg-white dark:border-white/20 dark:bg-slate-900/50"
+                              : "border-slate-200/50 bg-slate-50/50 opacity-60 dark:border-white/10 dark:bg-slate-800/30"
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <label
+                                htmlFor={`threshold-${platform.id}`}
+                                className="text-sm font-medium text-slate-900 dark:text-white"
+                              >
+                                {platform.label}
+                              </label>
+                              {!isBluesky && (
+                                <span className="text-xs text-slate-500 dark:text-slate-400">(Coming soon)</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <input
+                              id={`threshold-${platform.id}`}
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="1"
+                              value={threshold}
+                              disabled={!isBluesky}
+                              onChange={(e) => {
+                                const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                                const newThresholds = { ...threatIndexThresholds, [platform.id]: value };
+                                setThreatIndexThresholds(newThresholds);
+                                localStorage.setItem("stg.threatIndexAlerts.thresholds", JSON.stringify(newThresholds));
+                              }}
+                              className="w-20 rounded-lg border border-slate-300/80 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:focus:border-stg-accent"
+                            />
+                            <span className="text-xs text-slate-500 dark:text-slate-400 w-8 text-right">
+                              {threshold}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-slate-200/70 bg-slate-50/50 p-3 dark:border-white/10 dark:bg-slate-800/30">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                <strong className="font-semibold text-slate-700 dark:text-slate-300">Note:</strong>{" "}
+                {threatIndexAlertsEnabled
+                  ? `You will receive notifications when the Threat Index value exceeds the threshold for each enabled platform. Notifications are throttled to prevent spam (6-hour cooldown between alerts).`
+                  : "Threat Index alerts are currently disabled. Enable them above to receive notifications when the threshold is exceeded."}{" "}
+                You can view and manage your notifications using the bell icon in the navigation bar.
+              </p>
+            </div>
+          </div>
         </section>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
