@@ -102,41 +102,79 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const method = (req.method || "").toUpperCase().trim();
   const url = req.url || "";
-  
-  // Parse the path from URL - handle both /api/favorites and /api/favorites/*
+
   let subPath = "";
-  const exactMatch = url.match(/^\/api\/favorites\/?$/);
-  const pathMatch = url.match(/^\/api\/favorites\/(.+)$/);
-  
-  if (exactMatch) {
-    subPath = "";
-  } else if (pathMatch) {
-    subPath = pathMatch[1];
+  let queryParams: URLSearchParams;
+
+  try {
+    // Try to parse as absolute URL first, then fall back to relative
+    let urlObj: URL;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      urlObj = new URL(url);
+    } else {
+      urlObj = new URL(url, "http://localhost");
+    }
+
+    // Extract path from URL object
+    const pathname = urlObj.pathname;
+    const exactMatch = pathname.match(/^\/api\/favorites\/?$/);
+    const pathMatch = pathname.match(/^\/api\/favorites\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    queryParams = urlObj.searchParams;
+  } catch {
+    // Fallback: use regex parsing if URL parsing fails
+    const exactMatch = url.match(/^\/api\/favorites\/?$/);
+    const pathMatch = url.match(/^\/api\/favorites\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    // Try to create URL object for query params, but use empty if it fails
+    try {
+      const urlObj = new URL(url, "http://localhost");
+      queryParams = urlObj.searchParams;
+    } catch {
+      // If URL parsing completely fails, extract query string manually
+      const queryMatch = url.match(/\?(.+)$/);
+      const search = queryMatch ? `?${queryMatch[1]}` : "";
+      queryParams = new URLSearchParams(search);
+    }
   }
 
   try {
     let targetPath = "";
     let backendMethod = method;
 
-    if (subPath === "content") {
+    // Strip query parameters from subPath for comparison
+    const subPathWithoutQuery = subPath.split("?")[0];
+
+    if (subPathWithoutQuery === "content") {
       // GET /favorites/content?source=...
       if (method !== "GET") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
-      const urlObj = new URL(url, "http://localhost");
-      const source = urlObj.searchParams.get("source") || "BLUSKY_TEST";
+      const source = queryParams.get("source") || "BLUSKY_TEST";
       const targetUrl = new URL("/bookmark/content", BACKEND_URL);
       targetUrl.searchParams.set("source", source);
       targetPath = targetUrl.pathname + targetUrl.search;
       backendMethod = "GET";
-    } else if (subPath && subPath !== "") {
+    } else if (subPathWithoutQuery && subPathWithoutQuery !== "") {
       // DELETE /favorites/:processedId
       if (method !== "DELETE") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
-      const processedId = subPath.split("?")[0]; // Remove query params
+      const processedId = subPathWithoutQuery;
       targetPath = "/bookmark/remove";
       backendMethod = "DELETE";
       // The body will contain post_id
@@ -160,9 +198,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
           post_id: body.post_id || body.postId || body.processedId,
         };
       } else if (method === "DELETE") {
-        // DELETE /favorites?post_id=... (query param)
-        const urlObj = new URL(url, "http://localhost");
-        const postId = urlObj.searchParams.get("post_id");
+        const postId = queryParams.get("post_id");
         if (!postId) {
           res.status(400).json({ ok: false, error: "post_id is required" });
           return;
@@ -211,4 +247,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 }
-
