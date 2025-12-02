@@ -101,33 +101,73 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const method = (req.method || "").toUpperCase().trim();
   const url = req.url || "";
-  
-  // Parse the path from URL - handle both /api/comments and /api/comments/*
+
   let subPath = "";
-  const exactMatch = url.match(/^\/api\/comments\/?$/);
-  const pathMatch = url.match(/^\/api\/comments\/(.+)$/);
-  
-  if (exactMatch) {
-    subPath = "";
-  } else if (pathMatch) {
-    subPath = pathMatch[1];
+  let urlObj: URL;
+  let queryParams: URLSearchParams;
+  let search = "";
+
+  try {
+    // Try to parse as absolute URL first, then fall back to relative
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      urlObj = new URL(url);
+    } else {
+      urlObj = new URL(url, "http://localhost");
+    }
+
+    // Extract path from URL object
+    const pathname = urlObj.pathname;
+    const exactMatch = pathname.match(/^\/api\/comments\/?$/);
+    const pathMatch = pathname.match(/^\/api\/comments\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    queryParams = urlObj.searchParams;
+    search = urlObj.search || "";
+  } catch {
+    // Fallback: use regex parsing if URL parsing fails
+    const exactMatch = url.match(/^\/api\/comments\/?$/);
+    const pathMatch = url.match(/^\/api\/comments\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    // Try to create URL object for query params, but use empty if it fails
+    try {
+      urlObj = new URL(url, "http://localhost");
+      queryParams = urlObj.searchParams;
+      search = urlObj.search || "";
+    } catch {
+      // If URL parsing completely fails, extract query string manually
+      const queryMatch = url.match(/\?(.+)$/);
+      search = queryMatch ? `?${queryMatch[1]}` : "";
+      queryParams = new URLSearchParams(search);
+    }
   }
 
   try {
     let targetPath = "";
     let backendMethod = method;
 
-    if (subPath === "latest") {
+    // Strip query parameters from subPath for comparison
+    const subPathWithoutQuery = subPath.split("?")[0];
+
+    if (subPathWithoutQuery === "latest") {
       // GET /comments/latest
       if (method !== "GET") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
-      const parsedUrl = new URL(url, "http://localhost");
-      const search = parsedUrl.search || "";
       targetPath = `/comments/latest${search}`;
       backendMethod = "GET";
-    } else if (subPath === "search") {
+    } else if (subPathWithoutQuery === "search") {
       // POST /comments/search
       if (method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -135,10 +175,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }
       targetPath = "/comments/search";
       backendMethod = "POST";
-    } else if (subPath.match(/^[^/]+\/notes$/)) {
+    } else if (subPathWithoutQuery.match(/^[^/]+\/notes$/)) {
       // GET or POST /comments/:processedId/notes
-      const processedId = subPath.replace(/\/notes$/, "");
-      targetPath = `/comments/${encodeURIComponent(processedId)}/notes`;
+      const processedId = subPathWithoutQuery.replace(/\/notes$/, "");
+      targetPath = `/comments/${encodeURIComponent(processedId)}/notes${search}`;
       backendMethod = method;
     } else {
       res.status(404).json({ ok: false, error: "Not found" });
@@ -173,7 +213,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   } catch (error) {
     console.error("[api/comments] Backend request failed:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
+
     if (errorMessage.includes("certificate") || errorMessage.includes("SSL") || errorMessage.includes("TLS")) {
       res.status(500).json({
         ok: false,
@@ -189,4 +229,3 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
   }
 }
-
