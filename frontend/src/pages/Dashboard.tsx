@@ -21,6 +21,13 @@ const DEFAULT_PLATFORM_ID = "BLUSKY_TEST";
 const ACTIVE_PLATFORM_OPTIONS = PLATFORM_OPTIONS.filter(
   (platform) => platform.id === DEFAULT_PLATFORM_ID,
 );
+const makeDefaultThresholds = () => {
+  const defaults: Record<string, number> = {};
+  ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
+    defaults[platform.id] = 30;
+  });
+  return defaults;
+};
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -59,37 +66,17 @@ const Dashboard = () => {
   } | null>(null);
   const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
-  const [threatIndexAlertsEnabled, setThreatIndexAlertsEnabled] = useState(() => {
-    const stored = localStorage.getItem("stg.threatIndexAlerts.enabled");
-    return stored === "true"; // Default to false (disabled)
-  });
-  const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number>>(() => {
-    const makeDefaultThresholds = () => {
-      const defaults: Record<string, number> = {};
-      ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
-        defaults[platform.id] = 30;
-      });
-      return defaults;
-    };
-
-    const stored = localStorage.getItem("stg.threatIndexAlerts.thresholds");
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) ?? {};
-        const merged = makeDefaultThresholds();
-        ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
-          const value = Number(parsed[platform.id]);
-          if (Number.isFinite(value)) {
-            merged[platform.id] = value;
-          }
-        });
-        return merged;
-      } catch {
-        return makeDefaultThresholds();
-      }
-    }
-
-    return makeDefaultThresholds();
+  const [threatIndexAlertsEnabled, setThreatIndexAlertsEnabled] = useState(false);
+  const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number>>(
+    () => makeDefaultThresholds(),
+  );
+  const [threatIndexThresholdInputs, setThreatIndexThresholdInputs] = useState<Record<string, string>>(() => {
+    const defaults = makeDefaultThresholds();
+    const inputs: Record<string, string> = {};
+    ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
+      inputs[platform.id] = String(defaults[platform.id]);
+    });
+    return inputs;
   });
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -121,9 +108,26 @@ const Dashboard = () => {
       );
       const languagesToApply = validLanguageIds;
 
+      const thresholdsFromBackend = preferences.threatIndexThresholds ?? {};
+      const mergedThresholds = makeDefaultThresholds();
+      ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
+        const value = thresholdsFromBackend[platform.id];
+        if (Number.isFinite(value)) {
+          mergedThresholds[platform.id] = Number(value);
+        }
+      });
+
       setKeywordInput(trimmedKeywords.join("\n"));
       setSelectedPlatforms(new Set(platformsToApply));
       setSelectedLanguages(new Set(languagesToApply));
+      setThreatIndexAlertsEnabled(Boolean(preferences.threatIndexAlertsEnabled));
+      setThreatIndexThresholds(mergedThresholds);
+      setThreatIndexThresholdInputs(
+        ACTIVE_PLATFORM_OPTIONS.reduce<Record<string, string>>((acc, platform) => {
+          acc[platform.id] = String(mergedThresholds[platform.id]);
+          return acc;
+        }, {}),
+      );
 
       const hasExplicitPreferences =
         trimmedKeywords.length > 0 ||
@@ -146,7 +150,15 @@ const Dashboard = () => {
         setLastSavedSettings(null);
       }
     },
-    [setKeywordInput, setLastSavedSettings, setSelectedLanguages, setSelectedPlatforms],
+    [
+      setKeywordInput,
+      setLastSavedSettings,
+      setSelectedLanguages,
+      setSelectedPlatforms,
+      setThreatIndexAlertsEnabled,
+      setThreatIndexThresholds,
+      setThreatIndexThresholdInputs,
+    ],
   );
 
   const normalizedKeywords = useMemo(() => {
@@ -279,6 +291,8 @@ const Dashboard = () => {
           keywords: preferences.keywords,
           languages: preferences.languages,
           platforms: preferences.platforms,
+          threatIndexAlertsEnabled: preferences.threatIndexAlertsEnabled ?? false,
+          threatIndexThresholds: preferences.threatIndexThresholds ?? makeDefaultThresholds(),
         }),
       });
 
@@ -390,6 +404,8 @@ const Dashboard = () => {
         keywords: normalizedKeywords,
         platforms: Array.from(selectedPlatforms),
         languages: Array.from(selectedLanguages),
+        threatIndexAlertsEnabled,
+        threatIndexThresholds,
         updatedAt: new Date().toISOString(),
       };
 
@@ -695,7 +711,6 @@ const Dashboard = () => {
                   onChange={(e) => {
                     const enabled = e.target.checked;
                     setThreatIndexAlertsEnabled(enabled);
-                    localStorage.setItem("stg.threatIndexAlerts.enabled", String(enabled));
                   }}
                   className="peer sr-only"
                 />
@@ -715,6 +730,8 @@ const Dashboard = () => {
                   <div className="space-y-3">
                     {ACTIVE_PLATFORM_OPTIONS.map((platform) => {
                       const threshold = threatIndexThresholds[platform.id] ?? 20;
+                      const thresholdInput =
+                        threatIndexThresholdInputs[platform.id] ?? String(threshold);
                       return (
                         <div
                           key={platform.id}
@@ -737,12 +754,25 @@ const Dashboard = () => {
                               min="0"
                               max="100"
                               step="1"
-                              value={threshold}
+                              value={thresholdInput}
                               onChange={(e) => {
-                                const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
-                                const newThresholds = { ...threatIndexThresholds, [platform.id]: value };
-                                setThreatIndexThresholds(newThresholds);
-                                localStorage.setItem("stg.threatIndexAlerts.thresholds", JSON.stringify(newThresholds));
+                                const raw = e.target.value;
+                                setThreatIndexThresholdInputs((prev) => ({
+                                  ...prev,
+                                  [platform.id]: raw,
+                                }));
+                                if (raw.trim() === "") {
+                                  return;
+                                }
+                                const numeric = Number(raw);
+                                if (!Number.isFinite(numeric)) {
+                                  return;
+                                }
+                                const value = Math.max(0, Math.min(100, numeric));
+                                setThreatIndexThresholds((prev) => ({
+                                  ...prev,
+                                  [platform.id]: value,
+                                }));
                               }}
                               className="w-20 rounded-lg border border-slate-300/80 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:focus:border-stg-accent"
                             />

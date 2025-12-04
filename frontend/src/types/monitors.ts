@@ -2,6 +2,8 @@ export type SavedPreferences = {
   keywords: string[];
   platforms: string[];
   languages: string[];
+  threatIndexAlertsEnabled?: boolean;
+  threatIndexThresholds?: Record<string, number>;
   updatedAt?: string;
 };
 
