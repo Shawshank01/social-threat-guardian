@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, X, type LucideIcon } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
+import ThreatTrendChart from "@/components/ThreatTrendChart";
 
 const SPLASH_BOX_STORAGE_KEY = "stg.splashBox.dismissed";
 const SPLASH_BOX_ENABLED_KEY = "stg.splashBox.enabled";
@@ -311,7 +312,7 @@ const Home = () => {
         <div className="order-1">
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
-        <div className="order-2">
+        <div className="order-2 flex flex-col gap-8">
           <section aria-label="Platform threat summaries" className="flex flex-col gap-6">
             <header className="flex flex-col gap-2">
               <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
@@ -370,6 +371,9 @@ const Home = () => {
               )}
             </div>
           </section>
+        </div>
+        <div className="order-3 lg:col-span-2">
+          <ThreatTrendChart />
         </div>
       </div>
     </div>
