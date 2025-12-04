@@ -1,82 +1,61 @@
 const handleCache = new Map<string, string>();
-const requestQueue: Array<() => Promise<void>> = [];
-let isProcessingQueue = false;
-const maxConcurrent = 3;
-let activeRequests = 0;
- const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
- const processQueue = async () => {
- if (isProcessingQueue) return;
- isProcessingQueue = true;
- while (requestQueue.length > 0) {
- if (activeRequests >= maxConcurrent) {
- await wait(25);
- continue;
- }
- const task = requestQueue.shift();
- if (task) {
- activeRequests++;
- task().finally(() => activeRequests--);
- await wait(40);
- }
- }
- isProcessingQueue = false;
-};
- const fetchJson = async (url: string) => {
- try {
- const res = await fetch(url, { headers: { Accept: "application/json" } });
- if (!res.ok) return null;
- return await res.json();
- } catch {
- return null;
- }
-};
- export async function resolveHandle(id: string): Promise<string> {
- if (!id) return "Unknown";
- const clean = id.startsWith("@") ? id.slice(1) : id;
- if (handleCache.has(clean)) return handleCache.get(clean)!;
- const fallback = `@${clean.substring(0, 12)}...`;
- if (clean.startsWith("did:")) {
- return new Promise<string>((resolve) => {
- const job = async () => {
- const d1 = await fetchJson(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?did=${encodeURIComponent(clean)}`);
- if (d1?.handle) {
- const h = `@${d1.handle}`;
- handleCache.set(clean, h);
- resolve(h);
- return;
- }
- const d2 = await fetchJson(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${encodeURIComponent(clean)}`);
- if (d2?.handle) {
- const h = `@${d2.handle}`;
- handleCache.set(clean, h);
- resolve(h);
- return;
- }
- const d3 = await fetchJson(`https://plc.directory/${encodeURIComponent(clean)}`);
- if (d3?.alsoKnownAs) {
- for (const a of d3.alsoKnownAs) {
- if (a.startsWith("at://")) {
- const h = `@${a.slice(5)}`;
- handleCache.set(clean, h);
- resolve(h);
- return;
- }
- }
- }
- handleCache.set(clean, fallback);
- resolve(fallback);
- };
- requestQueue.push(job);
- processQueue();
- });
- }
- return id.startsWith("@") ? id : `@${id}`;
+const BSKY_BATCH_SIZE = 25; 
+interface BskyProfile {
+  did: string;
+  handle: string;
 }
- export function extractIdentityFromUrl(url: string): string | null {
- try {
- const m = url.match(/profile\/([^/]+)/);
- return m ? m[1] : null;
- } catch {
- return null;
- }
+
+export function getCachedHandle(did: string): string {
+  if (!did) return "Unknown";
+  if (handleCache.has(did)) return handleCache.get(did)!;
+  const shortDid = did.startsWith('did:') ? did.split(':')[2]?.substring(0, 8) : did.substring(0, 8);
+  return shortDid || "Unknown";
+}
+
+// Scalable way of handling this is by batching a list of DIDs and fetch their handles from Blusky API.
+export async function resolveHandlesBatch(dids: string[]): Promise<Map<string, string>> {
+  const uniqueDids = [...new Set(dids)].filter(did => 
+    did.startsWith('did:') && !handleCache.has(did)
+  );
+  if (uniqueDids.length === 0) return new Map();
+
+  // Bundle the DIDs manually to respect API limits which i set at 25 per request
+  const chunks: string[][] = [];
+  for (let i = 0; i < uniqueDids.length; i += BSKY_BATCH_SIZE) {
+    chunks.push(uniqueDids.slice(i, i + BSKY_BATCH_SIZE));
+  }
+  const results = await Promise.allSettled(
+    chunks.map(chunk => fetchProfiles(chunk))
+  );
+  const newResolutions = new Map<string, string>();
+  results.forEach(result => {
+    if (result.status === 'fulfilled' && result.value) {
+      result.value.forEach(profile => {
+        let handle = profile.handle;
+        if (!handle.endsWith('.bsky.social') && !handle.includes('.')) {
+            handle += '.bsky.social';
+        }
+        const formatted = `@${handle}`;
+        handleCache.set(profile.did, formatted);
+        newResolutions.set(profile.did, formatted);
+      });
+    }
+  });
+  return newResolutions;
+}
+async function fetchProfiles(actors: string[]): Promise<BskyProfile[]> {
+  try {
+    const params = new URLSearchParams();
+    actors.forEach(actor => params.append('actors', actor));
+    const response = await fetch(
+      `https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${params.toString()}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return data.profiles || [];
+  } catch (error) {
+    console.warn("Failed to resolve batch handles", error);
+    return [];
+  }
 }
