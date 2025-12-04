@@ -338,7 +338,7 @@ CORS_ALLOW_ORIGINS=https://localhost:5173,https://social-threat-detection.vercel
 
 ### Notifications
 - All endpoints require `Authorization: Bearer <jwt>`; `requireAuth` uses that token to populate `req.user.id`.
- - Hate-score alerts are throttled: when the background poll detects `HATE_SCORE_ALERT` (e.g., hate score > 20), one notification is emitted and further alerts are suppressed for 6 hours.
+- Hate-score alerts (`HATE_SCORE_ALERT`) are throttled: when the background poll detects the threat index average at/above the user’s threshold, one notification per user is emitted and further alerts are suppressed for 6 hours. Users must enable `THREAT_INDEX_ALERTS_ENABLED` and set optional `THREAT_INDEX_THRESHOLDS` via `/user-preferences`; otherwise no alert is sent. Threshold parsing takes the first numeric value in the JSON array/object, falling back to 20 if missing.
 
 #### List notifications
 - `GET /notifications`
@@ -487,10 +487,14 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   {
     "languages": ["en"],
     "keywords": ["trump", "election"],
-    "platforms": ["TWITTER", "REDDIT"]
+    "platforms": ["TWITTER", "REDDIT"],
+    "THREAT_INDEX_ALERTS_ENABLED": true,
+    "THREAT_INDEX_THRESHOLDS": [25, 30]
   }
   ```
   - `languages`/`language`, `keywords`/`keyword`, and `platforms`/`platform` accept either a single string or an array; the backend trims empty values before storing them as JSON arrays.
+  - `THREAT_INDEX_ALERTS_ENABLED` toggles hate-score alerting; accepts boolean or truthy/falsey strings.
+  - `THREAT_INDEX_THRESHOLDS` is stored as JSON (array or object) and the alert pipeline parses the first numeric value (falls back to 20).
 - **Responses:**
   - `200 OK`
     ```json
@@ -502,7 +506,9 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
         "userId": "user-uuid",
         "languages": ["en"],
         "keywords": ["trump", "election"],
-        "platform": ["TWITTER", "REDDIT"],
+        "platforms": ["TWITTER", "REDDIT"],
+        "THREAT_INDEX_ALERTS_ENABLED": true,
+        "THREAT_INDEX_THRESHOLDS": [25],
         "createdAt": "2024-01-01T12:34:56.000Z",
         "updatedAt": "2024-01-01T12:34:56.000Z"
       }
@@ -515,7 +521,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   curl -X POST https://localhost:3000/user-preferences \
        -H "Authorization: Bearer <token>" \
        -H "Content-Type: application/json" \
-       -d '{"language":"en","keywords":["trump"],"platforms":["TWITTER"]}'
+       -d '{"language":"en","keywords":["trump"],"platforms":["TWITTER"],"THREAT_INDEX_ALERTS_ENABLED":true,"THREAT_INDEX_THRESHOLDS":[25]}'
   ```
 ### Fetch User Preferences
 - `GET /user-preferences`
@@ -529,7 +535,9 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
       "userId": "user-uuid",
       "keywords": ["trump", "election"],
       "languages": ["en", "es"],
-      "platform": ["TWITTER", "REDDIT"]
+      "platforms": ["TWITTER", "REDDIT"],
+      "THREAT_INDEX_ALERTS_ENABLED": true,
+      "THREAT_INDEX_THRESHOLDS": [25, 30]
     }
   }
   ```
@@ -551,7 +559,9 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     "ID": "pref-uuid",
     "KEYWORDS": ["trump", "election"],
     "LANGUAGES": ["en", "es"],
-    "PLATFORM": ["TWITTER", "REDDIT"]
+    "PLATFORMS": ["TWITTER", "REDDIT"],
+    "THREAT_INDEX_ALERTS_ENABLED": true,
+    "THREAT_INDEX_THRESHOLDS": [25, 30]
   }
   ```
   - Returns an empty object (`{}`) when no preferences exist for the authenticated user.
@@ -640,7 +650,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
   ```
 ### Add Reply to Post
 - **Endpoint:** `POST /reply/add`
-- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) 和可选的 `req.user.name`。
+- **Auth:** Requires `Authorization: Bearer <JWT>`; `requireAuth` parses the token to populate `req.user.id` (user ID) and optionally `req.user.name`.
 - **Body:** JSON
   ```json
   {
@@ -649,7 +659,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     "user_name": "Optional display name"
   }
   ```
-  `post_id`/`reply_text` 为必填；`user_name` 可选，不传则使用 JWT 中的 name（若存在）。后端同时接受 `postId` / `replyText` / `author_name` 的兼容字段。
+  `post_id`/`reply_text` are required; `user_name` is optional and falls back to the name in JWT if present. Backward-compatible fields `postId` / `replyText` / `author_name` are also accepted.
 - **Response (201 Created):**
   ```json
   {
@@ -664,7 +674,7 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     }
   }
   ```
-- **Errors:** `400` 当缺少 `post_id` 或 `reply_text`；`401` 当 JWT 缺失/无效；`500` 未预期错误。
+- **Errors:** `400` when `post_id` or `reply_text` is missing; `401` when JWT is missing/invalid; `500` unexpected errors.
 - **Example (curl):**
   ```bash
   curl -X POST https://localhost:3000/reply/add \
@@ -756,6 +766,34 @@ After login, the frontend can poll `unread-count` to display the badge, fetch th
     ```
   - `PONG`: response when the client sends `{ "type": "PING" }`, useful for keep-alive logic.
 - **Client Expectations:** Subscribe once, update UI whenever `HATE_SCORE_UPDATE` arrives, and optionally send `PING` messages if your environment requires heartbeats. No additional authentication is enforced today; add middleware if required for production.
+
+### Threat Index Trend
+- **Endpoint:** `GET /threat-index/trend`
+- **Description:** Query historical Threat Index aggregates (minute/hour/day) from `HATE_THREAT_TREND`.
+- **Query Parameters:**
+  - `aggLevel` (optional, default `minute`): `minute` | `hour` | `day`
+  - `target` (optional): override the aggregate table name, default `HATE_THREAT_TREND`
+  - If `start/end` are omitted, the backend uses default lookback windows: `minute` → past 60 minutes, `hour` → past 48 hours, `day` → past 30 days.
+- **Behavior:**
+  ```sql
+  SELECT TIME_BUCKET, AVG_HATE_SCORE, MSG_COUNT
+    FROM HATE_THREAT_TREND
+   WHERE AGG_LEVEL = :aggLevel
+   ORDER BY TIME_BUCKET;
+  ```
+- **Success Response (`200 OK`):**
+  ```json
+  {
+    "ok": true,
+    "aggLevel": "minute",
+    "count": 2,
+    "data": [
+      { "time": "2025-11-29T12:00:00.000Z", "avgHateScore": 0.3456, "count": 120 },
+      { "time": "2025-11-29T12:01:00.000Z", "avgHateScore": 0.4012, "count": 95 }
+    ]
+  }
+  ```
+- **Errors:** `400` for invalid parameters; `500` for database/service failures.
 
 ### Harassment Network Cliques
 - **Endpoint:** `GET /harassment-network/cliques`
