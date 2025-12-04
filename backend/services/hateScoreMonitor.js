@@ -1,13 +1,16 @@
 // /services/hateScoreMonitor.js
 import oracledb from "oracledb";
 import { fetchLatestHateScores } from "../models/commentModel.js";
-import { createNotificationsForUsers, HATE_SCORE_ALERT_TYPE } from "./notificationServices.js";
 import { withConnection } from "../config/db.js";
+import { getUserPreferenceModel } from "../models/userPreferenceModel.js";
+import { insertNotification } from "../models/notificationModel.js";
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_LIMIT = 100;
 const DEFAULT_TABLE = "BLUSKY_TEST";
 const HATE_SCORE_ALERT_THRESHOLD = 20;
+const HATE_SCORE_ALERT_TYPE = "HATE_SCORE_ALERT";
+const HATE_SCORE_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000; // 6 hours
 
 let monitorTimer = null;
 let isPolling = false;
@@ -41,7 +44,12 @@ async function fetchAllUserIds() {
 }
 
 async function maybeSendHateScoreAlert(snapshot) {
-  if (!snapshot || snapshot.value === null || snapshot.value < HATE_SCORE_ALERT_THRESHOLD) {
+  if (!snapshot || snapshot.value === null) {
+    return;
+  }
+
+  // Throttle to prevent spamming
+  if (await isWithinHateScoreCooldown()) {
     return;
   }
 
@@ -50,18 +58,48 @@ async function maybeSendHateScoreAlert(snapshot) {
     return;
   }
 
-  await createNotificationsForUsers(userIds, {
-    type: HATE_SCORE_ALERT_TYPE,
-    title: "Hate score alert",
-    message: `Latest average hate score is ${snapshot.value} (threshold ${HATE_SCORE_ALERT_THRESHOLD})`,
-    payload: {
-      value: snapshot.value,
-      threshold: HATE_SCORE_ALERT_THRESHOLD,
-      sampleSize: snapshot.sampleSize,
-      updatedAt: snapshot.updatedAt,
-      tableName: snapshot.tableName,
-    },
-  });
+  const targets = [];
+
+  for (const userId of userIds) {
+    let preferences = null;
+    try {
+      preferences = await getUserPreferenceModel(userId);
+    } catch (err) {
+      console.error(`[hateScoreMonitor] failed to load preferences for user ${userId}:`, err);
+    }
+
+    const alertsEnabled = preferences?.threatIndexAlertsEnabled ?? false;
+    if (!alertsEnabled) {
+      continue;
+    }
+
+    const threshold = resolveUserThreshold(preferences?.threatIndexThresholds);
+    if (snapshot.value < threshold) {
+      continue;
+    }
+
+    targets.push({ userId, threshold });
+  }
+
+  if (targets.length === 0) {
+    return;
+  }
+
+  for (const target of targets) {
+    try {
+      await insertNotification({
+        userId: target.userId,
+        type: HATE_SCORE_ALERT_TYPE,
+        message: `Latest average hate score is ${snapshot.value} (threshold ${target.threshold})`,
+        readStatus: 0,
+      });
+    } catch (err) {
+      console.error(
+        `[hateScoreMonitor] failed to create notification for user ${target.userId}:`,
+        err,
+      );
+    }
+  }
 }
 
 function sanitizeOptions(input = {}) {
@@ -96,6 +134,52 @@ function extractNumericScores(rows) {
       return Number.isFinite(num) ? num : null;
     })
     .filter((num) => num !== null);
+}
+
+function resolveUserThreshold(threatIndexThresholds) {
+  if (threatIndexThresholds === null || threatIndexThresholds === undefined) {
+    return HATE_SCORE_ALERT_THRESHOLD;
+  }
+
+  const first =
+    Array.isArray(threatIndexThresholds) && threatIndexThresholds.length > 0
+      ? threatIndexThresholds[0]
+      : threatIndexThresholds;
+
+  const numeric =
+    typeof first === "object" && first !== null
+      ? first.threshold ?? first.THRESHOLD ?? first.value
+      : first;
+
+  const parsed = Number(numeric);
+  return Number.isFinite(parsed) ? parsed : HATE_SCORE_ALERT_THRESHOLD;
+}
+
+async function isWithinHateScoreCooldown() {
+  return withConnection(async (conn) => {
+    const { rows } = await conn.execute(
+      `
+        SELECT CREATED_AT
+          FROM NOTIFICATIONS
+         WHERE TYPE = :type
+      ORDER BY CREATED_AT DESC
+      FETCH FIRST 1 ROWS ONLY
+      `,
+      { type: HATE_SCORE_ALERT_TYPE },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT },
+    );
+
+    const createdAt = rows?.[0]?.CREATED_AT ?? rows?.[0]?.created_at ?? null;
+    const lastCreated =
+      createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : null;
+
+    if (!lastCreated || Number.isNaN(lastCreated.getTime())) {
+      return false;
+    }
+
+    const elapsedMs = Date.now() - lastCreated.getTime();
+    return elapsedMs < HATE_SCORE_ALERT_COOLDOWN_MS;
+  });
 }
 
 async function pollOnce() {
