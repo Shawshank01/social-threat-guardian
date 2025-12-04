@@ -5,25 +5,17 @@ import ApexCharts from "apexcharts";
 import type { ApexOptions } from "apexcharts";
 
 // Get WebSocket URL from environment variables
-// Supports VITE_BACKEND_URL (preferred) or VITE_API_BASE_URL
 const getWebSocketUrl = () => {
-  // Check for explicit backend URL (VITE_BACKEND_URL takes precedence)
   const backendUrl = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_BASE_URL;
 
-  // If a full backend URL is provided, derive WebSocket URL from it
   if (backendUrl && (backendUrl.startsWith("http://") || backendUrl.startsWith("https://"))) {
     try {
       const url = new URL(backendUrl);
 
-      // Determine WebSocket protocol:
-      // - If backend URL is https://, use wss://
-      // - If backend URL is http:// but page is HTTPS, use wss:// (for mixed content)
-      // - Otherwise use ws://
       const isPageHttps = typeof window !== "undefined" && window.location.protocol === "https:";
       const isBackendHttps = backendUrl.startsWith("https://");
       const wsProtocol = isBackendHttps || isPageHttps ? "wss://" : "ws://";
 
-      // Preserve port if specified, otherwise use default
       const port = url.port ? `:${url.port}` : "";
       const wsUrl = `${wsProtocol}${url.hostname}${port}/ws`;
       return wsUrl;
@@ -32,7 +24,6 @@ const getWebSocketUrl = () => {
     }
   }
 
-  // If no valid backend URL is configured, throw an error
   throw new Error(
     "VITE_BACKEND_URL or VITE_API_BASE_URL must be set to a full URL (e.g., http://your-backend:3000)"
   );
@@ -78,10 +69,10 @@ type GaugeChartProps = {
 };
 
 const defaultPlatforms = [
-  { label: "All Platforms", value: "all" },
-  { label: "Telegram", value: "telegram" },
+  // { label: "All Platforms", value: "all" },
+  // { label: "Telegram", value: "telegram" },
   { label: "Bluesky", value: "bluesky" },
-  { label: "Mastodon", value: "mastodon" },
+  // { label: "Mastodon", value: "mastodon" },
 ] as const;
 
 // Adjust these constants to reposition the arc labels
@@ -114,10 +105,9 @@ const GaugeChart = ({
   const isBluesky = platform === "bluesky";
   // Initialise with mobile-friendly dimensions that will be updated immediately
   const [gaugeDimensions, setGaugeDimensions] = useState(() => {
-    // Use a mobile-friendly default that will be updated on first render
     if (typeof window !== "undefined") {
       const viewportWidth = window.innerWidth;
-      const width = Math.min(viewportWidth - 32, 512); // Account for padding, max-w-xl
+      const width = Math.min(viewportWidth - 32, 512);
       const height = Math.max(200, Math.min(340, width * 0.68));
       return { width, height };
     }
@@ -127,7 +117,6 @@ const GaugeChart = ({
   // Reset values immediately when switching away from Bluesky
   useEffect(() => {
     if (!isBluesky) {
-      // Mark that we should not be connected
       shouldConnectRef.current = false;
 
       // Close any existing WebSocket connection immediately
@@ -139,7 +128,7 @@ const GaugeChart = ({
         window.clearTimeout(reconnectTimeoutRef.current);
         reconnectTimeoutRef.current = null;
       }
-      // Reset all values immediately (no animation delay)
+      // Reset all values immediately
       setTargetValue(null);
       setDisplayValue(0);
       setIsLoading(false);
@@ -152,15 +141,12 @@ const GaugeChart = ({
   // WebSocket connection for Bluesky platform
   useEffect(() => {
     if (!isBluesky) {
-      // Don't establish WebSocket connection for non-Bluesky platforms
       return;
     }
 
-    // Mark that we should be connected
     shouldConnectRef.current = true;
 
     const connectWebSocket = () => {
-      // Check if we should still be connected before attempting connection
       if (!shouldConnectRef.current) {
         return;
       }
@@ -172,7 +158,6 @@ const GaugeChart = ({
         wsRef.current = ws;
 
         ws.onopen = () => {
-          // Double-check we should still be connected
           if (!shouldConnectRef.current) {
             ws.close();
             return;
@@ -183,7 +168,6 @@ const GaugeChart = ({
         };
 
         ws.onmessage = (event) => {
-          // Only process messages if we should still be connected
           if (!shouldConnectRef.current) {
             return;
           }
@@ -194,7 +178,6 @@ const GaugeChart = ({
             if (message.type === "CONNECTED") {
               console.log("[GaugeChart] WebSocket handshake complete", message.data);
             } else if (message.type === "HATE_SCORE_UPDATE") {
-              // Only process updates from BLUSKY_TEST table
               if (message.data.tableName === "BLUSKY_TEST" && message.data.value !== null) {
                 // Backend sends values in 0-100 range
                 const scorePercent = clamp(message.data.value);
@@ -222,12 +205,10 @@ const GaugeChart = ({
           console.log("[GaugeChart] WebSocket closed");
           wsRef.current = null;
 
-          // Only attempt to reconnect if we should still be connected
           if (shouldConnectRef.current) {
             setIsLoading(true);
             setError("Connection lost. Reconnecting...");
 
-            // Attempt to reconnect after 3 seconds, but check again before reconnecting
             reconnectTimeoutRef.current = window.setTimeout(() => {
               if (shouldConnectRef.current) {
                 connectWebSocket();
@@ -247,7 +228,6 @@ const GaugeChart = ({
     connectWebSocket();
 
     return () => {
-      // Set flag to prevent reconnection
       shouldConnectRef.current = false;
 
       if (reconnectTimeoutRef.current) {
@@ -261,7 +241,6 @@ const GaugeChart = ({
     };
   }, [isBluesky]);
 
-  // Smooth animation from current display value to target value
   useEffect(() => {
     if (targetValue === null) {
       // If targetValue is null (non-Bluesky platform), ensure displayValue is 0
@@ -275,7 +254,6 @@ const GaugeChart = ({
         if (Math.abs(diff) < 0.1) {
           return targetValue;
         }
-        // Smooth interpolation
         return clamp(prev + diff * 0.1);
       });
     };
@@ -297,10 +275,8 @@ const GaugeChart = ({
       setGaugeDimensions({ width, height });
     };
 
-    // Update immediately
     updateDimensions();
 
-    // Also update after a microtask to catch any layout changes
     queueMicrotask(updateDimensions);
 
     const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => updateDimensions()) : null;
@@ -520,7 +496,7 @@ const GaugeChart = ({
               Current signal
             </span>
             <div className="flex items-end gap-2">
-              {/* TODO: Optionally add "%" symbol here to show percentage (e.g., {displayValue.toFixed(0)}%) or keep as just numbers */}
+              {/* Optionally add "%" symbol here to show percentage (e.g., {displayValue.toFixed(0)}%) or keep as just numbers */}
               <span className="text-4xl font-black text-slate-900 dark:text-white">{displayValue.toFixed(0)}</span>
               <span className="rounded-full border border-slate-200/80 bg-white px-3 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">
                 {zone.label}

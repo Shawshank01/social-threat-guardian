@@ -17,6 +17,10 @@ const PLATFORM_OPTIONS = [
   { id: "MASTODON", label: "Mastodon" },
   { id: "TELEGRAM", label: "Telegram" },
 ];
+const DEFAULT_PLATFORM_ID = "BLUSKY_TEST";
+const ACTIVE_PLATFORM_OPTIONS = PLATFORM_OPTIONS.filter(
+  (platform) => platform.id === DEFAULT_PLATFORM_ID,
+);
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -38,7 +42,7 @@ const Dashboard = () => {
 
   const [keywordInput, setKeywordInput] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Set<string>>(
-    () => new Set(),
+    () => new Set([DEFAULT_PLATFORM_ID]),
   );
   const [selectedLanguages, setSelectedLanguages] = useState<Set<string>>(
     () => new Set(),
@@ -60,20 +64,32 @@ const Dashboard = () => {
     return stored === "true"; // Default to false (disabled)
   });
   const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number>>(() => {
+    const makeDefaultThresholds = () => {
+      const defaults: Record<string, number> = {};
+      ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
+        defaults[platform.id] = 30;
+      });
+      return defaults;
+    };
+
     const stored = localStorage.getItem("stg.threatIndexAlerts.thresholds");
     if (stored) {
       try {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored) ?? {};
+        const merged = makeDefaultThresholds();
+        ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
+          const value = Number(parsed[platform.id]);
+          if (Number.isFinite(value)) {
+            merged[platform.id] = value;
+          }
+        });
+        return merged;
       } catch {
-        return {};
+        return makeDefaultThresholds();
       }
     }
-    // Default thresholds: 30 for all platforms
-    const defaults: Record<string, number> = {};
-    PLATFORM_OPTIONS.forEach((platform) => {
-      defaults[platform.id] = 30;
-    });
-    return defaults;
+
+    return makeDefaultThresholds();
   });
   const redirectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,14 +108,7 @@ const Dashboard = () => {
         });
 
       const originalPlatformIds = Array.isArray(preferences.platforms) ? preferences.platforms : [];
-      const validPlatformIds = Array.from(
-        new Set(
-          originalPlatformIds.filter((platformId) =>
-            PLATFORM_OPTIONS.some((platform) => platform.id === platformId),
-          ),
-        ),
-      );
-      // Don't apply defaults: use empty array if no platforms are specified
+      const validPlatformIds = [DEFAULT_PLATFORM_ID];
       const platformsToApply = validPlatformIds;
 
       const originalLanguageIds = Array.isArray(preferences.languages) ? preferences.languages : [];
@@ -110,7 +119,6 @@ const Dashboard = () => {
           ),
         ),
       );
-      // Don't apply defaults: use empty array if no languages are specified
       const languagesToApply = validLanguageIds;
 
       setKeywordInput(trimmedKeywords.join("\n"));
@@ -183,7 +191,6 @@ const Dashboard = () => {
           preferences?: SavedPreferences;
         };
 
-        // Check for 401 Unauthorized: token expired
         if (response.status === 401) {
           logout();
           navigate("/login", {
@@ -206,7 +213,6 @@ const Dashboard = () => {
             languages: [],
           };
 
-        // Don't apply defaults: use empty arrays if none are specified
         const mergedPreferences: SavedPreferences = {
           ...normalized,
           platforms: normalized.platforms || [],
@@ -221,7 +227,6 @@ const Dashboard = () => {
         if (isCancelled || (error as Error).name === "AbortError") return;
 
         const errorMessage = (error as Error).message || "";
-        // Check if error indicates token expiration
         if (errorMessage.includes("expired") || errorMessage.includes("Unauthorized") || errorMessage.includes("401")) {
           logout();
           navigate("/login", {
@@ -283,7 +288,6 @@ const Dashboard = () => {
         preferences?: SavedPreferences;
       };
 
-      // Check for 401 Unauthorized: token expired
       if (response.status === 401) {
         logout();
         navigate("/login", {
@@ -323,20 +327,17 @@ const Dashboard = () => {
     }
   };
 
-  const togglePlatform = (platformId: string) => {
-    setSelectedPlatforms((prev) => {
-      const next = new Set(prev);
-      if (next.has(platformId)) {
-        next.delete(platformId);
-      } else {
-        next.add(platformId);
-      }
-      return next;
-    });
+  const enforceDefaultPlatform = () => {
+    setSelectedPlatforms(new Set([DEFAULT_PLATFORM_ID]));
+  };
+
+  const togglePlatform = (_platformId?: string) => {
+    // Keep Bluesky enforced until multi-platform support returns
+    enforceDefaultPlatform();
   };
 
   const resetPlatforms = () => {
-    setSelectedPlatforms(new Set());
+    enforceDefaultPlatform();
   };
 
   const toggleLanguage = (language: string) => {
@@ -445,7 +446,6 @@ const Dashboard = () => {
   };
 
   const handleGoToPersonalMonitors = () => {
-    // Clear timers
     if (redirectTimerRef.current) {
       clearTimeout(redirectTimerRef.current);
     }
@@ -457,7 +457,6 @@ const Dashboard = () => {
   };
 
   const handleStayOnDashboard = () => {
-    // Clear timers
     if (redirectTimerRef.current) {
       clearTimeout(redirectTimerRef.current);
     }
@@ -467,7 +466,6 @@ const Dashboard = () => {
     setShowNavigationPrompt(false);
   };
 
-  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (redirectTimerRef.current) {
@@ -522,7 +520,6 @@ const Dashboard = () => {
     };
     reader.readAsText(file);
 
-    // Reset the input so the same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -603,40 +600,43 @@ const Dashboard = () => {
           </div>
         </section>
 
-        <section className="space-y-4">
-          <header>
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Platforms</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-300">
-              Choose the platforms to include in your search. Select any combination that fits your watch list.
-            </p>
-          </header>
-          <div className="flex flex-wrap gap-3">
-            {PLATFORM_OPTIONS.map((platform) => {
-              const isSelected = selectedPlatforms.has(platform.id);
-              return (
-                <button
-                  key={platform.id}
-                  type="button"
-                  onClick={() => togglePlatform(platform.id)}
-                  className={`rounded-full px-5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
-                    ? "bg-stg-accent text-white shadow"
-                    : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                    }`}
-                  aria-pressed={isSelected}
-                >
-                  {platform.label}
-                </button>
-              );
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={resetPlatforms}
-            className="text-xs font-semibold uppercase tracking-wide text-stg-accent transition hover:text-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40"
-          >
-            Reset
-          </button>
-        </section>
+        {/* Platform selection hidden until additional platforms are supported */}
+        {false && (
+          <section className="space-y-4">
+            <header>
+              <h2 className="text-lg font-semibold text-slate-800 dark:text-white">Platforms</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-300">
+                Choose the platforms to include in your search. Select any combination that fits your watch list.
+              </p>
+            </header>
+            <div className="flex flex-wrap gap-3">
+              {ACTIVE_PLATFORM_OPTIONS.map((platform) => {
+                const isSelected = selectedPlatforms.has(platform.id);
+                return (
+                  <button
+                    key={platform.id}
+                    type="button"
+                    onClick={() => togglePlatform(platform.id)}
+                    className={`rounded-full px-5 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/60 ${isSelected
+                      ? "bg-stg-accent text-white shadow"
+                      : "border border-slate-300/80 bg-white text-slate-700 hover:bg-slate-100 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                      }`}
+                    aria-pressed={isSelected}
+                  >
+                    {platform.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={resetPlatforms}
+              className="text-xs font-semibold uppercase tracking-wide text-stg-accent transition hover:text-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40"
+            >
+              Reset
+            </button>
+          </section>
+        )}
 
         <section className="space-y-4">
           <header>
@@ -705,30 +705,20 @@ const Dashboard = () => {
 
             {threatIndexAlertsEnabled && (
               <div className="space-y-3">
-                <div className="rounded-xl border border-amber-200/70 bg-amber-50/50 p-3 dark:border-amber-800/30 dark:bg-amber-900/20">
-                  <p className="text-xs text-amber-800 dark:text-amber-200">
-                    <strong className="font-semibold">Note:</strong> Currently, Threat Index alerts are only supported for <strong>Bluesky</strong>. Support for other platforms will be added in the future.
-                  </p>
-                </div>
                 <div className="rounded-xl border border-slate-200/70 bg-white/80 p-4 dark:border-white/10 dark:bg-slate-800/50">
                   <label className="block text-sm font-semibold text-slate-900 dark:text-white mb-3">
                     Alert Thresholds by Platform
                   </label>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mb-4">
-                    Set the Threat Index threshold for each platform (0-100). You will receive notifications when the Threat Index value exceeds the threshold for that platform.
+                    Set the Threat Index threshold for Bluesky (0-100). Support for additional platforms is coming soon.
                   </p>
                   <div className="space-y-3">
-                    {PLATFORM_OPTIONS.map((platform) => {
-                      const isBluesky = platform.id === "BLUSKY_TEST";
+                    {ACTIVE_PLATFORM_OPTIONS.map((platform) => {
                       const threshold = threatIndexThresholds[platform.id] ?? 20;
                       return (
                         <div
                           key={platform.id}
-                          className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
-                            isBluesky
-                              ? "border-slate-300/80 bg-white dark:border-white/20 dark:bg-slate-900/50"
-                              : "border-slate-200/50 bg-slate-50/50 opacity-60 dark:border-white/10 dark:bg-slate-800/30"
-                          }`}
+                          className="flex items-center justify-between gap-3 rounded-lg border p-3 border-slate-300/80 bg-white dark:border-white/20 dark:bg-slate-900/50"
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
@@ -738,9 +728,6 @@ const Dashboard = () => {
                               >
                                 {platform.label}
                               </label>
-                              {!isBluesky && (
-                                <span className="text-xs text-slate-500 dark:text-slate-400">(Coming soon)</span>
-                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -751,7 +738,6 @@ const Dashboard = () => {
                               max="100"
                               step="1"
                               value={threshold}
-                              disabled={!isBluesky}
                               onChange={(e) => {
                                 const value = Math.max(0, Math.min(100, Number(e.target.value) || 0));
                                 const newThresholds = { ...threatIndexThresholds, [platform.id]: value };
@@ -776,7 +762,7 @@ const Dashboard = () => {
               <p className="text-xs text-slate-600 dark:text-slate-400">
                 <strong className="font-semibold text-slate-700 dark:text-slate-300">Note:</strong>{" "}
                 {threatIndexAlertsEnabled
-                  ? `You will receive notifications when the Threat Index value exceeds the threshold for each enabled platform. Notifications are throttled to prevent spam (6-hour cooldown between alerts).`
+                  ? `You will receive notifications when the Threat Index value exceeds the threshold for enabled platform. Notifications are throttled to prevent spam (6-hour cooldown between alerts).`
                   : "Threat Index alerts are currently disabled. Enable them above to receive notifications when the threshold is exceeded."}{" "}
                 You can view and manage your notifications using the bell icon in the navigation bar.
               </p>
@@ -792,7 +778,7 @@ const Dashboard = () => {
                 {lastSavedSettings.platforms.join(", ")} • Languages: {lastSavedSettings.languages.join(", ")}
               </span>
             ) : (
-              <span>Configure your keywords, platforms, and languages, then save to load matching posts.</span>
+              <span>Configure your keywords and languages, then save to load matching posts.</span>
             )}
           </div>
           <button
