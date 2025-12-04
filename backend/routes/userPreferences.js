@@ -28,6 +28,8 @@ router.get("/", async (req, res) => {
           keywords: [],
           languages: [],
           platforms: [],
+          THREAT_INDEX_ALERTS_ENABLED: false,
+          THREAT_INDEX_THRESHOLDS: [],
         },
       });
     }
@@ -39,6 +41,8 @@ router.get("/", async (req, res) => {
         keywords: preferences.keywords,
         languages: preferences.languages,
         platforms: preferences.platform,
+        THREAT_INDEX_ALERTS_ENABLED: preferences.threatIndexAlertsEnabled,
+        THREAT_INDEX_THRESHOLDS: preferences.threatIndexThresholds,
       },
     });
   } catch (err) {
@@ -66,6 +70,8 @@ router.post("/get", async (req, res) => {
       KEYWORDS: preferences.keywords,
       LANGUAGES: preferences.languages,
       PLATFORMS: preferences.platform,
+      THREAT_INDEX_ALERTS_ENABLED: preferences.threatIndexAlertsEnabled,
+      THREAT_INDEX_THRESHOLDS: preferences.threatIndexThresholds,
     });
   } catch (err) {
     console.error("[POST /user-preferences/get] error:", err);
@@ -75,7 +81,20 @@ router.post("/get", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { keywords, keyword, languages, language, platform, platforms } = req.body || {};
+    const {
+      keywords,
+      keyword,
+      languages,
+      language,
+      platform,
+      platforms,
+      THREAT_INDEX_ALERTS_ENABLED,
+      THREAT_INDEX_THRESHOLDS,
+      threatIndexAlertsEnabled,
+      threatIndexThresholds,
+      threat_index_alerts_enabled,
+      threat_index_thresholds,
+    } = req.body || {};
 
     const resolvedUserId = String(req.body?.user_id || "").trim();
     if (!resolvedUserId) {
@@ -85,20 +104,37 @@ router.post("/", async (req, res) => {
     const keywordsInput = keywords !== undefined ? keywords : keyword;
     const languagesInput = languages !== undefined ? languages : language;
     const platformInput = platforms !== undefined ? platforms : platform;
+    const threatIndexAlertsEnabledInput =
+      THREAT_INDEX_ALERTS_ENABLED ??
+      threatIndexAlertsEnabled ??
+      threat_index_alerts_enabled;
+    const threatIndexThresholdsInput =
+      THREAT_INDEX_THRESHOLDS ??
+      threatIndexThresholds ??
+      threat_index_thresholds;
 
     const preferences = await upsertUserPreferenceModel({
       userId: resolvedUserId,
       keywords: keywordsInput,
       languages: languagesInput,
       platform: platformInput,
+      threatIndexAlertsEnabled: threatIndexAlertsEnabledInput,
+      threatIndexThresholds: threatIndexThresholdsInput,
     });
 
     return res.json({
       ok: true,
       message: "User preferences saved",
       preferences: {
-        ...preferences,
+        id: preferences.id,
+        userId: preferences.userId,
+        keywords: preferences.keywords,
+        languages: preferences.languages,
         platforms: preferences.platform,
+        createdAt: preferences.createdAt,
+        updatedAt: preferences.updatedAt,
+        THREAT_INDEX_ALERTS_ENABLED: preferences.threatIndexAlertsEnabled,
+        THREAT_INDEX_THRESHOLDS: preferences.threatIndexThresholds,
       },
     });
   } catch (err) {

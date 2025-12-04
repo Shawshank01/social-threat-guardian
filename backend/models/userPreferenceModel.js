@@ -14,13 +14,15 @@ export async function ensureUserPreferencesTable() {
       BEGIN
         EXECUTE IMMEDIATE q'[
           CREATE TABLE USER_PREFERENCES (
-            ID          VARCHAR2(36) PRIMARY KEY,
-            USER_ID     VARCHAR2(36) NOT NULL,
-            KEYWORDS    CLOB CHECK (KEYWORDS IS JSON),
-            LANGUAGES   CLOB CHECK (LANGUAGES IS JSON),
-            PLATFORM    CLOB CHECK (PLATFORM IS JSON),
-            CREATED_AT  TIMESTAMP DEFAULT SYSTIMESTAMP,
-            UPDATED_AT  TIMESTAMP
+            ID                           VARCHAR2(36) PRIMARY KEY,
+            USER_ID                      VARCHAR2(36) NOT NULL,
+            KEYWORDS                     CLOB CHECK (KEYWORDS IS JSON),
+            LANGUAGES                    CLOB CHECK (LANGUAGES IS JSON),
+            PLATFORM                     CLOB CHECK (PLATFORM IS JSON),
+            THREAT_INDEX_ALERTS_ENABLED  NUMBER(1) DEFAULT 0,
+            THREAT_INDEX_THRESHOLDS      CLOB CHECK (THREAT_INDEX_THRESHOLDS IS JSON),
+            CREATED_AT                   TIMESTAMP DEFAULT SYSTIMESTAMP,
+            UPDATED_AT                   TIMESTAMP
           )
         ]';
       EXCEPTION
@@ -41,6 +43,32 @@ export async function ensureUserPreferencesTable() {
           END IF;
       END;`;
     await conn.execute(addUpdatedDefaultPLSQL, {}, { autoCommit: true });
+
+    const addThreatIndexAlertsEnabledPLSQL = `
+      BEGIN
+        EXECUTE IMMEDIATE 'ALTER TABLE USER_PREFERENCES ADD (THREAT_INDEX_ALERTS_ENABLED NUMBER(1) DEFAULT 0)';
+      EXCEPTION
+        WHEN OTHERS THEN
+          IF SQLCODE != -1430 THEN
+            NULL;
+          END IF;
+      END;`;
+    await conn.execute(addThreatIndexAlertsEnabledPLSQL, {}, { autoCommit: true });
+
+    const addThreatIndexThresholdsPLSQL = `
+      BEGIN
+        EXECUTE IMMEDIATE q'[
+          ALTER TABLE USER_PREFERENCES ADD (
+            THREAT_INDEX_THRESHOLDS CLOB CHECK (THREAT_INDEX_THRESHOLDS IS JSON)
+          )
+        ]';
+      EXCEPTION
+        WHEN OTHERS THEN
+          IF SQLCODE != -1430 THEN
+            NULL;
+          END IF;
+      END;`;
+    await conn.execute(addThreatIndexThresholdsPLSQL, {}, { autoCommit: true });
 
     const addFkPLSQL = `
       BEGIN
@@ -77,12 +105,27 @@ export async function upsertUserPreferenceModel({
   keywords = [],
   languages = [],
   platform = [],
+  threatIndexAlertsEnabled = false,
+  threatIndexThresholds = [],
 }) {
   if (!userId) throw new Error("userId is required");
 
   const keywordsArr = Array.isArray(keywords) ? keywords : [keywords];
   const languagesArr = Array.isArray(languages) ? languages : [languages];
   const platformArr = Array.isArray(platform) ? platform : [platform];
+  const threatIndexThresholdsValue =
+    threatIndexThresholds === undefined || threatIndexThresholds === null
+      ? []
+      : threatIndexThresholds;
+
+  let thresholdsNormalized = threatIndexThresholdsValue;
+  if (typeof threatIndexThresholdsValue === "string") {
+    try {
+      thresholdsNormalized = JSON.parse(threatIndexThresholdsValue);
+    } catch {
+      thresholdsNormalized = [threatIndexThresholdsValue];
+    }
+  }
 
   const cleanedKeywords = keywordsArr
     .map((val) => String(val || "").trim())
@@ -93,6 +136,10 @@ export async function upsertUserPreferenceModel({
   const cleanedPlatform = platformArr
     .map((val) => String(val || "").trim())
     .filter((val) => val.length > 0);
+  const cleanedThreatIndexAlertsEnabled =
+    typeof threatIndexAlertsEnabled === "string"
+      ? ["true", "1", "yes", "on"].includes(threatIndexAlertsEnabled.toLowerCase())
+      : Boolean(threatIndexAlertsEnabled);
 
   const payload = {
     id: genId(),
@@ -100,6 +147,8 @@ export async function upsertUserPreferenceModel({
     keywords: JSON.stringify(cleanedKeywords),
     languages: JSON.stringify(cleanedLanguages),
     platform: JSON.stringify(cleanedPlatform),
+    threatIndexAlertsEnabled: cleanedThreatIndexAlertsEnabled ? 1 : 0,
+    threatIndexThresholds: JSON.stringify(thresholdsNormalized ?? []),
   };
 
   return withConnection(async (conn) => {
@@ -113,10 +162,32 @@ export async function upsertUserPreferenceModel({
             KEYWORDS = :keywords,
             LANGUAGES = :languages,
             PLATFORM = :platform,
+            THREAT_INDEX_ALERTS_ENABLED = :threatIndexAlertsEnabled,
+            THREAT_INDEX_THRESHOLDS = :threatIndexThresholds,
             UPDATED_AT = SYSTIMESTAMP
         WHEN NOT MATCHED THEN
-          INSERT (ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT)
-          VALUES (:id, :userId, :keywords, :languages, :platform, SYSTIMESTAMP, SYSTIMESTAMP)
+          INSERT (
+            ID,
+            USER_ID,
+            KEYWORDS,
+            LANGUAGES,
+            PLATFORM,
+            THREAT_INDEX_ALERTS_ENABLED,
+            THREAT_INDEX_THRESHOLDS,
+            CREATED_AT,
+            UPDATED_AT
+          )
+          VALUES (
+            :id,
+            :userId,
+            :keywords,
+            :languages,
+            :platform,
+            :threatIndexAlertsEnabled,
+            :threatIndexThresholds,
+            SYSTIMESTAMP,
+            SYSTIMESTAMP
+          )
       `,
       payload,
       { autoCommit: true }
@@ -124,7 +195,15 @@ export async function upsertUserPreferenceModel({
 
     const result = await conn.execute(
       `
-        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT
+        SELECT ID,
+               USER_ID,
+               KEYWORDS,
+               LANGUAGES,
+               PLATFORM,
+               THREAT_INDEX_ALERTS_ENABLED,
+               THREAT_INDEX_THRESHOLDS,
+               CREATED_AT,
+               UPDATED_AT
           FROM USER_PREFERENCES
          WHERE USER_ID = :userId
       `,
@@ -135,6 +214,7 @@ export async function upsertUserPreferenceModel({
           KEYWORDS: { type: oracledb.STRING },
           LANGUAGES: { type: oracledb.STRING },
           PLATFORM: { type: oracledb.STRING },
+          THREAT_INDEX_THRESHOLDS: { type: oracledb.STRING },
         },
       }
     );
@@ -148,6 +228,10 @@ export async function upsertUserPreferenceModel({
       keywords: row.KEYWORDS ? JSON.parse(row.KEYWORDS) : [],
       languages: row.LANGUAGES ? JSON.parse(row.LANGUAGES) : [],
       platform: row.PLATFORM ? JSON.parse(row.PLATFORM) : [],
+      threatIndexAlertsEnabled: Boolean(row.THREAT_INDEX_ALERTS_ENABLED),
+      threatIndexThresholds: row.THREAT_INDEX_THRESHOLDS
+        ? JSON.parse(row.THREAT_INDEX_THRESHOLDS)
+        : [],
       createdAt: row.CREATED_AT,
       updatedAt: row.UPDATED_AT,
     };
@@ -163,7 +247,15 @@ export async function getUserPreferenceModel(userId) {
   return withConnection(async (conn) => {
     const result = await conn.execute(
       `
-        SELECT ID, USER_ID, KEYWORDS, LANGUAGES, PLATFORM, CREATED_AT, UPDATED_AT
+        SELECT ID,
+               USER_ID,
+               KEYWORDS,
+               LANGUAGES,
+               PLATFORM,
+               THREAT_INDEX_ALERTS_ENABLED,
+               THREAT_INDEX_THRESHOLDS,
+               CREATED_AT,
+               UPDATED_AT
           FROM USER_PREFERENCES
          WHERE USER_ID = :userId
       `,
@@ -174,6 +266,7 @@ export async function getUserPreferenceModel(userId) {
           KEYWORDS: { type: oracledb.STRING },
           LANGUAGES: { type: oracledb.STRING },
           PLATFORM: { type: oracledb.STRING },
+          THREAT_INDEX_THRESHOLDS: { type: oracledb.STRING },
         },
       }
     );
@@ -189,6 +282,10 @@ export async function getUserPreferenceModel(userId) {
       keywords: row.KEYWORDS ? JSON.parse(row.KEYWORDS) : [],
       languages: row.LANGUAGES ? JSON.parse(row.LANGUAGES) : [],
       platform: row.PLATFORM ? JSON.parse(row.PLATFORM) : [],
+      threatIndexAlertsEnabled: Boolean(row.THREAT_INDEX_ALERTS_ENABLED),
+      threatIndexThresholds: row.THREAT_INDEX_THRESHOLDS
+        ? JSON.parse(row.THREAT_INDEX_THRESHOLDS)
+        : [],
       createdAt: row.CREATED_AT,
       updatedAt: row.UPDATED_AT,
     };
