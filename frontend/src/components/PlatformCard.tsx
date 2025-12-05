@@ -1,5 +1,18 @@
 import type { FC, ReactNode } from "react";
 
+export type FeedFraming = {
+  sectionTitle: string;
+  sectionDescription: string;
+  cardHeading: string;
+};
+
+export const FEED_FRAMING: FeedFraming = {
+  sectionTitle: "Cross-platform High-Risk Content",
+  sectionDescription:
+    "Latest posts identified by our systems as containing hate, threats, or other forms of harmful speech across observed communities.",
+  cardHeading: "High-Risk Content",
+};
+
 const DEFAULT_SEVERITY = {
   label: "Elevated",
   badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-300",

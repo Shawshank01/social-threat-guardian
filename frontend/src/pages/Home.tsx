@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, X, type LucideIcon } from "lucide-react";
 import GaugeChart from "@/components/GaugeChart";
-import PlatformCard, { type PlatformCardProps } from "@/components/PlatformCard";
+import PlatformCard, { FEED_FRAMING, type PlatformCardProps } from "@/components/PlatformCard";
 import ThreatTrendChart from "@/components/ThreatTrendChart";
 
 const SPLASH_BOX_STORAGE_KEY = "stg.splashBox.dismissed";
@@ -18,12 +18,6 @@ type CommentPost = {
   hateScore?: number | string | null;
 };
 
-type FeedFraming = {
-  sectionTitle: string;
-  sectionDescription: string;
-  cardHeading: string;
-};
-
 type SeverityLevel = "low" | "medium" | "high" | "critical";
 
 type SeverityPreset = {
@@ -37,13 +31,6 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "
 const buildApiUrl = (path: string) => {
   const normalizedPath = path.replace(/^\/+/, "");
   return `${API_BASE}/${normalizedPath}`;
-};
-
-const FEED_FRAMING: FeedFraming = {
-  sectionTitle: "Cross-platform High-Risk Content",
-  sectionDescription:
-    "Latest posts identified by our systems as containing hate, threats, or other forms of harmful speech across observed communities.",
-  cardHeading: "High-Risk Content",
 };
 
 const SEVERITY_PRESETS: Record<SeverityLevel, SeverityPreset> = {
@@ -157,6 +144,8 @@ const Home = () => {
   const [postsError, setPostsError] = useState<string | null>(null);
   const [showSplashBox, setShowSplashBox] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const threatIndexRef = useRef<HTMLDivElement | null>(null);
+  const [threatIndexHeight, setThreatIndexHeight] = useState<number | null>(null);
 
   // Check if splash box should be shown
   useEffect(() => {
@@ -222,6 +211,27 @@ const Home = () => {
     void loadPosts();
 
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const element = threatIndexRef.current;
+    if (!element) return;
+
+    const updateHeight = () => {
+      const nextHeight = element.getBoundingClientRect().height;
+      setThreatIndexHeight(nextHeight > 0 ? nextHeight : null);
+    };
+
+    updateHeight();
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(updateHeight);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateHeight);
+    return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
   const platformCards = useMemo<PlatformCardProps[]>(() => {
@@ -308,67 +318,72 @@ const Home = () => {
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:gap-10">
-        <div className="order-1">
+      <div className="flex flex-col gap-12 lg:grid lg:grid-cols-[minmax(0,_1.35fr)_minmax(0,_1fr)] lg:items-start lg:gap-10">
+        <div className="order-1 [&>section]:mt-0" ref={threatIndexRef}>
           <GaugeChart platform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
         </div>
         <div className="order-2 flex flex-col gap-8">
-          <section aria-label="Platform threat summaries" className="flex flex-col gap-6">
-            <header className="flex flex-col gap-2">
-              <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
-                {FEED_FRAMING.sectionTitle}
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                {FEED_FRAMING.sectionDescription}
-              </p>
-            </header>
-            <div className="relative flex-1 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-3 sm:p-4 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40">
-              <div
-                className={`max-h-[32rem] space-y-3 sm:space-y-4 overflow-y-auto px-1 sm:px-2 pt-0 pb-3 sm:pb-4 transition duration-200 ${isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
-                  }`}
-                role="list"
-                aria-busy={isLoadingPosts}
-                aria-live={isFeedRevealed ? "polite" : "off"}
-              >
-                {platformCards.map((card, idx) => (
-                  <PlatformCard key={`${card.platform}-${idx}`} {...card} />
-                ))}
-                {!isLoadingPosts && !postsError && platformCards.length === 0 && (
-                  <p className="rounded-2xl border border-dashed border-slate-300/60 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
-                    No flagged posts are available right now.
-                  </p>
-                )}
-                {postsError && (
-                  <p className="rounded-2xl border border-red-500/60 bg-red-500/15 p-6 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
-                    {postsError}
-                  </p>
-                )}
-                {isLoadingPosts && platformCards.length === 0 && !postsError && (
-                  <p className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-300">
-                    Loading latest posts…
-                  </p>
+          <section aria-label="Platform threat summaries" className="flex h-full flex-col">
+            <div
+              className="relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/90 p-3 sm:p-4 shadow-soft transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/40"
+              style={threatIndexHeight ? { height: threatIndexHeight } : undefined}
+            >
+              <header className="flex flex-col gap-2">
+                <h2 className="text-lg font-semibold tracking-wide text-slate-900 dark:text-white">
+                  {FEED_FRAMING.sectionTitle}
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  {FEED_FRAMING.sectionDescription}
+                </p>
+              </header>
+              <div className="relative mt-3 flex-1 min-h-0">
+                <div
+                  className={`h-full min-h-[12rem] space-y-3 sm:space-y-4 overflow-y-auto px-1 sm:px-2 pt-0 pb-3 sm:pb-4 transition duration-200 ${isFeedRevealed ? "" : "pointer-events-none select-none blur-xl"
+                    }`}
+                  role="list"
+                  aria-busy={isLoadingPosts}
+                  aria-live={isFeedRevealed ? "polite" : "off"}
+                >
+                  {platformCards.map((card, idx) => (
+                    <PlatformCard key={`${card.platform}-${idx}`} {...card} />
+                  ))}
+                  {!isLoadingPosts && !postsError && platformCards.length === 0 && (
+                    <p className="rounded-2xl border border-dashed border-slate-300/60 p-6 text-sm text-slate-600 dark:border-white/10 dark:text-slate-300">
+                      No flagged posts are available right now.
+                    </p>
+                  )}
+                  {postsError && (
+                    <p className="rounded-2xl border border-red-500/60 bg-red-500/15 p-6 text-sm font-semibold text-red-700 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-100">
+                      {postsError}
+                    </p>
+                  )}
+                  {isLoadingPosts && platformCards.length === 0 && !postsError && (
+                    <p className="rounded-2xl border border-slate-200/70 bg-white/80 p-6 text-sm text-slate-600 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-300">
+                      Loading latest posts…
+                    </p>
+                  )}
+                </div>
+                {!isFeedRevealed && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 p-6 text-center backdrop-blur-sm">
+                    <div className="space-y-4 max-w-sm">
+                      <h3 className="text-base font-semibold text-white">
+                        Sensitive content ahead
+                      </h3>
+                      <p className="text-sm text-slate-200">
+                        Some posts may contain explicit hate speech or harassment. Confirm to reveal the latest
+                        flagged content.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setIsFeedRevealed(true)}
+                        className="w-full rounded-full bg-stg-accent px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                      >
+                        Reveal posts
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
-              {!isFeedRevealed && (
-                <div className="absolute inset-0 flex items-center justify-center bg-slate-950/60 p-6 text-center backdrop-blur-sm">
-                  <div className="space-y-4 max-w-sm">
-                    <h3 className="text-base font-semibold text-white">
-                      Sensitive content ahead
-                    </h3>
-                    <p className="text-sm text-slate-200">
-                      Some posts may contain explicit hate speech or harassment. Confirm to reveal the latest
-                      flagged content.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setIsFeedRevealed(true)}
-                      className="w-full rounded-full bg-stg-accent px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-stg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
-                    >
-                      Reveal posts
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </section>
         </div>
