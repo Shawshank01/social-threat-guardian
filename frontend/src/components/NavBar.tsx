@@ -20,6 +20,7 @@ const NavBar = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const hideMenuTimeoutRef = useRef<number | null>(null);
+  const hideNotificationTimeoutRef = useRef<number | null>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const notificationMenuRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,9 @@ const NavBar = () => {
     return () => {
       if (hideMenuTimeoutRef.current) {
         window.clearTimeout(hideMenuTimeoutRef.current);
+      }
+      if (hideNotificationTimeoutRef.current) {
+        window.clearTimeout(hideNotificationTimeoutRef.current);
       }
     };
   }, []);
@@ -213,6 +217,10 @@ const NavBar = () => {
     if (e) {
       e.stopPropagation();
     }
+    if (hideNotificationTimeoutRef.current) {
+      window.clearTimeout(hideNotificationTimeoutRef.current);
+      hideNotificationTimeoutRef.current = null;
+    }
     setIsNotificationMenuOpen((prev) => {
       if (!prev) {
         loadNotifications();
@@ -222,7 +230,21 @@ const NavBar = () => {
   }, [loadNotifications]);
 
   const handleCloseNotificationMenu = useCallback(() => {
+    if (hideNotificationTimeoutRef.current) {
+      window.clearTimeout(hideNotificationTimeoutRef.current);
+      hideNotificationTimeoutRef.current = null;
+    }
     setIsNotificationMenuOpen(false);
+  }, []);
+
+  const scheduleCloseNotificationMenu = useCallback(() => {
+    if (hideNotificationTimeoutRef.current) {
+      window.clearTimeout(hideNotificationTimeoutRef.current);
+    }
+    hideNotificationTimeoutRef.current = window.setTimeout(() => {
+      setIsNotificationMenuOpen(false);
+      hideNotificationTimeoutRef.current = null;
+    }, 220);
   }, []);
 
   // Mark notification as read
@@ -375,13 +397,16 @@ const NavBar = () => {
                 className="relative flex flex-shrink-0"
                 onMouseEnter={(e) => {
                   if (window.matchMedia('(hover: hover)').matches) {
+                    if (hideNotificationTimeoutRef.current) {
+                      window.clearTimeout(hideNotificationTimeoutRef.current);
+                      hideNotificationTimeoutRef.current = null;
+                    }
                     setIsNotificationMenuOpen(true);
-                    loadNotifications();
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (window.matchMedia('(hover: hover)').matches) {
-                    setIsNotificationMenuOpen(false);
+                    scheduleCloseNotificationMenu();
                   }
                 }}
               >
@@ -406,7 +431,21 @@ const NavBar = () => {
                   )}
                 </button>
                 {isNotificationMenuOpen && (
-                  <div className="absolute right-0 top-full z-50 mt-2 w-80 max-h-[32rem] rounded-2xl border border-slate-200/80 bg-white/95 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:w-96" style={{ maxWidth: 'calc(100vw - 2rem)' }}>
+                  <div
+                    className="absolute right-0 top-full z-50 mt-2 w-80 max-h-[32rem] rounded-2xl border border-slate-200/80 bg-white/95 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:w-96"
+                    style={{ maxWidth: 'calc(100vw - 2rem)' }}
+                    onMouseEnter={() => {
+                      if (window.matchMedia('(hover: hover)').matches && hideNotificationTimeoutRef.current) {
+                        window.clearTimeout(hideNotificationTimeoutRef.current);
+                        hideNotificationTimeoutRef.current = null;
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      if (window.matchMedia('(hover: hover)').matches) {
+                        scheduleCloseNotificationMenu();
+                      }
+                    }}
+                  >
                     <div className="flex items-center justify-between border-b border-slate-200/70 p-3 dark:border-white/10">
                       <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
                         Notifications

@@ -22,9 +22,9 @@ const ACTIVE_PLATFORM_OPTIONS = PLATFORM_OPTIONS.filter(
   (platform) => platform.id === DEFAULT_PLATFORM_ID,
 );
 const makeDefaultThresholds = () => {
-  const defaults: Record<string, number> = {};
+  const defaults: Record<string, number | null> = {};
   ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
-    defaults[platform.id] = 30;
+    defaults[platform.id] = null;
   });
   return defaults;
 };
@@ -67,14 +67,14 @@ const Dashboard = () => {
   const [isSyncingPreferences, setIsSyncingPreferences] = useState(false);
   const [preferencesError, setPreferencesError] = useState<string | null>(null);
   const [threatIndexAlertsEnabled, setThreatIndexAlertsEnabled] = useState(false);
-  const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number>>(
+  const [threatIndexThresholds, setThreatIndexThresholds] = useState<Record<string, number | null>>(
     () => makeDefaultThresholds(),
   );
   const [threatIndexThresholdInputs, setThreatIndexThresholdInputs] = useState<Record<string, string>>(() => {
     const defaults = makeDefaultThresholds();
     const inputs: Record<string, string> = {};
     ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
-      inputs[platform.id] = String(defaults[platform.id]);
+      inputs[platform.id] = defaults[platform.id] === null ? "" : String(defaults[platform.id]);
     });
     return inputs;
   });
@@ -83,6 +83,29 @@ const Dashboard = () => {
 
   const applySavedPreferences = useCallback(
     (preferences: SavedPreferences) => {
+      const resolveThresholdForPlatform = (raw: unknown, platformId: string): number | undefined => {
+        if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+        if (Array.isArray(raw)) {
+          const firstNumber = raw
+            .map((entry) => (entry === null || entry === undefined ? NaN : Number(entry)))
+            .find((entry) => Number.isFinite(entry));
+          return firstNumber;
+        }
+        if (raw && typeof raw === "object") {
+          const record = raw as Record<string, unknown>;
+          const rawValue = record[platformId];
+          if (rawValue !== null && rawValue !== undefined) {
+            const candidate = Number(rawValue);
+            if (Number.isFinite(candidate)) return candidate;
+          }
+          const firstRecordNumber = Object.values(record)
+            .map((entry) => (entry === null || entry === undefined ? NaN : Number(entry)))
+            .find((entry) => Number.isFinite(entry));
+          return firstRecordNumber;
+        }
+        return undefined;
+      };
+
       const seenKeywords = new Set<string>();
       const trimmedKeywords = preferences.keywords
         .map((keyword) => keyword.trim())
@@ -111,9 +134,9 @@ const Dashboard = () => {
       const thresholdsFromBackend = preferences.threatIndexThresholds ?? {};
       const mergedThresholds = makeDefaultThresholds();
       ACTIVE_PLATFORM_OPTIONS.forEach((platform) => {
-        const value = thresholdsFromBackend[platform.id];
+        const value = resolveThresholdForPlatform(thresholdsFromBackend, platform.id);
         if (Number.isFinite(value)) {
-          mergedThresholds[platform.id] = Number(value);
+          mergedThresholds[platform.id] = Math.max(0, Math.min(100, Number(value)));
         }
       });
 
@@ -124,7 +147,8 @@ const Dashboard = () => {
       setThreatIndexThresholds(mergedThresholds);
       setThreatIndexThresholdInputs(
         ACTIVE_PLATFORM_OPTIONS.reduce<Record<string, string>>((acc, platform) => {
-          acc[platform.id] = String(mergedThresholds[platform.id]);
+          const value = mergedThresholds[platform.id];
+          acc[platform.id] = value === null || value === undefined ? "" : String(value);
           return acc;
         }, {}),
       );
@@ -292,7 +316,7 @@ const Dashboard = () => {
           languages: preferences.languages,
           platforms: preferences.platforms,
           threatIndexAlertsEnabled: preferences.threatIndexAlertsEnabled ?? false,
-          threatIndexThresholds: preferences.threatIndexThresholds ?? makeDefaultThresholds(),
+        threatIndexThresholds: preferences.threatIndexThresholds ?? makeDefaultThresholds(),
         }),
       });
 
@@ -392,6 +416,18 @@ const Dashboard = () => {
       setSaveSuccess(false);
       setShowNavigationPrompt(false);
       return;
+    }
+
+    if (threatIndexAlertsEnabled) {
+      const missingThreshold = ACTIVE_PLATFORM_OPTIONS.some(
+        (platform) => !Number.isFinite(threatIndexThresholds[platform.id]),
+      );
+      if (missingThreshold) {
+        setSaveError("Enter a numeric alert threshold before enabling notifications.");
+        setSaveSuccess(false);
+        setShowNavigationPrompt(false);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -725,13 +761,13 @@ const Dashboard = () => {
                     Alert Thresholds by Platform
                   </label>
                   <p className="text-xs text-slate-600 dark:text-slate-300 mb-4">
-                    Set the Threat Index threshold for Bluesky (0-100). Support for additional platforms is coming soon.
+                    Set the Threat Index threshold for Bluesky (0-100). Support for additional platforms is coming soon. Suggested starting point: 30.
                   </p>
                   <div className="space-y-3">
                     {ACTIVE_PLATFORM_OPTIONS.map((platform) => {
-                      const threshold = threatIndexThresholds[platform.id] ?? 20;
-                      const thresholdInput =
-                        threatIndexThresholdInputs[platform.id] ?? String(threshold);
+        const threshold = threatIndexThresholds[platform.id];
+        const thresholdInput =
+          threatIndexThresholdInputs[platform.id] ?? (threshold ?? "")?.toString();
                       return (
                         <div
                           key={platform.id}
@@ -755,6 +791,7 @@ const Dashboard = () => {
                               max="100"
                               step="1"
                               value={thresholdInput}
+                              placeholder="30"
                               onChange={(e) => {
                                 const raw = e.target.value;
                                 setThreatIndexThresholdInputs((prev) => ({
@@ -762,6 +799,10 @@ const Dashboard = () => {
                                   [platform.id]: raw,
                                 }));
                                 if (raw.trim() === "") {
+                                  setThreatIndexThresholds((prev) => ({
+                                    ...prev,
+                                    [platform.id]: null,
+                                  }));
                                   return;
                                 }
                                 const numeric = Number(raw);
@@ -777,7 +818,7 @@ const Dashboard = () => {
                               className="w-20 rounded-lg border border-slate-300/80 bg-white px-2 py-1.5 text-sm font-semibold text-slate-900 focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/40 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-slate-900 dark:text-white dark:focus:border-stg-accent"
                             />
                             <span className="text-xs text-slate-500 dark:text-slate-400 w-8 text-right">
-                              {threshold}
+                              {threshold ?? "—"}
                             </span>
                           </div>
                         </div>

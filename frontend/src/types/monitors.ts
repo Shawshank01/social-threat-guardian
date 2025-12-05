@@ -3,7 +3,7 @@ export type SavedPreferences = {
   platforms: string[];
   languages: string[];
   threatIndexAlertsEnabled?: boolean;
-  threatIndexThresholds?: Record<string, number>;
+  threatIndexThresholds?: Record<string, number | null>;
   updatedAt?: string;
 };
 
