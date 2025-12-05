@@ -91,60 +91,50 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return;
   }
 
-  const url = req.url || "";
-  let subPath = "";
-
-  if (req.query && req.query.path) {
-    if (Array.isArray(req.query.path)) {
-      subPath = req.query.path.join("/");
-    } else {
-      subPath = req.query.path;
-    }
-  } else {
-    try {
-      let urlObj: URL;
-      if (url.startsWith("http://") || url.startsWith("https://")) {
-        urlObj = new URL(url);
-      } else {
-        urlObj = new URL(url, "http://localhost");
-      }
-
-      const pathname = urlObj.pathname;
-      const pathMatch = pathname.match(/^\/api\/notifications\/(.+)$/);
-      if (pathMatch) {
-        subPath = pathMatch[1];
-      }
-    } catch {
-      const pathMatch = url.match(/^\/api\/notifications\/(.+)$/);
-      if (pathMatch) {
-        subPath = pathMatch[1];
-      }
-    }
-  }
-
-  if (!subPath) {
-    res.status(404).json({ ok: false, error: "Not found" });
+  if (req.method !== "GET") {
+    res.status(405).json({ ok: false, error: "Method not allowed" });
     return;
   }
 
-  try {
-    const subPathWithoutQuery = subPath.split("?")[0];
-    let targetPath = "";
-    let method = req.method || "GET";
+  const url = req.url || "";
+  let queryParams: URLSearchParams;
+  let search = "";
 
-    if (subPathWithoutQuery === "unread-count") {
-      targetPath = "/notifications/unread-count";
-      method = "GET";
-    } else if (subPathWithoutQuery === "read-all") {
-      targetPath = "/notifications/read-all";
-      method = "POST";
-    } else if (subPathWithoutQuery.match(/^[^/]+\/read$/)) {
-      const id = subPathWithoutQuery.replace(/\/read$/, "");
-      targetPath = `/notifications/${encodeURIComponent(id)}/read`;
-      method = "POST";
+  try {
+    let urlObj: URL;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      urlObj = new URL(url);
     } else {
-      res.status(404).json({ ok: false, error: "Not found" });
-      return;
+      urlObj = new URL(url, "http://localhost");
+    }
+    queryParams = urlObj.searchParams;
+    search = urlObj.search || "";
+  } catch {
+    try {
+      const urlObj = new URL(url, "http://localhost");
+      queryParams = urlObj.searchParams;
+      search = urlObj.search || "";
+    } catch {
+      const queryMatch = url.match(/\?(.+)$/);
+      search = queryMatch ? `?${queryMatch[1]}` : "";
+      queryParams = new URLSearchParams(search);
+    }
+  }
+
+  try {
+    let targetPath = "/notifications";
+
+    const params = new URLSearchParams();
+    const limit = queryParams.get("limit");
+    const offset = queryParams.get("offset");
+    const unreadOnly = queryParams.get("unreadOnly");
+
+    if (limit) params.append("limit", limit);
+    if (offset) params.append("offset", offset);
+    if (unreadOnly === "true") params.append("unreadOnly", "true");
+
+    if (params.toString()) {
+      targetPath += `?${params.toString()}`;
     }
 
     const targetUrl = new URL(targetPath, BACKEND_URL).toString();
@@ -154,7 +144,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     };
 
     const response = await makeRequest(targetUrl, {
-      method,
+      method: "GET",
       headers,
     });
 
@@ -172,3 +162,4 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     });
   }
 }
+
