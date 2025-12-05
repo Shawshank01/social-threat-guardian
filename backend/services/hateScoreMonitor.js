@@ -48,11 +48,6 @@ async function maybeSendHateScoreAlert(snapshot) {
     return;
   }
 
-  // Throttle to prevent spamming
-  if (await isWithinHateScoreCooldown()) {
-    return;
-  }
-
   const userIds = await fetchAllUserIds();
   if (userIds.length === 0) {
     return;
@@ -75,6 +70,11 @@ async function maybeSendHateScoreAlert(snapshot) {
 
     const threshold = resolveUserThreshold(preferences?.threatIndexThresholds);
     if (snapshot.value < threshold) {
+      continue;
+    }
+
+    const inCooldown = await isWithinHateScoreCooldown(userId);
+    if (inCooldown) {
       continue;
     }
 
@@ -146,26 +146,49 @@ function resolveUserThreshold(threatIndexThresholds) {
       ? threatIndexThresholds[0]
       : threatIndexThresholds;
 
-  const numeric =
-    typeof first === "object" && first !== null
-      ? first.threshold ?? first.THRESHOLD ?? first.value
-      : first;
+  let numericSource = first;
 
-  const parsed = Number(numeric);
+  if (numericSource && typeof numericSource === "object") {
+    // Prefer explicit value fields if present.
+    const explicit =
+      numericSource.threshold ??
+      numericSource.THRESHOLD ??
+      numericSource.value ??
+      numericSource.VALUE;
+
+    if (explicit !== undefined) {
+      numericSource = explicit;
+    } else {
+      // Fall back to the first numeric value inside the object (e.g., { BLUSKY_TEST: 10 }).
+      const firstNumericValue = Object.values(numericSource).find((val) => {
+        const num = Number(val);
+        return Number.isFinite(num);
+      });
+      numericSource = firstNumericValue ?? numericSource;
+    }
+  }
+
+  const parsed = Number(numericSource);
   return Number.isFinite(parsed) ? parsed : HATE_SCORE_ALERT_THRESHOLD;
 }
 
-async function isWithinHateScoreCooldown() {
+async function isWithinHateScoreCooldown(userId) {
+  const normalizedUserId = String(userId ?? "").trim();
+  if (!normalizedUserId) {
+    return false;
+  }
+
   return withConnection(async (conn) => {
     const { rows } = await conn.execute(
       `
         SELECT CREATED_AT
           FROM NOTIFICATIONS
          WHERE TYPE = :type
+           AND USER_ID = :userId
       ORDER BY CREATED_AT DESC
       FETCH FIRST 1 ROWS ONLY
       `,
-      { type: HATE_SCORE_ALERT_TYPE },
+      { type: HATE_SCORE_ALERT_TYPE, userId: normalizedUserId },
       { outFormat: oracledb.OUT_FORMAT_OBJECT },
     );
 
