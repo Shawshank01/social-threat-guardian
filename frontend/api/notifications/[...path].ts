@@ -96,50 +96,59 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   let queryParams: URLSearchParams;
   let search = "";
 
-  try {
-    let urlObj: URL;
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      urlObj = new URL(url);
+  if (req.query && req.query.path) {
+    if (Array.isArray(req.query.path)) {
+      subPath = req.query.path.join("/");
     } else {
-      urlObj = new URL(url, "http://localhost");
+      subPath = req.query.path;
     }
-
-    const pathname = urlObj.pathname;
-    const exactMatch = pathname.match(/^\/api\/notifications\/?$/);
-    const pathMatch = pathname.match(/^\/api\/notifications\/(.+)$/);
-
-    if (exactMatch) {
-      subPath = "";
-    } else if (pathMatch) {
-      subPath = pathMatch[1];
-    } else {
-      res.status(404).json({ ok: false, error: "Not found" });
-      return;
-    }
-
-    queryParams = urlObj.searchParams;
-    search = urlObj.search || "";
-  } catch {
-    const exactMatch = url.match(/^\/api\/notifications\/?$/);
-    const pathMatch = url.match(/^\/api\/notifications\/(.+)$/);
-
-    if (exactMatch) {
-      subPath = "";
-    } else if (pathMatch) {
-      subPath = pathMatch[1];
-    } else {
-      res.status(404).json({ ok: false, error: "Not found" });
-      return;
-    }
-
+    const queryMatch = url.match(/\?(.+)$/);
+    search = queryMatch ? `?${queryMatch[1]}` : "";
+    queryParams = new URLSearchParams(search);
+  } else {
     try {
-      const urlObj = new URL(url, "http://localhost");
+      let urlObj: URL;
+      if (url.startsWith("http://") || url.startsWith("https://")) {
+        urlObj = new URL(url);
+      } else {
+        urlObj = new URL(url, "http://localhost");
+      }
+
+      const pathname = urlObj.pathname;
+      const exactMatch = pathname.match(/^\/api\/notifications\/?$/);
+      const pathMatch = pathname.match(/^\/api\/notifications\/(.+)$/);
+
+      if (exactMatch) {
+        subPath = "";
+      } else if (pathMatch) {
+        subPath = pathMatch[1];
+      } else {
+        subPath = "";
+      }
+
       queryParams = urlObj.searchParams;
       search = urlObj.search || "";
     } catch {
-      const queryMatch = url.match(/\?(.+)$/);
-      search = queryMatch ? `?${queryMatch[1]}` : "";
-      queryParams = new URLSearchParams(search);
+      const exactMatch = url.match(/^\/api\/notifications\/?$/);
+      const pathMatch = url.match(/^\/api\/notifications\/(.+)$/);
+
+      if (exactMatch) {
+        subPath = "";
+      } else if (pathMatch) {
+        subPath = pathMatch[1];
+      } else {
+        subPath = "";
+      }
+
+      try {
+        const urlObj = new URL(url, "http://localhost");
+        queryParams = urlObj.searchParams;
+        search = urlObj.search || "";
+      } catch {
+        const queryMatch = url.match(/\?(.+)$/);
+        search = queryMatch ? `?${queryMatch[1]}` : "";
+        queryParams = new URLSearchParams(search);
+      }
     }
   }
 
