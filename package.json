@@ -1,9 +1,0 @@
-{
-  "dependencies": {
-    "@radix-ui/react-tooltip": "^1.2.8",
-    "cytoscape": "^3.33.1"
-  },
-  "devDependencies": {
-    "@types/cytoscape": "^3.21.9"
-  }
-}
