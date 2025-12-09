@@ -432,8 +432,7 @@ const NavBar = () => {
                 </button>
                 {isNotificationMenuOpen && (
                   <div
-                    className="absolute right-0 top-full z-50 mt-2 w-80 max-h-[32rem] rounded-2xl border border-slate-200/80 bg-white/95 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:w-96"
-                    style={{ maxWidth: 'calc(100vw - 2rem)' }}
+                    className="fixed left-1/2 top-[4.5rem] z-50 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-80 max-h-[32rem] rounded-2xl border border-slate-200/80 bg-white/95 shadow-lg dark:border-white/10 dark:bg-slate-900/90 sm:absolute sm:left-auto sm:right-0 sm:top-full sm:translate-x-0 sm:mt-2 sm:w-96 sm:max-w-none"
                     onMouseEnter={() => {
                       if (window.matchMedia('(hover: hover)').matches && hideNotificationTimeoutRef.current) {
                         window.clearTimeout(hideNotificationTimeoutRef.current);
@@ -476,11 +475,10 @@ const NavBar = () => {
                             return (
                               <div
                                 key={notification.id}
-                                className={`p-3 transition-colors ${
-                                  isUnread
+                                className={`p-3 transition-colors ${isUnread
                                     ? "bg-stg-accent/5 dark:bg-stg-accent/10"
                                     : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div className="flex-1 min-w-0">

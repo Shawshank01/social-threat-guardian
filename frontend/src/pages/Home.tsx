@@ -4,6 +4,7 @@ import { MessageSquare, Share2, Megaphone, ShieldAlert, Send, Network, X, type L
 import GaugeChart from "@/components/GaugeChart";
 import PlatformCard, { FEED_FRAMING, type PlatformCardProps } from "@/components/PlatformCard";
 import ThreatTrendChart from "@/components/ThreatTrendChart";
+import { useAuth } from "@/context/AuthContext";
 
 const SPLASH_BOX_STORAGE_KEY = "stg.splashBox.dismissed";
 const SPLASH_BOX_ENABLED_KEY = "stg.splashBox.enabled";
@@ -137,6 +138,7 @@ const resolvePlatformIcon = (platform?: string | null) => {
 
 const Home = () => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [selectedPlatform, setSelectedPlatform] = useState("all");
   const [isFeedRevealed, setIsFeedRevealed] = useState(false);
   const [posts, setPosts] = useState<CommentPost[]>([]);
@@ -146,18 +148,34 @@ const Home = () => {
   const [dontShowAgain, setDontShowAgain] = useState(false);
   const threatIndexRef = useRef<HTMLDivElement | null>(null);
   const [threatIndexHeight, setThreatIndexHeight] = useState<number | null>(null);
+  const isGuest = !token;
 
   // Check if splash box should be shown
   useEffect(() => {
+    // For guests (not logged in), always show the welcome splash and ignore dismissal
+    if (isGuest) {
+      setShowSplashBox(true);
+      setDontShowAgain(false);
+      return;
+    }
+
     const isDismissed = localStorage.getItem(SPLASH_BOX_STORAGE_KEY) === "true";
     const isEnabled = localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false"; // Default to true
 
     if (!isDismissed && isEnabled) {
       setShowSplashBox(true);
+    } else {
+      setShowSplashBox(false);
     }
-  }, []);
+  }, [isGuest]);
 
   const handleSplashYes = () => {
+    if (isGuest) {
+      // Guests cannot dismiss; keep splash visible but allow navigation
+      setShowSplashBox(true);
+      navigate("/about");
+      return;
+    }
     if (dontShowAgain) {
       localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
       localStorage.setItem(SPLASH_BOX_ENABLED_KEY, "false");
@@ -169,6 +187,11 @@ const Home = () => {
   };
 
   const handleSplashNo = () => {
+    if (isGuest) {
+      // Guests cannot dismiss
+      setShowSplashBox(true);
+      return;
+    }
     if (dontShowAgain) {
       localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
       localStorage.setItem(SPLASH_BOX_ENABLED_KEY, "false");
@@ -266,14 +289,16 @@ const Home = () => {
       {showSplashBox && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
           <div className="relative w-full max-w-md rounded-3xl border border-slate-200/80 bg-white/95 p-6 shadow-xl transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/95">
-            <button
-              type="button"
-              onClick={handleSplashNo}
-              className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-200/80 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" aria-hidden />
-            </button>
+            {!isGuest && (
+              <button
+                type="button"
+                onClick={handleSplashNo}
+                className="absolute right-4 top-4 rounded-full p-1 text-slate-400 transition hover:bg-slate-200/80 hover:text-slate-600 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            )}
             <div className="space-y-4">
               <header className="space-y-2 pr-8">
                 <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
@@ -283,22 +308,24 @@ const Home = () => {
                   Would you like to learn more about our platform and how we help protect against online threats?
                 </p>
               </header>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="dont-show-again"
-                  checked={dontShowAgain}
-                  onChange={(e) => setDontShowAgain(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-stg-accent focus:ring-2 focus:ring-stg-accent/40 dark:border-white/20"
-                />
-                <label
-                  htmlFor="dont-show-again"
-                  className="text-sm text-slate-600 dark:text-slate-300"
-                >
-                  Don't show this message again
-                </label>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+              {!isGuest && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="dont-show-again"
+                    checked={dontShowAgain}
+                    onChange={(e) => setDontShowAgain(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-stg-accent focus:ring-2 focus:ring-stg-accent/40 dark:border-white/20"
+                  />
+                  <label
+                    htmlFor="dont-show-again"
+                    className="text-sm text-slate-600 dark:text-slate-300"
+                  >
+                    Don't show this message again
+                  </label>
+                </div>
+              )}
+              <div className={`flex flex-col gap-3 ${isGuest ? "" : "sm:flex-row"}`}>
                 <button
                   type="button"
                   onClick={handleSplashYes}
@@ -306,13 +333,15 @@ const Home = () => {
                 >
                   Yes, tell me more
                 </button>
-                <button
-                  type="button"
-                  onClick={handleSplashNo}
-                  className="flex-1 rounded-full border border-slate-300/80 bg-white px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-                >
-                  No, thanks
-                </button>
+                {!isGuest && (
+                  <button
+                    type="button"
+                    onClick={handleSplashNo}
+                    className="flex-1 rounded-full border border-slate-300/80 bg-white px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    No, thanks
+                  </button>
+                )}
               </div>
             </div>
           </div>
