@@ -7,9 +7,9 @@ export type FeedFraming = {
 };
 
 export const FEED_FRAMING: FeedFraming = {
-  sectionTitle: "Cross-platform High-Risk Content",
+  sectionTitle: "High-Risk Content",
   sectionDescription:
-    "Latest posts identified by our systems as containing hate, threats, or other forms of harmful speech across observed communities.",
+    "Latest posts identified by our systems as containing hate, threats, or other forms of harmful speech.",
   cardHeading: "High-Risk Content",
 };
 
