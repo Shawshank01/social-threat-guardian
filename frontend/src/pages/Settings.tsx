@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
   AtSign,
@@ -43,6 +44,7 @@ const resolveString = (...values: (string | null | undefined)[]) => {
 };
 
 const Settings = () => {
+  const navigate = useNavigate();
   const { user, token } = useAuth();
   // Profile overview state updated from backend
   const [profileOverview, setProfileOverview] = useState({
@@ -139,6 +141,17 @@ const Settings = () => {
 
         console.log("[Settings] Response payload:", payload);
 
+        if (response.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: { pathname: "/settings" },
+              message: "Your session has expired. Please log in again."
+            },
+          });
+          return;
+        }
+
         if (!response.ok || payload.ok === false) {
           const errorMsg = payload.error ?? "Unable to load your profile details.";
           console.error("[Settings] Error response:", errorMsg);
@@ -184,6 +197,16 @@ const Settings = () => {
         }
         const errorMsg = (err as Error).message || "Unable to load your profile details.";
         console.error("[Settings] Error loading profile:", err);
+        if (errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("expired")) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: { pathname: "/settings" },
+              message: "Your session has expired. Please log in again."
+            },
+          });
+          return;
+        }
         setProfileError(errorMsg);
       } finally {
         setIsLoadingProfile(false);
