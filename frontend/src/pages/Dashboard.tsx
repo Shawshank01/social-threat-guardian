@@ -56,6 +56,7 @@ const Dashboard = () => {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [keywordInputWarning, setKeywordInputWarning] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showNavigationPrompt, setShowNavigationPrompt] = useState(false);
   const [redirectCountdown, setRedirectCountdown] = useState(3);
@@ -529,6 +530,17 @@ const Dashboard = () => {
     };
   }, []);
 
+  const sanitizeKeywordInput = (value: string) => {
+    // Allow letters, numbers, spaces, commas, and new lines only
+    const sanitized = value.replace(/[^a-zA-Z0-9,\s]/g, "");
+    if (sanitized !== value) {
+      setKeywordInputWarning("Only letters, numbers, spaces, commas, and new lines are allowed.");
+    } else {
+      setKeywordInputWarning(null);
+    }
+    return sanitized;
+  };
+
   const handleExportKeywords = () => {
     if (!keywordInput.trim()) {
       setSaveError("No keywords to export. Enter some keywords first.");
@@ -563,7 +575,7 @@ const Dashboard = () => {
     reader.onload = (e) => {
       const content = e.target?.result as string;
       if (content) {
-        setKeywordInput(content);
+        setKeywordInput(sanitizeKeywordInput(content));
         setSaveError(null);
       }
     };
@@ -619,10 +631,15 @@ const Dashboard = () => {
           </p>
           <textarea
             value={keywordInput}
-            onChange={(event) => setKeywordInput(event.target.value)}
+            onChange={(event) => setKeywordInput(sanitizeKeywordInput(event.target.value))}
             className="h-32 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 transition focus:border-stg-accent focus:outline-none focus:ring-2 focus:ring-stg-accent/30 dark:border-white/10 dark:bg-slate-900 dark:text-white"
             placeholder="e.g., name, location, event, activity, ID number, behaviour"
           />
+          {keywordInputWarning && (
+            <p className="text-xs text-amber-600 dark:text-amber-300">
+              {keywordInputWarning}
+            </p>
+          )}
           <div className="flex items-center gap-3">
             <button
               type="button"
