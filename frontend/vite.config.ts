@@ -6,21 +6,16 @@ import { join } from "path";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  
-  // BACKEND_URL: Used by Vite proxy (server-side) for HTTP/HTTPS requests via /api routes
-  // VITE_BACKEND_URL: Exposed to client-side code for WebSocket (ws/wss) connections and direct API calls
-  // Both should be set in .env.development.local
+
   const backendTarget = env.BACKEND_URL;
-  
+
   if (!backendTarget) {
     throw new Error(
       "BACKEND_URL not configured in .env.development.local. " +
       "This is required for the Vite proxy to forward HTTP/HTTPS requests to the backend."
     );
   }
-  
-  // VITE_BACKEND_URL is automatically exposed to client-side code by Vite (variables prefixed with VITE_)
-  // It's used by GaugeChart for WebSocket connections and HarassmentGraph for direct API calls
+
   if (!env.VITE_BACKEND_URL) {
     console.warn(
       "[Vite] VITE_BACKEND_URL not set in .env.development.local. " +
@@ -30,9 +25,8 @@ export default defineConfig(({ mode }) => {
   }
 
   const rewritePath = (path: string) => {
-    // Don't rewrite /api/favorites here, let configure handle it
     if (path.startsWith("/api/favorites")) {
-      return path; // Keep original path for configure function to handle
+      return path;
     }
     if (path.startsWith("/api/auth/") || path === "/api/auth") {
       return path.replace(/^\/api\/auth/, "/auth");
@@ -77,7 +71,7 @@ export default defineConfig(({ mode }) => {
         "/api": {
           target: backendTarget,
           changeOrigin: true,
-          secure: true, // Valid Let's Encrypt certificate
+          secure: true,
           rewrite: rewritePath,
           configure: (proxy, _options) => {
             proxy.on("proxyReq", (proxyReq, req, _res) => {
@@ -86,7 +80,6 @@ export default defineConfig(({ mode }) => {
               if (url.startsWith("/api/favorites")) {
                 const method = req.method || "GET";
 
-                // Handle /api/favorites/content?source=...
                 if (url.startsWith("/api/favorites/content")) {
                   try {
                     const urlObj = new URL(url, "http://localhost");
@@ -101,7 +94,6 @@ export default defineConfig(({ mode }) => {
                 } else if (method === "POST") {
                   proxyReq.path = "/bookmark/add";
                 } else if (method === "DELETE") {
-                  // For DELETE, extract post_id from query parameter
                   try {
                     const urlObj = new URL(url, "http://localhost");
                     const postId = urlObj.searchParams.get("post_id");
@@ -114,7 +106,6 @@ export default defineConfig(({ mode }) => {
                       proxyReq.setHeader("Content-Type", "application/json");
                       proxyReq.setHeader("Content-Length", Buffer.byteLength(body));
 
-                      // Write the body to the proxied request
                       proxyReq.write(body);
                     }
                   } catch (error) {

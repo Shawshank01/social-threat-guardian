@@ -14,7 +14,7 @@ const Privacy = () => {
       <div className="space-y-8 rounded-3xl border border-slate-200/80 bg-white/90 p-8 text-sm leading-relaxed text-slate-700 transition-colors duration-200 dark:border-white/10 dark:bg-slate-900/60 dark:text-slate-200">
         <section className="space-y-4">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">1. Data We Collect</h2>
-          
+
           <div className="space-y-3">
             <h3 className="font-semibold text-slate-900 dark:text-white">1.1 Registration Information</h3>
             <p>If you choose to create an account, we collect:</p>

@@ -20,7 +20,6 @@ const PLATFORM_OPTIONS = [
   { id: "TELEGRAM", label: "Telegram" },
 ];
 
-// Map platform IDs to actual database table names
 const PLATFORM_TO_TABLE_MAP: Record<string, string> = {
   BLUSKY: "BLUSKY_TEST",
   MASTODON: "MASTODON",
@@ -102,13 +101,11 @@ const PersonalMonitors = () => {
   const languagesList = useMemo(() => preferences?.languages ?? [], [preferences]);
   const platformsList = useMemo(() => preferences?.platforms ?? [], [preferences]);
 
-  // Function to highlight keywords in text
   const highlightKeywords = (text: string, keywords: string[]): React.ReactNode => {
     if (!text || keywords.length === 0) {
       return text;
     }
 
-    // Create a regex pattern that matches any keyword (case-insensitive)
     const keywordPattern = keywords
       .map((keyword) => keyword.trim())
       .filter(Boolean)
@@ -135,8 +132,6 @@ const PersonalMonitors = () => {
       );
     });
   };
-
-  // Posts are now always loaded from backend API, no localStorage cache
 
   useEffect(() => {
     if (!user?.id || !token) {
@@ -283,7 +278,6 @@ const PersonalMonitors = () => {
                 message: "Your session has expired. Please log in again."
               }
             });
-            // Return empty result to prevent Promise.all from breaking
             return {
               platformId,
               platformLabel: platformMeta.label,
@@ -362,7 +356,6 @@ const PersonalMonitors = () => {
       const seen = new Set<string>();
 
       for (const post of aggregated) {
-        // Use post.id from backend
         if (!post.id) {
           console.warn("Skipping post without id during deduplication:", post);
           continue;
@@ -372,7 +365,7 @@ const PersonalMonitors = () => {
         deduped.push(post);
       }
 
-      // Filter to only show posts with predIntent === "HARMFUL"
+      // Filter to only show posts labeled as "HARMFUL"
       const harmfulPosts = deduped.filter((post) => {
         const intent = post.predIntent?.trim().toUpperCase();
         return intent === "HARMFUL";

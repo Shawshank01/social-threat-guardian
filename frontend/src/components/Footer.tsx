@@ -2,10 +2,10 @@ import { Link } from "react-router-dom";
 import type { FC, SVGProps } from "react";
 
 const links = [
-  { label: "Articles", to: "/articles" },
+  { label: "About", to: "/about" },
   { label: "Privacy", to: "/privacy" },
   { label: "Terms", to: "/terms" },
-  { label: "About", to: "/about" },
+  { label: "Articles", to: "/articles" },
   { label: "API", to: "/api" },
 ];
 

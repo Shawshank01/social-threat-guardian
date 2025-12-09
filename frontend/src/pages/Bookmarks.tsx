@@ -46,7 +46,6 @@ const Bookmarks = () => {
     setError(null);
 
     try {
-      // Step 1: Get list of bookmarks (GET /bookmark)
       const bookmarksResponse = await fetch(buildApiUrl("favorites"), {
         method: "GET",
         headers: {
@@ -72,22 +71,14 @@ const Bookmarks = () => {
         return;
       }
 
-      // Debug: Log bookmarks to see what we got
-      console.log("[Bookmarks] Loaded bookmarks:", bookmarkList);
-      console.log("[Bookmarks] PROCESSED_ID values:", bookmarkList.map((bm) => bm.PROCESSED_ID));
-
-      // Step 2: Get post content from /bookmark/content for each source table
-      // Try common source tables: BLUSKY_TEST, BLUSKY, BLUSKY2
-      const sourceTables = ["BLUSKY_TEST", "BLUSKY", "BLUSKY2"];
+      const sourceTables = ["BLUSKY_TEST"];
       const allPosts = new Map<string, MonitoredPost>();
 
-      // Create a map of bookmarks by PROCESSED_ID for exact matching
       const bookmarkMap = new Map<string, BookmarkApiRow>();
       for (const bookmark of bookmarkList) {
         bookmarkMap.set(bookmark.PROCESSED_ID, bookmark);
       }
 
-      // Fetch content from each source table
       for (const sourceTable of sourceTables) {
         try {
           const contentResponse = await fetch(
@@ -110,37 +101,21 @@ const Bookmarks = () => {
           };
 
           if (!contentResponse.ok || contentPayload.ok === false) {
-            // Continue to next source table if this one fails
             continue;
           }
 
           const posts = contentPayload.posts || [];
           const source = contentPayload.source || sourceTable;
 
-          // Debug: Log what we got from content endpoint
-          console.log(`[Bookmarks] Content from ${sourceTable}:`, {
-            count: posts.length,
-            posts: posts.map((p) => ({ postId: p.postId, hasText: !!p.postText })),
-            postIds: posts.map((p) => p.postId),
-          });
-
-          // Match posts to bookmarks by exact PROCESSED_ID match (as backend does)
           for (const post of posts) {
-            // Backend returns postId which should match PROCESSED_ID exactly
             const bookmark = bookmarkMap.get(post.postId);
             if (!bookmark) {
-              // Skip if no matching bookmark found
               continue;
             }
 
-            // Only add posts that have content and haven't been added yet
             if (post.postText && post.postText.trim() && !allPosts.has(bookmark.PROCESSED_ID)) {
-              const platformLabel =
-                source === "BLUSKY_TEST" || source === "BLUSKY" || source === "BLUSKY2"
-                  ? "Bluesky"
-                  : source;
+              const platformLabel = source === "BLUSKY_TEST" ? "Bluesky" : source;
 
-              // Format time ago from postTimestamp
               let timeAgo: string | null = null;
               if (post.postTimestamp) {
                 const postDate = new Date(post.postTimestamp);
@@ -176,28 +151,17 @@ const Bookmarks = () => {
             }
           }
         } catch {
-          // Continue to next source table if this one fails
           continue;
         }
       }
 
-      // Convert map to array, preserving bookmark order
       const mappedPosts: MonitoredPost[] = [];
       for (const bookmark of bookmarkList) {
         const post = allPosts.get(bookmark.PROCESSED_ID);
         if (post) {
           mappedPosts.push(post);
-        } else {
-          // Debug: Log bookmarks that didn't get matched
-          console.log(`[Bookmarks] No post found for bookmark:`, {
-            PROCESSED_ID: bookmark.PROCESSED_ID,
-            BOOKMARK_ID: bookmark.BOOKMARK_ID,
-          });
         }
       }
-
-      // Debug: Log final result
-      console.log(`[Bookmarks] Final mapped posts: ${mappedPosts.length} out of ${bookmarkList.length} bookmarks`);
 
       setBookmarks(mappedPosts);
     } catch (err) {
@@ -217,8 +181,6 @@ const Bookmarks = () => {
   const handleRemove = async (processedId: string) => {
     if (!token) return;
     try {
-      // DELETE /bookmark/remove
-      // Use query parameter to avoid Vercel dynamic route issues with DELETE
       const response = await fetch(buildApiUrl(`favorites?post_id=${encodeURIComponent(processedId)}`), {
         method: "DELETE",
         headers: {

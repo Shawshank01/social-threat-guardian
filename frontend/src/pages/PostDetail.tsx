@@ -40,19 +40,14 @@ const PostDetail = () => {
     }
   }, [encodedPostId]);
 
-  // Initialise post from route state if available, otherwise null
   const [post, setPost] = useState<MonitoredPost | null>(postFromState ?? null);
 
-  // Update post if route state changes (e.g., when navigating from Bookmarks)
-  // But if the post has placeholder text, we'll try to reload it from the database
   useEffect(() => {
     if (postFromState && postFromState.id === decodedPostId) {
       const hasPlaceholderText =
         postFromState.postText === "Post content not available. Click to view details." ||
         postFromState.postText === "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.";
 
-      // If post has placeholder text, set it but don't prevent reload
-      // Otherwise, set it and it will prevent reload (hasPostWithContent check)
       setPost(postFromState);
     }
   }, [postFromState, decodedPostId]);
@@ -67,23 +62,18 @@ const PostDetail = () => {
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
 
-  // Load post from bookmarks or database if not available from route state or has placeholder content
   useEffect(() => {
-    // Check if we have a post with valid content (not placeholder text)
     const hasPostWithContent = post &&
       post.postText &&
       post.postText !== "Post content not available. Click to view details." &&
       post.postText !== "Post content not available. This post may have been removed from the database or the post ID format doesn't match. Click the original link to view the post on the platform.";
 
-    // Skip if we already have valid content, or missing post ID
     if (hasPostWithContent || !decodedPostId) return;
 
     const controller = new AbortController();
 
     const loadPost = async () => {
       try {
-        // First, check if this post is bookmarked and try to load from /bookmark/content
-        // Only if user is authenticated
         let isBookmarked = false;
         if (token) {
           try {
@@ -111,11 +101,9 @@ const PostDetail = () => {
               }
             }
           } catch {
-            // If bookmark check fails, continue to try other methods
           }
         }
 
-        // If bookmarked, try to load from /bookmark/content endpoint first
         if (isBookmarked) {
           const sourceTables = ["BLUSKY_TEST", "BLUSKY", "BLUSKY2"];
 
@@ -148,7 +136,6 @@ const PostDetail = () => {
               };
 
               if (contentResponse.ok && contentPayload.ok && contentPayload.posts) {
-                // Try to find the post using flexible matching
                 let postData = contentPayload.posts.find((p) => p.postId === decodedPostId);
 
                 if (!postData) {
@@ -211,8 +198,6 @@ const PostDetail = () => {
           }
         }
 
-        // If not found in bookmarks, try searching the database using user preferences
-        // Only if we have keywords configured and user is authenticated
         let keywords: string[] = [];
         let platforms: string[] = ["BLUSKY", "BLUSKY_TEST", "BLUSKY2"];
         let languages: string[] = [];
@@ -247,11 +232,9 @@ const PostDetail = () => {
               }
             }
           } catch {
-            // If preferences fetch fails, use defaults
           }
         }
 
-        // Only search if we have keywords and token
         if (keywords.length > 0 && token) {
           const searchPromises = platforms.map(async (platformId) => {
             try {
@@ -270,7 +253,6 @@ const PostDetail = () => {
                 signal: controller.signal,
               });
 
-              // If search fails, return null (don't show error)
               if (!response.ok) {
                 return null;
               }
@@ -297,14 +279,12 @@ const PostDetail = () => {
                 return null;
               }
 
-              // Look for the post ID in all results
               const results = payload.results || [];
               for (const result of results) {
                 const comments = result.comments || [];
                 for (const comment of comments) {
                   const postId = comment.post_id?.toString().trim() || null;
 
-                  // Try multiple matching strategies
                   let isMatch = false;
                   if (postId === decodedPostId) {
                     isMatch = true;
@@ -372,8 +352,6 @@ const PostDetail = () => {
           }
         }
 
-        // If not found anywhere, create a fallback post from the AT URI
-        // But preserve existing post data if available (don't overwrite with placeholder)
         if (decodedPostId.startsWith("at://")) {
           const atUriMatch = decodedPostId.match(/^at:\/\/([^/]+)\/(.+)$/);
           if (atUriMatch) {
@@ -386,7 +364,6 @@ const PostDetail = () => {
               postUrl = `https://bsky.app/profile/${did}/post/${postId}`;
             }
 
-            // Only set fallback if we don't already have a post
             if (!post) {
               const fallbackPost: MonitoredPost = {
                 id: decodedPostId,
@@ -407,7 +384,6 @@ const PostDetail = () => {
         }
       } catch (error) {
         if ((error as Error).name === "AbortError") return;
-        // Don't log errors - silently fail and preserve existing post data
       }
     };
 
@@ -423,7 +399,6 @@ const PostDetail = () => {
 
     const loadFavorite = async () => {
       try {
-        // GET /bookmark to list all bookmarks, then check if this post is bookmarked
         const response = await fetch(buildApiUrl("favorites"), {
           method: "GET",
           headers: {
@@ -539,7 +514,6 @@ const PostDetail = () => {
     return () => controller.abort();
   }, [decodedPostId]);
 
-  // Show loading state while trying to load post (token not required for loading state)
   const isLoadingPost = !post && decodedPostId;
 
   if (!decodedPostId) {
@@ -601,7 +575,6 @@ const PostDetail = () => {
 
     try {
       if (isFavorite) {
-        // DELETE /bookmark/remove
         // Use query parameter to avoid Vercel dynamic route issues with DELETE
         const response = await fetch(
           buildApiUrl(`favorites?post_id=${encodeURIComponent(post.id)}`),

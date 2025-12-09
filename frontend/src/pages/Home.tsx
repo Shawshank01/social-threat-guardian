@@ -333,6 +333,15 @@ const Home = () => {
                 >
                   Yes, tell me more
                 </button>
+                {isGuest && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSplashBox(false)}
+                    className="flex-1 rounded-full border border-slate-300/80 bg-white px-6 py-2.5 text-sm font-semibold uppercase tracking-wide text-slate-700 transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-stg-accent/40 dark:border-white/10 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                  >
+                    Stay on homepage
+                  </button>
+                )}
                 {!isGuest && (
                   <button
                     type="button"
