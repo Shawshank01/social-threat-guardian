@@ -46,12 +46,10 @@ const resolveString = (...values: (string | null | undefined)[]) => {
 const Settings = () => {
   const navigate = useNavigate();
   const { user, token } = useAuth();
-  // Profile overview state updated from backend
   const [profileOverview, setProfileOverview] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
   });
-  // Form state for user input
   const [formState, setFormState] = useState({
     name: user?.name ?? "",
     email: user?.email ?? "",
@@ -68,7 +66,6 @@ const Settings = () => {
     return localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false";
   });
 
-  // Listen for changes to splash box setting from other pages
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === SPLASH_BOX_ENABLED_KEY) {
@@ -77,12 +74,11 @@ const Settings = () => {
     };
 
     window.addEventListener("storage", handleStorageChange);
-    
-    // Also listen for custom events for same-tab updates
+
     const handleCustomStorageChange = () => {
       setShowSplashBox(localStorage.getItem(SPLASH_BOX_ENABLED_KEY) !== "false");
     };
-    
+
     window.addEventListener("splashBoxSettingChanged", handleCustomStorageChange);
 
     return () => {
@@ -92,14 +88,12 @@ const Settings = () => {
   }, []);
 
   useEffect(() => {
-    // Initialise form state from user context
     setFormState({
       name: user?.name ?? "",
       email: user?.email ?? "",
       password: "",
       confirmPassword: "",
     });
-    // Initialise profile overview from user context
     setProfileOverview({
       name: user?.name ?? "",
       email: user?.email ?? "",
@@ -177,12 +171,11 @@ const Settings = () => {
           email: resolvedEmail ?? profileOverview.email,
         });
 
-        // Update form state from backend data (only if form hasn't been modified)
         setFormState((prev) => ({
           name: resolvedName ?? prev.name,
           email: resolvedEmail ?? prev.email,
-          password: prev.password, // Keep password field as-is
-          confirmPassword: prev.confirmPassword, // Keep confirm password field as-is
+          password: prev.password,
+          confirmPassword: prev.confirmPassword,
         }));
 
         if (resolvedLastLogin) {
@@ -272,10 +265,8 @@ const Settings = () => {
     setShowSplashBox(enabled);
     localStorage.setItem(SPLASH_BOX_ENABLED_KEY, enabled ? "true" : "false");
     if (!enabled) {
-      // If disabling, also mark as dismissed so it won't show
       localStorage.setItem(SPLASH_BOX_STORAGE_KEY, "true");
     } else {
-      // If enabling, clear the dismissed flag so it can show again
       localStorage.removeItem(SPLASH_BOX_STORAGE_KEY);
     }
   };
@@ -376,7 +367,6 @@ const Settings = () => {
             })
           );
         } catch {
-          // Ignore storage sync errors; the form already reflects the latest values.
         }
       }
     } catch (err) {

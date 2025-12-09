@@ -317,7 +317,7 @@ const Dashboard = () => {
           languages: preferences.languages,
           platforms: preferences.platforms,
           threatIndexAlertsEnabled: preferences.threatIndexAlertsEnabled ?? false,
-        threatIndexThresholds: preferences.threatIndexThresholds ?? makeDefaultThresholds(),
+          threatIndexThresholds: preferences.threatIndexThresholds ?? makeDefaultThresholds(),
         }),
       });
 
@@ -782,9 +782,9 @@ const Dashboard = () => {
                   </p>
                   <div className="space-y-3">
                     {ACTIVE_PLATFORM_OPTIONS.map((platform) => {
-        const threshold = threatIndexThresholds[platform.id];
-        const thresholdInput =
-          threatIndexThresholdInputs[platform.id] ?? (threshold ?? "")?.toString();
+                      const threshold = threatIndexThresholds[platform.id];
+                      const thresholdInput =
+                        threatIndexThresholdInputs[platform.id] ?? (threshold ?? "")?.toString();
                       return (
                         <div
                           key={platform.id}

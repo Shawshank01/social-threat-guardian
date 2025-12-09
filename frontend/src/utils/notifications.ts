@@ -1,7 +1,3 @@
-/**
- * Notification utility functions for API calls
- */
-
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
 
 const buildApiUrl = (path: string) => {
@@ -31,9 +27,6 @@ export type NotificationListOptions = {
   unreadOnly?: boolean;
 };
 
-/**
- * Fetch notifications for the authenticated user
- */
 export async function fetchNotifications(
   token: string,
   options: NotificationListOptions = {},
@@ -62,9 +55,6 @@ export async function fetchNotifications(
   return data.data ?? [];
 }
 
-/**
- * Get unread notification count
- */
 export async function fetchUnreadCount(token: string): Promise<number> {
   const response = await fetch(buildApiUrl("notifications/unread-count"), {
     method: "GET",
@@ -84,9 +74,6 @@ export async function fetchUnreadCount(token: string): Promise<number> {
   return data.data?.count ?? 0;
 }
 
-/**
- * Mark a notification as read
- */
 export async function markNotificationRead(
   token: string,
   notificationId: string,
@@ -109,9 +96,6 @@ export async function markNotificationRead(
   return data.data?.updated ?? false;
 }
 
-/**
- * Mark all notifications as read
- */
 export async function markAllNotificationsRead(token: string): Promise<number> {
   const response = await fetch(buildApiUrl("notifications/read-all"), {
     method: "POST",
@@ -130,4 +114,3 @@ export async function markAllNotificationsRead(token: string): Promise<number> {
 
   return data.data?.updatedCount ?? 0;
 }
-

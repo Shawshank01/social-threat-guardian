@@ -35,7 +35,6 @@ const NavBar = () => {
       e.stopPropagation();
     }
 
-    // Prevent double-firing from both click and touch events
     const now = Date.now();
     if (now - lastToggleTimeRef.current < 300) {
       return;
@@ -49,7 +48,6 @@ const NavBar = () => {
     setIsSettingsMenuOpen((prev) => {
       const newValue = !prev;
       if (newValue) {
-        // Record when menu opens to prevent immediate closure
         menuOpenTimeRef.current = Date.now();
       }
       return newValue;
@@ -93,7 +91,6 @@ const NavBar = () => {
     };
   }, []);
 
-  // Handle click outside to close mobile menu
   useEffect(() => {
     const handleClickOutside = (event: Event) => {
       const target = event.target as Node;
@@ -119,14 +116,12 @@ const NavBar = () => {
     };
   }, [isMobileMenuOpen]);
 
-  // Handle click outside to close settings menu
   useEffect(() => {
     if (!isSettingsMenuOpen) return;
 
     const handleClickOutside = (event: Event) => {
       const target = event.target as Node;
 
-      // Don't close if clicking on the button or inside the menu
       if (
         settingsMenuRef.current?.contains(target) ||
         settingsButtonRef.current?.contains(target)
@@ -134,7 +129,6 @@ const NavBar = () => {
         return;
       }
 
-      // Prevent immediate closure after opening (especially important on mobile)
       const timeSinceOpen = Date.now() - menuOpenTimeRef.current;
       const isMobile = window.innerWidth < 640;
       if (timeSinceOpen < (isMobile ? 300 : 100)) {
@@ -144,7 +138,6 @@ const NavBar = () => {
       handleCloseSettingsMenu();
     };
 
-    // Add delay on mobile to prevent the opening touch from closing the menu
     const isMobile = window.innerWidth < 640;
     const delay = isMobile ? 200 : 0;
 
@@ -164,14 +157,18 @@ const NavBar = () => {
     const items = [];
 
     if (token) {
-      items.push({ label: "Dashboard", to: "/dashboard" });
+      items.push(
+        { label: "Dashboard", to: "/dashboard" },
+        { label: "Personal Monitors", to: "/personal-monitors" },
+        { label: "Harassment Networks", to: "/harassment-networks" },
+        { label: "Home", to: "/" },
+      );
+    } else {
+      items.push(
+        { label: "Home", to: "/" },
+        { label: "Personal Monitors", to: "/personal-monitors" },
+      );
     }
-
-    items.push(
-      { label: "Home", to: "/" },
-      { label: "Harassment Networks", to: "/harassment-networks" },
-      { label: "Personal Monitors", to: "/personal-monitors" },
-    );
 
     return items;
   }, [token]);
@@ -181,7 +178,6 @@ const NavBar = () => {
     navigate("/", { replace: true });
   };
 
-  // Load notifications and unread count
   const loadNotifications = useCallback(async () => {
     if (!token) {
       setNotifications([]);
@@ -204,15 +200,12 @@ const NavBar = () => {
     }
   }, [token]);
 
-  // Load notifications on mount and when token changes
   useEffect(() => {
     loadNotifications();
-    // Poll for new notifications every 30 seconds
     const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, [loadNotifications]);
 
-  // Handle notification menu toggle
   const handleToggleNotificationMenu = useCallback((e?: React.MouseEvent | React.TouchEvent) => {
     if (e) {
       e.stopPropagation();
@@ -247,7 +240,6 @@ const NavBar = () => {
     }, 220);
   }, []);
 
-  // Mark notification as read
   const handleMarkAsRead = useCallback(async (notificationId: string) => {
     if (!token) return;
     try {
@@ -261,7 +253,6 @@ const NavBar = () => {
     }
   }, [token]);
 
-  // Mark all as read
   const handleMarkAllAsRead = useCallback(async () => {
     if (!token) return;
     try {
@@ -275,7 +266,6 @@ const NavBar = () => {
     }
   }, [token]);
 
-  // Handle click outside notification menu
   useEffect(() => {
     if (!isNotificationMenuOpen) return;
 
@@ -369,7 +359,7 @@ const NavBar = () => {
           </div>
         )}
 
-        {/* Navigation Items - Desktop: Centered, Mobile: Hidden */}
+        {/* Navigation Items on Desktop: Centered, on Mobile: Hidden */}
         <ul className="hidden flex-1 items-center justify-center gap-6 text-xs font-medium sm:flex md:gap-8 md:text-sm">
           {navItems.map((item) => (
             <li key={item.to}>
@@ -476,8 +466,8 @@ const NavBar = () => {
                               <div
                                 key={notification.id}
                                 className={`p-3 transition-colors ${isUnread
-                                    ? "bg-stg-accent/5 dark:bg-stg-accent/10"
-                                    : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                                  ? "bg-stg-accent/5 dark:bg-stg-accent/10"
+                                  : "hover:bg-slate-50 dark:hover:bg-slate-800/50"
                                   }`}
                               >
                                 <div className="flex items-start justify-between gap-2">
@@ -520,13 +510,12 @@ const NavBar = () => {
                 ref={settingsMenuRef}
                 className="relative flex flex-shrink-0"
                 onMouseEnter={(e) => {
-                  // Only use hover on desktop (non-touch devices)
+                  // Only use hover on desktop
                   if (window.matchMedia('(hover: hover)').matches) {
                     openSettingsMenu();
                   }
                 }}
                 onMouseLeave={(e) => {
-                  // Only use hover on desktop (non-touch devices)
                   if (window.matchMedia('(hover: hover)').matches) {
                     scheduleCloseSettingsMenu();
                   }
@@ -539,7 +528,6 @@ const NavBar = () => {
                   aria-expanded={isSettingsMenuOpen}
                   onClick={handleToggleSettingsMenu}
                   onTouchEnd={(e) => {
-                    // Prevent the touch event from bubbling and triggering click-outside
                     e.preventDefault();
                     e.stopPropagation();
                     handleToggleSettingsMenu(e);

@@ -27,7 +27,6 @@ const normalizeHeader = (value?: string | string[]) => {
     return Array.isArray(value) ? value[0] : value;
 };
 
-// Helper function to make HTTP/HTTPS requests to the backend
 function makeRequest(url: string, options: { method?: string; headers?: Record<string, string>; body?: string } = {}): Promise<{ status: number; headers: Record<string, string>; body: string }> {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
@@ -85,7 +84,6 @@ const serializeBody = (body: unknown): string => {
 };
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
-    // Log incoming request for debugging
     console.log("[api/users/[id]] Request received:", {
         method: req.method,
         url: req.url,
@@ -98,7 +96,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return;
     }
 
-    // Handle OPTIONS preflight
     if (req.method === "OPTIONS") {
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Access-Control-Allow-Methods", "GET,PATCH,OPTIONS");
@@ -107,24 +104,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         return;
     }
 
-    // Extract userId from the dynamic route segment [id]
-    // In Vercel serverless functions, req.url contains the pathname (e.g., /api/users/user-123)
-    // Extract the last path segment which is the userId
     let userId = "";
     if (req.url) {
         try {
-            // Handle both absolute URLs and relative paths
             let urlObj: URL;
             if (req.url.startsWith("http://") || req.url.startsWith("https://")) {
                 urlObj = new URL(req.url);
             } else {
-                // For relative paths, construct a full URL
                 urlObj = new URL(req.url, "http://localhost");
             }
 
             const pathParts = urlObj.pathname.split("/").filter(Boolean);
-            // Get the last segment (should be after /api/users/)
-            // Path structure: /api/users/{userId}
             const rawId = pathParts[pathParts.length - 1] || "";
 
             if (rawId) {
@@ -136,9 +126,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
                 }
             }
         } catch (urlError) {
-            // Fallback: try to extract from the URL string directly using regex
             console.warn("[api/users/[id]] URL parsing failed, using regex fallback:", urlError);
-            // Match everything after /api/users/ until query string or end
             const match = req.url.match(/\/api\/users\/([^?]+)/);
             if (match && match[1]) {
                 try {
@@ -147,7 +135,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
                     userId = match[1];
                 }
             } else {
-                // Last resort: try to get the last segment after any slash
                 const lastSlashMatch = req.url.match(/\/([^/?]+)(?:\?|$)/);
                 if (lastSlashMatch && lastSlashMatch[1]) {
                     try {
@@ -183,7 +170,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (method === "GET") {
-        // GET /users/:id to get user details
         const targetUrl = new URL(`/users/${encodeURIComponent(userId)}`, BACKEND_URL).toString();
         console.log("[api/users/[id]] Making GET request to backend:", targetUrl);
 
@@ -218,7 +204,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }
 
     if (method === "PATCH") {
-        // PATCH /users/:id to update user details
         const targetUrl = new URL(`/users/${encodeURIComponent(userId)}`, BACKEND_URL).toString();
 
         try {
@@ -249,7 +234,6 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
         }
     }
 
-    // Method not allowed
     res.status(405).json({
         ok: false,
         error: `Method ${method} not allowed. Supported methods: GET, PATCH, OPTIONS`,
