@@ -31,7 +31,7 @@ const About = () => {
             <strong>Notification Settings (Dashboard):</strong> Lets you turn on alerts when the Threat Index crosses a threshold you choose. Set a number (0–100) to control how sensitive the alerts are; when enabled, you’ll be notified if the live threat level exceeds that number.
           </p>
           <p className="mb-0">
-            <strong>Harassment Networks:</strong> Identifies clusters of related harmful activity, showing patterns of accounts or posts that are acting together, so you can understand coordinated behavior rather than isolated incidents.
+            <strong>Harassment Networks:</strong> Identifies clusters of related harmful activity, showing patterns of accounts and posts that are acting together, so you can understand coordinated behavior rather than isolated incidents.
           </p>
         </div>
 
