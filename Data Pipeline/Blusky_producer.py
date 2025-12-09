@@ -1,194 +1,69 @@
 #!/usr/bin/env python3
 
-
 import json
 import logging
 import os
 import sys
 import time
 import datetime
-from typing import Optional, List, Dict, Any, Generator
+from dataclasses import dataclass, asdict
+from typing import Optional, Any, Iterator
 
 from atproto import FirehoseSubscribeReposClient, parse_subscribe_repos_message, models, CAR
 from atproto_client.models import utils as models_utils
 from confluent_kafka import Producer
 
-
-# 1. Logging Configuration
-
-
+MIN_VALID_TIMESTAMP_MS = 1672531200000
+DEFAULT_KAFKA_BROKER = "10.0.0.10:9092"
+DEFAULT_KAFKA_TOPIC = "tweets"
+HEARTBEAT_INTERVAL = 5000
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     stream=sys.stdout,
 )
-log = logging.getLogger("BlueskyProducerV2_4")
+log = logging.getLogger("BlueskyProducerV2_Refactored")
+
+# Refactored configuaration for maintainability and readability
+@dataclass
+class AppConfig:
+    kafka_broker: str
+    kafka_topic: str
+    source_name: str = "bluesky"
+    post_nsid: str = "app.bsky.feed.post"
+    mention_nsid: str = "app.bsky.richtext.facet#mention"
+    embed_nsid: str = "app.bsky.embed.record"
+
+    @classmethod
+    def from_env(cls) -> 'AppConfig':
+        return cls(
+            kafka_broker=os.getenv("KAFKA_BROKER", DEFAULT_KAFKA_BROKER),
+            kafka_topic=os.getenv("KAFKA_TOPIC", DEFAULT_KAFKA_TOPIC)
+        )
 
 
-# 2. Application Configuration
+@dataclass
+class StandardizedPost:
+    id: str
+    author_did: str
+    text: str
+    timestamp: int
+    source: str
+    mentions: str
+    reply_to_uri: Optional[str]
+    repost_of_uri: Optional[str]
+    author_handle: Optional[str] = None
 
+    def to_json_bytes(self) -> bytes:
+        return json.dumps(asdict(self)).encode('utf-8')
 
-class Config:
-    """Holds all static configuration for the application."""
-    
-    def __init__(self):
-        self.KAFKA_BROKER: str = os.getenv("KAFKA_BROKER", "10.0.0.10:9092")
-        self.KAFKA_TOPIC: str = os.getenv("KAFKA_TOPIC", "tweets")
-        
-        self.BLUESKY_SOURCE_NAME: str = "bluesky"
-        self.HEARTBEAT_INTERVAL: int = 5000  # Log a heartbeat every N events
-        
-        # Bluesky AT Protocol Namespace IDs (NSIDs)
-        self.POST_TYPE_NSID: str = "app.bsky.feed.post"
-        self.MENTION_TYPE_NSID: str = "app.bsky.richtext.facet#mention"
-        self.RECORD_EMBED_NSID: str = "app.bsky.embed.record"
-        
-        log.info(f"KAFKA_BROKER set to: {self.KAFKA_BROKER}")
-        log.info(f"KAFKA_TOPIC set to: {self.KAFKA_TOPIC}")
+# I have this class here for parsing and extracting data from At proto
+class ATProtocolTransformer:
+    def __init__(self, config: AppConfig):
+        self.config = config
 
-
-
-# 3. Bluesky Producer Class
-
-
-class BlueskyProducer:
-    """
-    Connects to the Bluesky firehose, transforms posts, 
-    and produces them to a Kafka topic.
-    """
-    
-    def __init__(self):
-        """Initializes configuration, Kafka producer, and Bluesky client."""
-        self.config = Config()
-        self.producer = self._init_kafka_producer()
-        self.client = FirehoseSubscribeReposClient()
-        self.event_counter = 0
-        log.info(f"BlueskyProducer initialized. Producing to topic '{self.config.KAFKA_TOPIC}'.")
-
-    def _init_kafka_producer(self) -> Producer:
-        """Initializes and returns a Confluent Kafka Producer."""
-        try:
-            producer_conf = {'bootstrap.servers': self.config.KAFKA_BROKER}
-            producer = Producer(producer_conf)
-            log.info(f"Successfully connected to Kafka at {self.config.KAFKA_BROKER}")
-            return producer
-        except Exception as e:
-            log.error(f"FATAL: Failed to connect to Kafka: {e}")
-            sys.exit(1)
-
-    def _delivery_report(self, err, msg):
-        """Callback for Kafka produce events."""
-        if err is not None:
-            log.warning(f"Message delivery failed: {err}")
-
-    def _get_timestamp_ms(self, record: models.ComAtprotoSyncSubscribeRepos.Commit) -> int:
-        """
-        Extracts the post's creation time in milliseconds.
-        Returns a valid, positive millisecond timestamp.
-        """
-        created_at_str = getattr(record, 'createdAt', None)
-        
-        # 1. Check for invalid string input
-        if not created_at_str or not str(created_at_str).strip():
-            log.warning("No 'createdAt' field found or field is empty. Defaulting to current time.")
-            return int(time.time() * 1000)
-            
-        try:
-            # 2. Parse the timestamp
-            dt = datetime.datetime.fromisoformat(str(created_at_str).replace('Z', '+00:00'))
-            timestamp_ms = int(dt.timestamp() * 1000)
-            
-            
-            # 3. Check for invalid values (e.g., 0, negative, or before 2023)
-            # 
-            if timestamp_ms < 1672531200000:
-                log.warning(f"Parsed an invalid or epoch timestamp ({created_at_str}). Defaulting to current time.")
-                return int(time.time() * 1000)
-                
-            return timestamp_ms
-            
-        except (TypeError, ValueError) as e:
-            log.warning(f"Could not parse timestamp '{created_at_str}': {e}. Defaulting to current time.")
-            return int(time.time() * 1000)
-
-    def _extract_mentions(self, record: models.ComAtprotoSyncSubscribeRepos.Commit) -> str:
-        """Extracts mention DIDs into a comma-separated string."""
-        mentions_list: List[str] = []
-        facets = getattr(record, 'facets', None)
-        if not facets:
-            return ""
-            
-        for facet in facets:
-            features = getattr(facet, 'features', [])
-            for feature in features:
-                if getattr(feature, 'py_type', None) == self.config.MENTION_TYPE_NSID:
-                    mention_did = getattr(feature, 'did', None)
-                    if mention_did:
-                        mentions_list.append(mention_did)
-                        
-        return ",".join(mentions_list)
-
-    def _extract_repost_uri(self, record: models.ComAtprotoSyncSubscribeRepos.Commit) -> Optional[str]:
-        """Extracts the URI of a quote-post (embedded record)."""
-        embed_data = getattr(record, 'embed', None)
-        if (embed_data and 
-            getattr(embed_data, 'py_type', None) == self.config.RECORD_EMBED_NSID):
-            
-            embedded_record = getattr(embed_data, 'record', None)
-            if embedded_record:
-                return getattr(embedded_record, 'uri', None)
-        return None
-
-    def _transform_post(self, record_data: dict, commit: models.ComAtprotoSyncSubscribeRepos.Commit, op_path: str) -> Optional[Dict[str, Any]]:
-        """
-        Transforms a raw Bluesky post record into our standardized dictionary.
-        Returns None if the post is invalid or not a text post.
-        """
-        record = models_utils.get_or_create(record_data, strict=False)
-        if not record:
-            return None
-
-        post_text = getattr(record, 'text', None)
-        if not post_text:
-            return None
-
-        reply_data = getattr(record, 'reply', None)
-        
-        
-        return {
-            "id": f"at://{commit.repo}/{op_path}",
-            "author_did": commit.repo,
-            "author_handle": None, 
-            "text": post_text,
-            "timestamp": self._get_timestamp_ms(record),
-            "source": self.config.BLUESKY_SOURCE_NAME,
-            "mentions": self._extract_mentions(record),
-            "reply_to_uri": getattr(reply_data.parent, 'uri', None) if reply_data else None,
-            "repost_of_uri": self._extract_repost_uri(record)
-        }
-
-    def _produce_to_kafka(self, post: Dict[str, Any]):
-        """Serializes and produces a standardized post to Kafka."""
-        try:
-            output_json = json.dumps(post).encode('utf-8')
-            
-            self.producer.produce(
-                self.config.KAFKA_TOPIC,
-                value=output_json,
-                key=post["id"].encode('utf-8'),
-                callback=self._delivery_report
-            )
-            
-            log.info(f"Produced: {post['text'][:120].replace(os.linesep, ' ')}...")
-            
-        except json.JSONDecodeError:
-            log.error(f"Failed to serialize post with ID: {post.get('id')}")
-        except Exception as e:
-            log.error(f"Error during Kafka production: {e}")
-
-    def _process_commit(self, commit: models.ComAtprotoSyncSubscribeRepos.Commit) -> None:
-        """Processes a single commit, extracting and producing any new posts."""
+    def extract_posts_from_commit(self, commit: models.ComAtprotoSyncSubscribeRepos.Commit) -> Iterator[StandardizedPost]:
         try:
             car = CAR.from_bytes(commit.blocks)
         except Exception as e:
@@ -196,66 +71,158 @@ class BlueskyProducer:
             return
 
         for op in commit.ops:
-            if op.action == 'create' and op.path.startswith(self.config.POST_TYPE_NSID):
-                
-                record_data = car.blocks.get(op.cid)
-                if not record_data:
+            if op.action == 'create' and op.path.startswith(self.config.post_nsid):
+                record_raw = car.blocks.get(op.cid)
+                if not record_raw:
                     continue
-                
-                standardized_post = self._transform_post(record_data, commit, op.path)
-                
-                if standardized_post:
-                    self._produce_to_kafka(standardized_post)
-                    
-    def _on_message_handler(self, message: dict) -> None:
-        """
-        The main callback function for the firehose.
-        Parses the message and routes it for processing.
-        """
+
+                post = self._transform_record(record_raw, commit, op.path)
+                if post:
+                    yield post
+
+    def _transform_record(self, record_data: dict, commit: models.ComAtprotoSyncSubscribeRepos.Commit, op_path: str) -> Optional[StandardizedPost]:
+        record = models_utils.get_or_create(record_data, strict=False)
+        if not record or not getattr(record, 'text', None):
+            return None
+
+        reply_ref = getattr(record, 'reply', None)
+
+        return StandardizedPost(
+            id=f"at://{commit.repo}/{op_path}",
+            author_did=commit.repo,
+            text=record.text,
+            timestamp=self._parse_timestamp(record),
+            source=self.config.source_name,
+            mentions=self._extract_mentions(record),
+            reply_to_uri=getattr(reply_ref.parent, 'uri', None) if reply_ref else None,
+            repost_of_uri=self._extract_repost_uri(record)
+        )
+# Time is parsed as milliseconds
+    def _parse_timestamp(self, record: Any) -> int:
+        current_time_ms = int(time.time() * 1000)
+        created_at = getattr(record, 'createdAt', None)
+
+        if not created_at:
+            return current_time_ms
+
         try:
-            self.event_counter += 1
-            if self.event_counter % self.config.HEARTBEAT_INTERVAL == 0:
-                log.info(f"Heartbeat: Processed {self.event_counter} events. Still listening...")
-                self.producer.poll(0)
+            dt = datetime.datetime.fromisoformat(str(created_at).replace('Z', '+00:00'))
+            ts_ms = int(dt.timestamp() * 1000)
 
-            commit = parse_subscribe_repos_message(message)
-            
-            if isinstance(commit, models.ComAtprotoSyncSubscribeRepos.Commit):
-                self._process_commit(commit)
+            if ts_ms < MIN_VALID_TIMESTAMP_MS:
+                return current_time_ms
+            return ts_ms
+        except (TypeError, ValueError):
+            return current_time_ms
 
-            self.producer.poll(0)
+    def _extract_mentions(self, record: Any) -> str:
+        mentions = []
+        facets = getattr(record, 'facets', []) or []
 
-        except Exception as e:
-            log.error(f"Error processing firehose message: {e}", exc_info=True)
+        for facet in facets:
+            for feature in getattr(facet, 'features', []):
+                if getattr(feature, 'py_type', None) == self.config.mention_nsid:
+                    if did := getattr(feature, 'did', None):
+                        mentions.append(did)
 
+        return ",".join(mentions)
+
+    def _extract_repost_uri(self, record: Any) -> Optional[str]:
+        embed = getattr(record, 'embed', None)
+        if embed and getattr(embed, 'py_type', None) == self.config.embed_nsid:
+            if embedded_record := getattr(embed, 'record', None):
+                return getattr(embedded_record, 'uri', None)
+        return None
+
+# This is the main service class, the meat of the application, where everything meshes up together
+class BlueskyToKafkaService:
+    def __init__(self, config: AppConfig, producer: Producer, transformer: ATProtocolTransformer):
+        self.config = config
+        self.producer = producer
+        self.transformer = transformer
+        self.client = FirehoseSubscribeReposClient()
+        self.event_counter = 0
+# In this function, the service starts by connecting to the bluesky firehose, if it fails, automatic reconnection happens in ten seconds
     def start(self):
-        """
-        Starts the main producer loop with automatic reconnection.
-        """
-        log.info("Starting producer loop...")
+        log.info(f"Starting Service. Target Kafka Topic: {self.config.kafka_topic}")
+
         while True:
             try:
                 log.info("Connecting to Bluesky Firehose...")
-                self.client.start(self._on_message_handler)
-                
+                self.client.start(self._handle_firehose_message)
             except KeyboardInterrupt:
                 log.info("Shutdown signal received.")
                 break
             except Exception as e:
-                log.error(f"Main client error: {e}. Reconnecting in 10 seconds...", exc_info=True)
+                log.error(f"Firehose client error: {e}. Reconnecting in 10s...", exc_info=True)
                 time.sleep(10)
             finally:
-                log.info("Flushing Kafka producer...")
-                self.producer.flush() 
+                self._flush_producer()
 
-        log.info("Producer loop stopped.")
+        self._flush_producer()
+        log.info("Service exited.")
+# Once we receive new data from the bluesky firehose, we parse it and send it the send to kafka function
+    def _handle_firehose_message(self, message: dict) -> None:
+        try:
+            self._heartbeat()
+
+            commit = parse_subscribe_repos_message(message)
+            if not isinstance(commit, models.ComAtprotoSyncSubscribeRepos.Commit):
+                return
+
+            for post in self.transformer.extract_posts_from_commit(commit):
+                self._send_to_kafka(post)
+
+            self.producer.poll(0)
+
+        except Exception as e:
+            log.error(f"Error processing message: {e}", exc_info=True)
+
+    def _send_to_kafka(self, post: StandardizedPost):
+        try:
+            self.producer.produce(
+                self.config.kafka_topic,
+                value=post.to_json_bytes(),
+                key=post.id.encode('utf-8'),
+                callback=self._kafka_delivery_report
+            )
+            log.info(f"Produced: {post.text[:60].replace(os.linesep, ' ')}...")
+        except Exception as e:
+            log.error(f"Kafka produce error for {post.id}: {e}")
+
+    def _kafka_delivery_report(self, err, msg):
+        if err is not None:
+            log.warning(f"Message delivery failed: {err}")
+# Every 5000 heartbeat events a message is logged to the console so that i can know its up and running
+    def _heartbeat(self):
+        self.event_counter += 1
+        if self.event_counter % HEARTBEAT_INTERVAL == 0:
+            log.info(f"Heartbeat: Processed {self.event_counter} events.")
+
+    def _flush_producer(self):
+        log.info("Flushing Kafka producer...")
         self.producer.flush()
-        log.info("Kafka producer flushed. Exiting.")
 
 
-# 4. Main Execution
+def create_kafka_producer(broker_url: str) -> Producer:
+    try:
+        p = Producer({'bootstrap.servers': broker_url})
+        log.info(f"Kafka Producer connected to {broker_url}")
+        return p
+    except Exception as e:
+        log.critical(f"Failed to create Kafka Producer: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    producer_service = BlueskyProducer()
-    producer_service.start()
+    app_config = AppConfig.from_env()
+    kafka_producer = create_kafka_producer(app_config.kafka_broker)
+    at_transformer = ATProtocolTransformer(app_config)
+
+    service = BlueskyToKafkaService(
+        config=app_config,
+        producer=kafka_producer,
+        transformer=at_transformer
+    )
+
+    service.start()
