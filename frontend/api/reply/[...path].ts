@@ -103,6 +103,11 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   let subPath = "";
   let queryParams: URLSearchParams;
 
+  // Prefer Vercel catch-all param if present (req.query.path)
+  const pathFromQuery = Array.isArray((req as unknown as { query?: Record<string, unknown> }).query?.path)
+    ? ((req as unknown as { query: Record<string, string[]> }).query.path).join("/")
+    : undefined;
+
   try {
     let urlObj: URL;
     if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -115,7 +120,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const exactMatch = pathname.match(/^\/api\/reply\/?$/);
     const pathMatch = pathname.match(/^\/api\/reply\/(.+)$/);
 
-    if (exactMatch) {
+    if (pathFromQuery && !exactMatch) {
+      subPath = pathFromQuery;
+    } else if (exactMatch) {
       subPath = "";
     } else if (pathMatch) {
       subPath = pathMatch[1];
@@ -126,7 +133,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const exactMatch = url.match(/^\/api\/reply\/?$/);
     const pathMatch = url.match(/^\/api\/reply\/(.+)$/);
 
-    if (exactMatch) {
+    if (pathFromQuery && !exactMatch) {
+      subPath = pathFromQuery;
+    } else if (exactMatch) {
       subPath = "";
     } else if (pathMatch) {
       subPath = pathMatch[1];
