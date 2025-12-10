@@ -165,8 +165,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       targetPath = "/reply/add";
       backendMethod = "POST";
     } else if (subPathNormalized) {
-      const id = subPathNormalized;
-      targetPath = `/reply/${encodeURIComponent(id)}`;
+      // Decode once (paths arrive URL-encoded), then re-encode exactly once for the backend route.
+      const decodedId = (() => {
+        try {
+          return decodeURIComponent(subPathNormalized);
+        } catch {
+          return subPathNormalized;
+        }
+      })();
+      targetPath = `/reply/${encodeURIComponent(decodedId)}`;
       if (method === "DELETE") {
         backendMethod = "DELETE";
       } else if (method === "GET") {
