@@ -4,7 +4,7 @@ import { Bookmark, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost } from "@/types/monitors";
 
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+const API_BASE = "/api";
 
 const buildApiUrl = (path: string) => {
   const normalizedPath = path.replace(/^\/+/, "");
