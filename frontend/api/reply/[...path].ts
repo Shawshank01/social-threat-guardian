@@ -101,28 +101,62 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   const url = req.url || "";
 
   let subPath = "";
-  const exactMatch = url.match(/^\/api\/reply\/?$/);
-  const pathMatch = url.match(/^\/api\/reply\/(.+)$/);
+  let queryParams: URLSearchParams;
 
-  if (exactMatch) {
-    subPath = "";
-  } else if (pathMatch) {
-    subPath = pathMatch[1];
+  try {
+    let urlObj: URL;
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      urlObj = new URL(url);
+    } else {
+      urlObj = new URL(url, "http://localhost");
+    }
+
+    const pathname = urlObj.pathname;
+    const exactMatch = pathname.match(/^\/api\/reply\/?$/);
+    const pathMatch = pathname.match(/^\/api\/reply\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    queryParams = urlObj.searchParams;
+  } catch {
+    const exactMatch = url.match(/^\/api\/reply\/?$/);
+    const pathMatch = url.match(/^\/api\/reply\/(.+)$/);
+
+    if (exactMatch) {
+      subPath = "";
+    } else if (pathMatch) {
+      subPath = pathMatch[1];
+    }
+
+    try {
+      const fallbackUrl = new URL(url, "http://localhost");
+      queryParams = fallbackUrl.searchParams;
+    } catch {
+      const queryMatch = url.match(/\?(.+)$/);
+      const search = queryMatch ? `?${queryMatch[1]}` : "";
+      queryParams = new URLSearchParams(search);
+    }
   }
+
+  const subPathNormalized = subPath.replace(/\/+$/, "").split("?")[0];
 
   try {
     let targetPath = "";
     let backendMethod = method;
 
-    if (subPath === "add") {
+    if (subPathNormalized === "add") {
       if (method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
       targetPath = "/reply/add";
       backendMethod = "POST";
-    } else if (subPath) {
-      const id = subPath.split("?")[0];
+    } else if (subPathNormalized) {
+      const id = subPathNormalized;
       targetPath = `/reply/${encodeURIComponent(id)}`;
       if (method === "DELETE") {
         backendMethod = "DELETE";
