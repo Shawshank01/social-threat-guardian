@@ -151,24 +151,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     let targetPath = "";
     let backendMethod = method;
 
-    const subPathWithoutQuery = subPath.split("?")[0];
+    const subPathNormalized = subPath.replace(/\/+$/, "").split("?")[0];
 
-    if (subPathWithoutQuery === "latest") {
+    if (subPathNormalized === "latest") {
       if (method !== "GET") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
       targetPath = `/comments/latest${search}`;
       backendMethod = "GET";
-    } else if (subPathWithoutQuery === "search") {
+    } else if (subPathNormalized === "search") {
       if (method !== "POST") {
         res.status(405).json({ ok: false, error: "Method not allowed" });
         return;
       }
       targetPath = "/comments/search";
       backendMethod = "POST";
-    } else if (subPathWithoutQuery.match(/^[^/]+\/notes$/)) {
-      const processedId = subPathWithoutQuery.replace(/\/notes$/, "");
+    } else if (subPathNormalized.match(/^[^/]+\/notes$/)) {
+      const processedId = subPathNormalized.replace(/\/notes$/, "");
       targetPath = `/comments/${encodeURIComponent(processedId)}/notes${search}`;
       backendMethod = method;
     } else {
