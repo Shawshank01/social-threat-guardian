@@ -194,11 +194,58 @@ const NavBar = () => {
       setNotifications(notifs);
       setUnreadCount(count);
     } catch (error) {
+      const err = error as Error & { isUnauthorized?: boolean };
+      if (err.isUnauthorized || err.message?.toLowerCase().includes("expired") || err.message?.toLowerCase().includes("unauthorized")) {
+        logout();
+        return;
+      }
       console.error("[NavBar] Failed to load notifications:", error);
     } finally {
       setIsLoadingNotifications(false);
     }
-  }, [token]);
+  }, [token, logout]);
+
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
+    const validateToken = async () => {
+      try {
+        const apiBase = (import.meta.env.VITE_API_BASE_URL ?? "/api").replace(/\/+$/, "");
+        const response = await fetch(`${apiBase}/users/${user.id}`, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (response.status === 401 || response.status === 403) {
+          logout();
+          return;
+        }
+
+        const payload = (await response.json().catch(() => ({}))) as {
+          ok?: boolean;
+          error?: string;
+        };
+
+        if (!response.ok || payload.ok === false) {
+          const errorMsg = payload.error ?? "";
+          if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("invalid")) {
+            logout();
+            return;
+          }
+        }
+      } catch (err) {
+        const errorMsg = (err as Error).message || "";
+        if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized")) {
+          logout();
+          return;
+        }
+      }
+    };
+
+    void validateToken();
+  }, [token, user, logout]);
 
   useEffect(() => {
     loadNotifications();

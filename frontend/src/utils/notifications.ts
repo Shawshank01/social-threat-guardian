@@ -48,6 +48,12 @@ export async function fetchNotifications(
     error?: string;
   };
 
+  if (response.status === 401) {
+    const error = new Error(data.error ?? "Invalid or expired token");
+    (error as any).isUnauthorized = true;
+    throw error;
+  }
+
   if (!response.ok || data.ok === false) {
     throw new Error(data.error ?? "Unable to fetch notifications.");
   }
@@ -66,6 +72,12 @@ export async function fetchUnreadCount(token: string): Promise<number> {
     data?: { count: number };
     error?: string;
   };
+
+  if (response.status === 401) {
+    const error = new Error(data.error ?? "Invalid or expired token");
+    (error as any).isUnauthorized = true;
+    throw error;
+  }
 
   if (!response.ok || data.ok === false) {
     throw new Error(data.error ?? "Unable to fetch unread count.");
