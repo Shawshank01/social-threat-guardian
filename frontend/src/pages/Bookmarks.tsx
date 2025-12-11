@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Bookmark, Loader2, Trash2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { type MonitoredPost } from "@/types/monitors";
@@ -29,10 +29,23 @@ type BookmarkContentPost = {
 };
 
 const Bookmarks = () => {
+  const navigate = useNavigate();
   const { user, token } = useAuth();
   const [bookmarks, setBookmarks] = useState<MonitoredPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user || !token) {
+      navigate("/login", {
+        replace: true,
+        state: {
+          from: { pathname: "/bookmarks" },
+          message: "Please log in to access your bookmarks."
+        },
+      });
+    }
+  }, [user, token, navigate]);
 
   const loadBookmarks = useCallback(async () => {
     const userId = user?.id;
@@ -61,8 +74,30 @@ const Bookmarks = () => {
         error?: string;
       };
 
+      if (bookmarksResponse.status === 401) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: { pathname: "/bookmarks" },
+            message: "Your session has expired. Please log in again."
+          },
+        });
+        return;
+      }
+
       if (!bookmarksResponse.ok || bookmarksPayload.ok === false) {
-        throw new Error(bookmarksPayload.error ?? "Unable to load bookmarks.");
+        const errorMsg = bookmarksPayload.error ?? "Unable to load bookmarks.";
+        if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("invalid")) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: { pathname: "/bookmarks" },
+              message: "Your session has expired. Please log in again."
+            },
+          });
+          return;
+        }
+        throw new Error(errorMsg);
       }
 
       const bookmarkList = bookmarksPayload.bookmarks || [];
@@ -99,6 +134,17 @@ const Bookmarks = () => {
             posts?: BookmarkContentPost[];
             error?: string;
           };
+
+          if (contentResponse.status === 401) {
+            navigate("/login", {
+              replace: true,
+              state: {
+                from: { pathname: "/bookmarks" },
+                message: "Your session has expired. Please log in again."
+              },
+            });
+            return;
+          }
 
           if (!contentResponse.ok || contentPayload.ok === false) {
             continue;
@@ -165,12 +211,23 @@ const Bookmarks = () => {
 
       setBookmarks(mappedPosts);
     } catch (err) {
-      setError((err as Error).message || "Unable to load bookmarks right now.");
+      const errorMsg = (err as Error).message || "Unable to load bookmarks right now.";
+      if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("invalid")) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: { pathname: "/bookmarks" },
+            message: "Your session has expired. Please log in again."
+          },
+        });
+        return;
+      }
+      setError(errorMsg);
       setBookmarks([]);
     } finally {
       setIsLoading(false);
     }
-  }, [token, user?.id]);
+  }, [token, user?.id, navigate]);
 
   useEffect(() => {
     void loadBookmarks();
@@ -195,14 +252,46 @@ const Bookmarks = () => {
         error?: string;
       };
 
-      if (!response.ok || payload.ok === false) {
-        throw new Error(payload.error ?? "Unable to remove bookmark.");
+      if (response.status === 401) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: { pathname: "/bookmarks" },
+            message: "Your session has expired. Please log in again."
+          },
+        });
+        return;
       }
 
-      // Remove from local state
+      if (!response.ok || payload.ok === false) {
+        const errorMsg = payload.error ?? "Unable to remove bookmark.";
+        if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("invalid")) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: { pathname: "/bookmarks" },
+              message: "Your session has expired. Please log in again."
+            },
+          });
+          return;
+        }
+        throw new Error(errorMsg);
+      }
+
       setBookmarks((prev) => prev.filter((post) => post.id !== processedId));
     } catch (err) {
-      setError((err as Error).message || "Unable to remove bookmark.");
+      const errorMsg = (err as Error).message || "Unable to remove bookmark.";
+      if (errorMsg.toLowerCase().includes("expired") || errorMsg.toLowerCase().includes("unauthorized") || errorMsg.toLowerCase().includes("invalid")) {
+        navigate("/login", {
+          replace: true,
+          state: {
+            from: { pathname: "/bookmarks" },
+            message: "Your session has expired. Please log in again."
+          },
+        });
+        return;
+      }
+      setError(errorMsg);
     }
   };
 
