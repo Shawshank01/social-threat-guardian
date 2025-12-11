@@ -204,7 +204,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const response = await makeRequest(targetUrl, {
       method: backendMethod,
       headers,
-      body: (backendMethod === "POST" || backendMethod === "DELETE") ? serializeBody(req.body) : undefined,
+      body: backendMethod === "POST" ? serializeBody(req.body) : undefined,
     });
 
     if (backendMethod === "DELETE") {
