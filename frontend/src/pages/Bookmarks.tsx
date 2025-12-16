@@ -303,7 +303,7 @@ const Bookmarks = () => {
           <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Bookmarks</h1>
         </div>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Saved posts are stored in your monitoring workspace. Click a post to revisit its details or remove it from your
+          Saved posts are stored here. Click a post to revisit its details or remove it from your
           list at any time.
         </p>
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-300">
