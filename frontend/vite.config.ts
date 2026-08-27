@@ -4,19 +4,20 @@ import react from "@vitejs/plugin-react";
 import { writeFileSync } from "fs";
 import { join } from "path";
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   const backendTarget = env.BACKEND_URL;
+  const isDevServer = command === "serve";
 
-  if (!backendTarget) {
+  if (isDevServer && !backendTarget) {
     throw new Error(
       "BACKEND_URL not configured in .env.development.local. " +
       "This is required for the Vite proxy to forward HTTP/HTTPS requests to the backend."
     );
   }
 
-  if (!env.VITE_BACKEND_URL) {
+  if (isDevServer && !env.VITE_BACKEND_URL) {
     console.warn(
       "[Vite] VITE_BACKEND_URL not set in .env.development.local. " +
       "WebSocket connections and direct API calls may fail. " +
@@ -65,11 +66,12 @@ export default defineConfig(({ mode }) => {
       // Inject build version at build time
       'import.meta.env.VITE_BUILD_VERSION': JSON.stringify(buildVersion),
     },
-    server: {
-      port: 5173,
-      proxy: {
-        "/api": {
-          target: backendTarget,
+    server: backendTarget
+      ? {
+          port: 5173,
+          proxy: {
+            "/api": {
+              target: backendTarget,
           changeOrigin: true,
           secure: true,
           rewrite: rewritePath,
@@ -116,8 +118,9 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
-      },
-    },
+      }
+    }
+      : undefined,
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
