@@ -8,7 +8,7 @@
 
 **Social Threat Guardian** is an end-to-end, real-time AI risk-intelligence and threat-monitoring platform engineered to ingest, classify, and map coordinated harassment networks and toxic sentiment across decentralized social media streams.
 
-Combining event-driven stream processing (**Apache Kafka & Apache Spark**), low-latency transformer inference (**multilingual DistilBERT via ONNX Runtime**), and enterprise relational persistence (**Oracle Autonomous Database 23ai**), the platform transforms high-velocity unstructured text into actionable threat indices, time-series telemetry, and interactive actor network graphs.
+Combining event-driven stream processing (**Apache Kafka & Apache Spark**), low-latency transformer inference (**multilingual DistilBERT via ONNX Runtime**), and enterprise relational persistence (**Oracle Autonomous Database 23ai+**), the platform transforms high-velocity unstructured text into actionable threat indices, time-series telemetry, and interactive actor network graphs.
 
 🔗 **Live Deployment:** [https://zerocool.vercel.app](https://zerocool.vercel.app)
 
@@ -34,7 +34,7 @@ The platform separates the high-speed alerting path (hot path) from historical g
 
 1. **Ingestion & Buffering (`Data Pipeline/` & `DB/`):** Live social streams from **Bluesky (AT Protocol)** and **Mastodon** are ingested and buffered into **Apache Kafka** topics to absorb traffic spikes and enforce schema contracts.
 2. **Stream Processing & AI Triage (`Data Pipeline/` & `Model training and Datasets/`):** **Apache Spark Structured Streaming** consumers process micro-batches, executing hardware-accelerated **DistilBERT (ONNX)** models via Vectorized Pandas UDFs for toxicity scoring, sentiment intensity, and language identification. Raw streams are archived to an **OCI Delta Lake** for long-term lineage.
-3. **Persistence & Relational Schema (`DB/`):** Enriched events, user safety watchlists, and threat indices are persisted in **Oracle Autonomous Database 23ai**, maintaining strict foreign-key integrity between raw content, inferences, and temporal index tables.
+3. **Persistence & Relational Schema (`DB/`):** Enriched events, user safety watchlists, and threat indices are persisted in **Oracle Autonomous Database 23ai+**, maintaining strict foreign-key integrity between raw content, inferences, and temporal index tables.
 4. **Backend Orchestration (`backend/`):** A **Node.js / Express** service coordinates REST APIs, user authentication (JWT/Bcrypt), alert cooldown logic, **Web Push (VAPID)**, and **WebSocket** channels to push sub-second threat telemetry to connected clients.
 5. **Interactive Risk Dashboard (`frontend/`):** A **React + TypeScript (Vite & Tailwind CSS)** single-page application visualizes global and platform-specific threat gauges, **ApexCharts** trend histories, and **Cytoscape.js** harassment network graphs.
 
@@ -47,10 +47,10 @@ The platform separates the high-speed alerting path (hot path) from historical g
 | **AI & Machine Learning** | Python, PyTorch, Hugging Face `distilbert-base-multilingual-cased`, **LoRA (PEFT)**, **ONNX Runtime**, Threshold Tuning (τ = 0.7054) |
 | **Streaming & Big Data** | **Apache Kafka**, **Apache Spark Structured Streaming (PySpark)**, OCI Delta Lake, Vectorized Pandas UDFs |
 | **Data Ingestion** | Bluesky AT Protocol Firehose (`subscribeRepos` CAR parsing), Mastodon API |
-| **Database & Storage** | **Oracle Autonomous Database 23ai**, Relational Schema Modeling ([View ERD](DB/Database%20ER%20diagram%20v4.png)) |
+| **Database & Storage** | **Oracle Autonomous Database 23ai+**, Relational Schema Modeling ([View ERD](DB/Database%20ER%20diagram%20v4.png)) |
 | **Backend Services** | Node.js, Express.js, **WebSockets**, Web Push (VAPID), JWT, Bcrypt, Stateful Cooldown & Rate Limiting |
 | **Frontend & Visualization** | React, TypeScript, Vite, Tailwind CSS, **Cytoscape.js** (fcose layout), **ApexCharts**, Radix UI |
-| **DevOps & Infrastructure** | Vercel (Frontend CI/CD), Oracle Linux Cloud VM (PM2), Docker, Git/GitHub Projects (Agile Scrum) |
+| **DevOps & Infrastructure** | Vercel (Frontend CI/CD), Oracle Cloud VM (Ampere ARM64, PM2), Docker, Git/GitHub Projects (Agile Scrum) |
 
 ---
 
@@ -73,7 +73,7 @@ social-threat-guardian/
 ├── DB/                            # Oracle DDL scripts, Mastodon Kafka/Spark pipelines & ER Diagram (Database ER diagram v4.png)
 ├── backend/                       # Express API server, WebSocket handlers, Web Push (VAPID) & cooldown monitor
 ├── frontend/                      # React + TypeScript UI, Cytoscape network graphs & ApexCharts dashboards
-├── System architecture/           # High-level system architecture diagrams (PNG & PDF)
+├── System architecture/           # High-level system architecture diagrams
 ├── meetingLogs/                   # Agile sprint planning and engineering coordination logs
 └── retrospective/                 # Sprint retrospectives and continuous delivery documentation
 ```
